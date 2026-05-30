@@ -20,18 +20,18 @@ type ViewMode = 'group' | 'teacher' | 'room';
       <!-- Cabecera -->
       <div class="page-head">
         <div>
-          <h1 class="page-title">Horarios generados</h1>
+          <h1 class="page-title" data-testid="page-title">Horarios generados</h1>
           @if (currentSchedule()) {
             <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-              <span class="status-badge" [class.badge--published]="currentSchedule()!.status === 'published'"
-                [class.badge--generated]="currentSchedule()!.status === 'generated'">
+                <span class="status-badge" [class.badge--published]="currentSchedule()!.status === 'published'"
+                [class.badge--generated]="currentSchedule()!.status === 'generated'" data-testid="status-badge">
                 {{ statusLabel(currentSchedule()!.status) }}
               </span>
               <span style="color:var(--muted-foreground);font-size:var(--text-sm)">
                 {{ currentSchedule()!.academicYear }}
               </span>
               @if (currentSchedule()!.totalConflicts > 0) {
-                <span class="conflict-badge">
+                <span class="conflict-badge" data-testid="conflict-badge">
                   {{ currentSchedule()!.totalConflicts }} conflictos
                 </span>
               }
@@ -40,7 +40,7 @@ type ViewMode = 'group' | 'teacher' | 'room';
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           @if (grid() && grid()!.status === 'generated') {
-            <button class="btn-primary" (click)="publish()">
+            <button class="btn-primary" (click)="publish()" data-testid="publish-button">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
               </svg>
@@ -84,7 +84,7 @@ type ViewMode = 'group' | 'teacher' | 'room';
           <div class="view-tabs">
             @for (t of viewTabs; track t.id) {
               <button class="view-tab" [class.view-tab--active]="viewMode() === t.id"
-                (click)="viewMode.set(t.id)">
+                (click)="viewMode.set(t.id)" [attr.data-testid]="'view-tab-' + t.id">
                 {{ t.label }}
               </button>
             }

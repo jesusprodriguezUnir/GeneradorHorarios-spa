@@ -67,7 +67,8 @@ const TEACHER_NAV: NavItem[] = [
             <a [routerLink]="item.path" routerLinkActive #rla="routerLinkActive"
               style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
                 padding:6px 0;text-decoration:none;font-weight:600;font-size:11px;"
-              [style.color]="rla.isActive ? 'var(--primary)' : 'var(--muted-foreground)'">
+              [style.color]="rla.isActive ? 'var(--primary)' : 'var(--muted-foreground)'"
+              [attr.data-testid]="'nav-mobile-' + item.id">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
                 [attr.stroke]="rla.isActive ? 'var(--primary)' : 'var(--muted-foreground)'"
                 [attr.stroke-width]="rla.isActive ? 2.25 : 1.75"
@@ -102,7 +103,8 @@ const TEACHER_NAV: NavItem[] = [
                   border-radius:var(--radius-md);font-weight:600;font-size:var(--text-sm);
                   margin-bottom:2px;text-decoration:none;transition:all .15s;"
                 [style.background]="rla.isActive ? 'var(--primary-tint)' : 'transparent'"
-                [style.color]="rla.isActive ? 'var(--primary-strong)' : 'var(--secondary-foreground)'">
+                [style.color]="rla.isActive ? 'var(--primary-strong)' : 'var(--secondary-foreground)'"
+                [attr.data-testid]="'nav-desktop-' + item.id">
                 <svg width="19" height="19" viewBox="0 0 24 24" fill="none"
                   [attr.stroke]="rla.isActive ? 'var(--primary-strong)' : 'currentColor'"
                   [attr.stroke-width]="rla.isActive ? 2.1 : 1.75"
@@ -123,7 +125,8 @@ const TEACHER_NAV: NavItem[] = [
                 <div style="color:var(--muted-foreground);font-size:11px">{{ schoolName() }}</div>
               </div>
               <button (click)="logout()" title="Cerrar sesion"
-                style="color:var(--muted-foreground);padding:6px;border-radius:8px;display:flex;cursor:pointer;">
+                style="color:var(--muted-foreground);padding:6px;border-radius:8px;display:flex;cursor:pointer;"
+                data-testid="logout-button">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

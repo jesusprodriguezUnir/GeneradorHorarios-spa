@@ -36,6 +36,7 @@ type Tab = 'teachers' | 'groups' | 'subjects' | 'classrooms';
       <div class="lec-card" style="padding:0;overflow:hidden;margin-top:16px">
         @switch (activeTab()) {
           @case ('teachers') {
+            <div data-testid="config-teachers-section">
             <ng-container [ngTemplateOutlet]="tableHeader"
               [ngTemplateOutletContext]="{title:'Profesores', addLabel:'+ Añadir profesor'}" />
             <table class="data-table">
@@ -71,8 +72,10 @@ type Tab = 'teachers' | 'groups' | 'subjects' | 'classrooms';
                 }
               </tbody>
             </table>
+            </div>
           }
           @case ('groups') {
+            <div data-testid="config-groups-section">
             <ng-container [ngTemplateOutlet]="tableHeader"
               [ngTemplateOutletContext]="{title:'Grupos y cursos', addLabel:'+ Añadir grupo'}" />
             <table class="data-table">
@@ -94,8 +97,10 @@ type Tab = 'teachers' | 'groups' | 'subjects' | 'classrooms';
                 }
               </tbody>
             </table>
+            </div>
           }
           @case ('subjects') {
+            <div data-testid="config-subjects-section">
             <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
               <h3 style="font-weight:700">Asignaturas y horas semanales</h3>
               <span class="official-badge">Plantilla oficial Madrid</span>
@@ -133,8 +138,10 @@ type Tab = 'teachers' | 'groups' | 'subjects' | 'classrooms';
                 }
               </tbody>
             </table>
+            </div>
           }
           @case ('classrooms') {
+            <div data-testid="config-classrooms-section">
             <ng-container [ngTemplateOutlet]="tableHeader"
               [ngTemplateOutletContext]="{title:'Aulas', addLabel:'+ Añadir aula'}" />
             <table class="data-table">
@@ -156,6 +163,7 @@ type Tab = 'teachers' | 'groups' | 'subjects' | 'classrooms';
                 }
               </tbody>
             </table>
+            </div>
           }
         }
       </div>

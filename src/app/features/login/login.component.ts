@@ -11,7 +11,7 @@ import { AuthService, DemoUser } from '../../core/auth/auth.service';
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="login-page">
+    <div class="login-page" data-testid="login-page">
       <div class="login-card lec-scale-in">
         <!-- Logo -->
         <div class="logo-section">
@@ -36,7 +36,7 @@ import { AuthService, DemoUser } from '../../core/auth/auth.service';
           }
 
           @for (user of demoUsers(); track user.id) {
-            <button class="user-option" (click)="loginAs(user.email)">
+            <button class="user-option" (click)="loginAs(user.email)" [attr.data-testid]="'user-option-' + user.email">
               <div class="user-avatar" [style.background]="user.role === 'school_admin' ? 'var(--primary-tint)' : 'var(--accent-tint)'"
                 [style.color]="user.role === 'school_admin' ? 'var(--primary-strong)' : 'var(--accent-foreground)'">
                 {{ initials(user.fullName) }}

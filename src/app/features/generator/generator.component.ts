@@ -68,18 +68,18 @@ interface StepLog {
             <div class="form-grid">
               <label class="form-field">
                 <span class="field-label">Tipo de jornada</span>
-                <select [(ngModel)]="scheduleType" class="field-select">
+                <select [(ngModel)]="scheduleType" class="field-select" data-testid="school-schedule-type">
                   <option value="continua">Continua (mañana)</option>
                   <option value="partida">Partida (mañana y tarde)</option>
                 </select>
               </label>
               <label class="form-field">
                 <span class="field-label">Hora de entrada</span>
-                <input type="time" [(ngModel)]="morningStart" class="field-input" />
+                <input type="time" [(ngModel)]="morningStart" class="field-input" data-testid="school-morning-start" />
               </label>
               <label class="form-field">
                 <span class="field-label">Duración de sesión (minutos)</span>
-                <select [(ngModel)]="slotMinutes" class="field-select">
+                <select [(ngModel)]="slotMinutes" class="field-select" data-testid="school-slot-minutes">
                   <option [value]="45">45 min</option>
                   <option [value]="50">50 min</option>
                   <option [value]="60">60 min (recomendado)</option>
@@ -87,14 +87,14 @@ interface StepLog {
               </label>
               <label class="form-field">
                 <span class="field-label">Recreo tras la sesión nº</span>
-                <select [(ngModel)]="breakAfterSlot" class="field-select">
+                <select [(ngModel)]="breakAfterSlot" class="field-select" data-testid="school-break-after-slot">
                   <option [value]="2">2ª sesión (recomendado)</option>
                   <option [value]="3">3ª sesión</option>
                 </select>
               </label>
               <label class="form-field">
                 <span class="field-label">Duración del recreo (minutos)</span>
-                <select [(ngModel)]="breakMinutes" class="field-select">
+                <select [(ngModel)]="breakMinutes" class="field-select" data-testid="school-break-minutes">
                   <option [value]="20">20 min</option>
                   <option [value]="25">25 min</option>
                   <option [value]="30">30 min (recomendado)</option>
@@ -102,7 +102,7 @@ interface StepLog {
               </label>
               <label class="form-field">
                 <span class="field-label">Curso escolar</span>
-                <input type="text" [(ngModel)]="academicYear" class="field-input" placeholder="2025-2026" />
+                <input type="text" [(ngModel)]="academicYear" class="field-input" placeholder="2025-2026" data-testid="school-academic-year" />
               </label>
             </div>
           }
@@ -209,7 +209,7 @@ interface StepLog {
 
             @if (!generating() && !generated()) {
               <div style="text-align:center;padding:24px 0">
-                <button class="btn-generate" (click)="generate()">
+                <button class="btn-generate" (click)="generate()" data-testid="generate-button">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
                   </svg>
@@ -220,14 +220,14 @@ interface StepLog {
 
             @if (generating()) {
               <!-- Overlay de progreso -->
-              <div class="progress-overlay">
+              <div class="progress-overlay" data-testid="progress-overlay">
                 <div class="progress-header">
                   <div class="progress-spinner"></div>
                   <div>
                     <div style="font-weight:700;font-size:var(--text-base)">Generando horario...</div>
                     <div style="color:var(--muted-foreground);font-size:var(--text-sm)">{{ progressMessage() }}</div>
                   </div>
-                  <div class="progress-pct">{{ progressPct() }}%</div>
+                  <div class="progress-pct" data-testid="progress-pct">{{ progressPct() }}%</div>
                 </div>
                 <div class="progress-bar-outer">
                   <div class="progress-bar-inner" [style.width]="progressPct() + '%'"></div>
@@ -250,7 +250,7 @@ interface StepLog {
             }
 
             @if (generated()) {
-              <div class="result-box" [class.result-box--success]="!hasConflicts()" [class.result-box--warn]="hasConflicts()">
+              <div class="result-box" [class.result-box--success]="!hasConflicts()" [class.result-box--warn]="hasConflicts()" data-testid="result-box">
                 <div style="display:flex;align-items:center;gap:12px">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
                     [attr.stroke]="hasConflicts() ? 'var(--warning)' : 'var(--success)'" stroke-width="2">
@@ -269,7 +269,7 @@ interface StepLog {
                     </div>
                   </div>
                 </div>
-                <button class="btn-view" (click)="viewSchedule()">Ver horario →</button>
+                <button class="btn-view" (click)="viewSchedule()" data-testid="view-schedule-button">Ver horario →</button>
               </div>
             }
           }
@@ -278,11 +278,11 @@ interface StepLog {
 
       <!-- Botones de navegación -->
       <div class="nav-buttons">
-        <button class="btn-secondary" (click)="prevStep()" [disabled]="currentStep() === 0 || generating()">
+        <button class="btn-secondary" (click)="prevStep()" [disabled]="currentStep() === 0 || generating()" data-testid="wizard-prev">
           ← Anterior
         </button>
         @if (currentStep() < 3) {
-          <button class="btn-primary" (click)="nextStep()">
+          <button class="btn-primary" (click)="nextStep()" data-testid="wizard-next">
             Siguiente →
           </button>
         }
