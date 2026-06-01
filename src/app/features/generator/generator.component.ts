@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import * as signalR from '@microsoft/signalr';
 import { ApiService } from '../../core/api/api.service';
-import { AssignmentSummary, TeacherConstraint, Teacher, School } from '../../core/models';
+import { AssignmentSummary, TeacherConstraint, Teacher, CourseGroup, School } from '../../core/models';
 import { environment } from '../../../environments/environment';
 import { MessageService } from 'primeng/api';
 import { AuthService } from '../../core/auth/auth.service';
@@ -45,14 +45,17 @@ interface StepLog {
             [class.step--done]="currentStep() > $index">
             <div class="step-num">
               @if (currentStep() > $index) {
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
               } @else {
                 {{ $index + 1 }}
               }
             </div>
-            <span class="step-label">{{ s }}</span>
+            <div class="step-info">
+              <span class="step-label">{{ s.label }}</span>
+              <span class="step-desc-sm">{{ s.desc }}</span>
+            </div>
           </div>
           @if ($index < stepLabels.length - 1) {
             <div class="step-line" [class.step-line--done]="currentStep() > $index"></div>
@@ -209,50 +212,42 @@ interface StepLog {
                 SignalR: {{ hubStatus() === 'connected' ? 'Conectado' : hubStatus() === 'connecting' ? 'Conectando...' : 'Desconectado' }}
               </span>
             </div>
-            <p class="step-desc">
-              El motor analizará las {{ totalRequiredHours() }} asignaciones
-              y generará el horario óptimo en menos de 30 segundos.
-            </p>
 
             @if (!generating() && !generated()) {
-              <div style="text-align:center;padding:24px 0">
+              <!-- Tarjeta "Todo listo para generar" -->
+              <div class="ready-card">
+                <div class="ready-sparkle">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                  </svg>
+                </div>
+                <h3 style="font-size:var(--text-xl);font-weight:800;margin-bottom:8px">Todo listo para generar</h3>
+                <p style="color:var(--muted-foreground);font-size:var(--text-sm);margin-bottom:24px;max-width:380px;margin-inline:auto">
+                  El motor analizará {{ totalRequiredHours() }} asignaciones
+                  y generará el horario óptimo en menos de 30 segundos.
+                </p>
+                <div class="ready-stats">
+                  <div class="ready-stat">
+                    <div class="ready-stat-value">{{ groupCount() }}</div>
+                    <div class="ready-stat-label">Grupos</div>
+                  </div>
+                  <div class="ready-stat-sep"></div>
+                  <div class="ready-stat">
+                    <div class="ready-stat-value">{{ teachers().length }}</div>
+                    <div class="ready-stat-label">Docentes</div>
+                  </div>
+                  <div class="ready-stat-sep"></div>
+                  <div class="ready-stat">
+                    <div class="ready-stat-value">{{ constraints().length }}</div>
+                    <div class="ready-stat-label">Restricciones</div>
+                  </div>
+                </div>
                 <button class="btn-generate" (click)="generate()" data-testid="generate-button">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
                   </svg>
                   Generar horario
                 </button>
-              </div>
-            }
-
-            @if (generating()) {
-              <!-- Overlay de progreso -->
-              <div class="progress-overlay" data-testid="progress-overlay">
-                <div class="progress-header">
-                  <div class="progress-spinner"></div>
-                  <div>
-                    <div style="font-weight:700;font-size:var(--text-base)">Generando horario...</div>
-                    <div style="color:var(--muted-foreground);font-size:var(--text-sm)">{{ progressMessage() }}</div>
-                  </div>
-                  <div class="progress-pct" data-testid="progress-pct">{{ progressPct() }}%</div>
-                </div>
-                <div class="progress-bar-outer">
-                  <div class="progress-bar-inner" [style.width]="progressPct() + '%'"></div>
-                </div>
-                <div class="progress-log">
-                  @for (log of progressLog(); track $index) {
-                    <div class="log-line" [class.log-done]="log.done">
-                      @if (log.done) {
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="3">
-                          <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                      } @else {
-                        <div class="log-spinner"></div>
-                      }
-                      {{ log.text }}
-                    </div>
-                  }
-                </div>
               </div>
             }
 
@@ -272,7 +267,7 @@ interface StepLog {
                       {{ hasConflicts() ? 'Horario generado con conflictos' : '¡Horario generado correctamente!' }}
                     </div>
                     <div style="font-size:var(--text-sm);opacity:0.8;margin-top:2px">
-                      {{ totalConflicts() }} conflictos detectados · generado en {{ generationSeconds() }}s
+                      {{ totalConflicts() }} conflictos · generado en {{ generationSeconds() }}s
                     </div>
                   </div>
                 </div>
@@ -282,6 +277,41 @@ interface StepLog {
           }
         }
       </div>
+
+      <!-- Modal de progreso (backdrop blur) -->
+      @if (generating()) {
+        <div class="gen-backdrop" data-testid="progress-overlay">
+          <div class="gen-modal lec-scale-in">
+            <div class="gen-modal-head">
+              <div class="progress-spinner"></div>
+              <div style="flex:1">
+                <div style="font-weight:700;font-size:var(--text-base)">Generando horario...</div>
+                <div style="color:var(--muted-foreground);font-size:var(--text-sm);margin-top:2px">{{ progressMessage() }}</div>
+              </div>
+              <div class="progress-pct" data-testid="progress-pct">{{ progressPct() }}%</div>
+            </div>
+            <!-- Barra rayada animada -->
+            <div class="striped-bar-outer">
+              <div class="striped-bar-inner" [style.width]="progressPct() + '%'"></div>
+            </div>
+            <!-- Log de eventos -->
+            <div class="progress-log">
+              @for (log of progressLog(); track $index) {
+                <div class="log-line lec-fade-up" [class.log-done]="log.done">
+                  @if (log.done) {
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="3">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  } @else {
+                    <div class="log-spinner"></div>
+                  }
+                  {{ log.text }}
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      }
 
       <!-- Botones de navegación -->
       <div class="nav-buttons">
@@ -297,23 +327,29 @@ interface StepLog {
     </div>
   `,
   styles: [`
+    /* ── Stepper ── */
     .stepper { display: flex; align-items: center; margin-bottom: 24px; overflow-x: auto; gap: 0; }
-    .step { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .step { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
     .step-num {
-      width: 28px; height: 28px; border-radius: 50%;
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
       background: var(--secondary); color: var(--muted-foreground);
       display: flex; align-items: center; justify-content: center;
-      font-weight: 700; font-size: var(--text-sm);
+      font-weight: 700; font-size: var(--text-sm); transition: all .2s;
     }
-    .step--active .step-num { background: var(--primary); color: #fff; }
-    .step--done .step-num { background: var(--success); color: #fff; }
-    .step-label { font-size: var(--text-sm); font-weight: 600; color: var(--muted-foreground); white-space: nowrap; }
+    .step--active .step-num { background: var(--primary); color: #fff; box-shadow: var(--shadow-primary); }
+    .step--done .step-num   { background: var(--success); color: #fff; }
+    .step-info { display: flex; flex-direction: column; }
+    .step-label { font-size: var(--text-sm); font-weight: 700; color: var(--muted-foreground); white-space: nowrap; }
+    .step-desc-sm { font-size: 11px; color: var(--muted-foreground); white-space: nowrap; display: none; }
     .step--active .step-label { color: var(--foreground); }
-    .step-line { flex: 1; height: 2px; background: var(--border); min-width: 16px; margin: 0 8px; }
+    @media (min-width: 600px) { .step-desc-sm { display: block; } }
+    .step-line { flex: 1; height: 2px; background: var(--border); min-width: 16px; margin: 0 10px; transition: background .2s; }
     .step-line--done { background: var(--success); }
+
+    /* ── Contenido de pasos ── */
     .step-content { margin-bottom: 20px; }
     .step-title { font-size: var(--text-xl); font-weight: 700; margin-bottom: 6px; }
-    .step-desc { color: var(--muted-foreground); font-size: var(--text-sm); margin-bottom: 20px; }
+    .step-desc  { color: var(--muted-foreground); font-size: var(--text-sm); margin-bottom: 20px; }
     .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
     .form-field { display: flex; flex-direction: column; gap: 6px; }
     .field-label { font-size: var(--text-xs); font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.04em; }
@@ -333,14 +369,36 @@ interface StepLog {
     .completion-pct { font-size: var(--text-xs); font-weight: 700; min-width: 36px; text-align: right; }
     .warning-box {
       display: flex; align-items: center; gap: 10px; padding: 12px 14px;
-      background: var(--warning-tint); color: oklch(0.45 0.11 65);
+      background: var(--warning-tint); color: var(--warning-foreground);
       border-radius: var(--radius-md); font-size: var(--text-sm); margin-top: 16px;
     }
     .constraint-row {
       display: flex; align-items: center; gap: 10px; padding: 10px 14px;
-      background: var(--secondary); border-radius: var(--radius-md);
-      font-size: var(--text-sm);
+      background: var(--secondary); border-radius: var(--radius-md); font-size: var(--text-sm);
     }
+
+    /* ── Tarjeta "Todo listo" ── */
+    .ready-card {
+      text-align: center; padding: 32px 24px;
+    }
+    .ready-sparkle {
+      width: 64px; height: 64px; border-radius: 50%;
+      background: var(--primary-tint); color: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px;
+    }
+    .ready-stats {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0; margin-bottom: 28px;
+      background: var(--secondary); border-radius: var(--radius-lg);
+      padding: 16px; width: fit-content; margin-inline: auto;
+    }
+    .ready-stat { padding: 0 24px; text-align: center; }
+    .ready-stat-value { font-size: var(--text-2xl); font-weight: 800; letter-spacing: -0.02em; }
+    .ready-stat-label { font-size: var(--text-xs); color: var(--muted-foreground); font-weight: 600; margin-top: 2px; }
+    .ready-stat-sep { width: 1px; height: 36px; background: var(--border); }
+
+    /* ── Botones ── */
     .btn-primary {
       padding: 10px 16px; background: var(--primary); color: #fff;
       border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm);
@@ -356,32 +414,63 @@ interface StepLog {
     .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-generate {
       display: inline-flex; align-items: center; gap: 12px;
-      padding: 18px 32px; background: var(--primary); color: #fff;
+      padding: 16px 32px; background: var(--primary); color: #fff;
       border-radius: var(--radius-xl); font-weight: 700; font-size: var(--text-lg);
       cursor: pointer; box-shadow: var(--shadow-primary); transition: all .15s;
     }
     .btn-generate:hover { background: var(--primary-strong); transform: translateY(-1px); }
-    .progress-overlay { padding: 8px 0; }
-    .progress-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+
+    /* ── Modal de progreso (backdrop blur) ── */
+    .gen-backdrop {
+      position: fixed; inset: 0; z-index: 1000;
+      background: oklch(0.12 0.015 250 / 0.55);
+      backdrop-filter: blur(6px);
+      display: flex; align-items: center; justify-content: center; padding: 24px;
+    }
+    .gen-modal {
+      background: var(--card); border-radius: var(--radius-2xl);
+      box-shadow: var(--shadow-lg); border: 1px solid var(--border);
+      padding: 28px 32px; width: 100%; max-width: 480px;
+    }
+    .gen-modal-head { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
     .progress-spinner {
-      width: 36px; height: 36px; border-radius: 50%;
+      width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
       border: 3px solid var(--border); border-top-color: var(--primary);
-      animation: lec-spin 0.8s linear infinite; flex-shrink: 0;
+      animation: lec-spin 0.8s linear infinite;
     }
     .progress-pct { font-size: var(--text-3xl); font-weight: 800; margin-left: auto; }
-    .progress-bar-outer { height: 8px; background: var(--muted); border-radius: 99px; overflow: hidden; margin-bottom: 16px; }
-    .progress-bar-inner { height: 100%; background: var(--primary); border-radius: 99px; transition: width .5s cubic-bezier(0.22,1,0.36,1); }
-    .progress-log { display: flex; flex-direction: column; gap: 8px; }
+
+    /* Barra rayada animada (usa @keyframes lec-bar de styles.scss) */
+    .striped-bar-outer {
+      height: 10px; background: var(--muted); border-radius: 99px;
+      overflow: hidden; margin-bottom: 20px;
+    }
+    .striped-bar-inner {
+      height: 100%; border-radius: 99px;
+      background: repeating-linear-gradient(
+        60deg,
+        var(--primary) 0,
+        var(--primary) 10px,
+        var(--primary-tint-2) 10px,
+        var(--primary-tint-2) 18px
+      );
+      background-size: 28px 100%;
+      animation: lec-bar 0.6s linear infinite;
+      transition: width .5s cubic-bezier(0.22,1,0.36,1);
+    }
+    .progress-log { display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; }
     .log-line { display: flex; align-items: center; gap: 10px; font-size: var(--text-sm); color: var(--muted-foreground); }
     .log-done { color: var(--foreground); }
-    .log-spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--primary); animation: lec-spin 0.8s linear infinite; flex-shrink: 0; }
+    .log-spinner { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; border: 2px solid var(--border); border-top-color: var(--primary); animation: lec-spin 0.8s linear infinite; }
+
+    /* ── Resultado ── */
     .result-box {
       padding: 16px 20px; border-radius: var(--radius-lg); margin-top: 16px;
       display: flex; align-items: center; justify-content: space-between;
       gap: 16px; flex-wrap: wrap;
     }
     .result-box--success { background: var(--success-tint); color: var(--success); }
-    .result-box--warn { background: var(--warning-tint); color: oklch(0.45 0.11 65); }
+    .result-box--warn    { background: var(--warning-tint); color: var(--warning-foreground); }
     .btn-view {
       padding: 10px 16px; background: var(--primary); color: #fff;
       border-radius: var(--radius-md); font-weight: 700; font-size: var(--text-sm);
@@ -389,9 +478,10 @@ interface StepLog {
     }
     .nav-buttons { display: flex; justify-content: space-between; gap: 12px; }
 
+    /* ── Badge SignalR ── */
     .hub-status-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: var(--radius-full); background: var(--secondary); color: var(--secondary-foreground); }
-    .hub--connected { background: var(--success-tint); color: var(--success); }
-    .hub--connecting { background: var(--warning-tint); color: oklch(0.74 0.14 70); }
+    .hub--connected    { background: var(--success-tint); color: var(--success); }
+    .hub--connecting   { background: var(--warning-tint); color: var(--warning-foreground); }
     .hub--disconnected { background: var(--destructive-tint); color: var(--destructive); }
   `],
 })
@@ -404,8 +494,10 @@ export class GeneratorComponent implements OnInit, OnDestroy {
 
   readonly currentStep = signal(0);
   readonly assignments = signal<AssignmentSummary[]>([]);
-  readonly teachers = signal<Teacher[]>([]);
+  readonly teachers   = signal<Teacher[]>([]);
+  readonly groups     = signal<CourseGroup[]>([]);
   readonly constraints = signal<TeacherConstraint[]>([]);
+  readonly groupCount  = computed(() => this.groups().length);
   readonly loadingAssignments = signal(false);
   readonly generating = signal(false);
   readonly generated = signal(false);
@@ -433,7 +525,12 @@ export class GeneratorComponent implements OnInit, OnDestroy {
   constraintDay = 1;
   constraintSlot = 0;
 
-  readonly stepLabels = ['Configuración', 'Asignaciones', 'Restricciones', 'Generar'];
+  readonly stepLabels = [
+    { label: 'Configuración', desc: 'Tipo de jornada y horario' },
+    { label: 'Asignaciones',  desc: 'Verificar cobertura curricular' },
+    { label: 'Restricciones', desc: 'Disponibilidad de profesores' },
+    { label: 'Generar',       desc: 'Lanzar el motor de horarios' },
+  ];
 
   readonly totalRequiredHours = computed(() =>
     this.assignments().reduce((sum, a) => sum + a.requiredHours, 0)
@@ -441,11 +538,13 @@ export class GeneratorComponent implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     try {
-      const [teachers, constraints] = await Promise.all([
+      const [teachers, groups, constraints] = await Promise.all([
         this.api.getTeachers().catch(() => []),
+        this.api.getGroups().catch(() => []),
         this.api.getConstraints().catch(() => []),
       ]);
       this.teachers.set(teachers);
+      this.groups.set(groups);
       this.constraints.set(constraints);
       await this.loadAssignments();
       this.setupSignalR();

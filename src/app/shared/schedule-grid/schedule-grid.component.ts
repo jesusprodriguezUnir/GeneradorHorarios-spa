@@ -25,8 +25,8 @@ export interface CellClickEvent {
       <div class="cell"
         [class.cell--conflict]="isConflict()"
         [class.cell--editable]="editable()"
-        [style.background]="isConflict() ? 'var(--destructive-tint)' : 'color-mix(in srgb, ' + cellBg() + ' 12%, var(--card))'"
-        [style.border-color]="isConflict() ? 'var(--destructive)' : 'color-mix(in srgb, ' + cellBg() + ' 30%, transparent)'"
+        [style.background]="isConflict() ? 'var(--destructive-tint)' : cellBg()"
+        [style.border-color]="isConflict() ? 'var(--destructive)' : 'transparent'"
         [style.color]="cellFg()"
         (click)="editable() && cellClick.emit(entry())">
         <span class="cell-bar" [style.background]="isConflict() ? 'var(--destructive)' : cellBg()"></span>
@@ -91,7 +91,7 @@ export interface CellClickEvent {
       opacity: 0.9;
     }
     .cell-subject {
-      font-weight: 800;
+      font-weight: 700;
       font-size: var(--text-sm);
       line-height: 1.15;
       letter-spacing: -0.01em;

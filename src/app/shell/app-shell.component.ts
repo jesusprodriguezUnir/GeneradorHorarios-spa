@@ -5,6 +5,7 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../core/auth/auth.service';
 import { DeviceService } from '../core/device.service';
+import { LogoMarkComponent } from '../shared/ui/logo-mark.component';
 
 interface NavItem {
   id: string;
@@ -34,7 +35,7 @@ const TEACHER_NAV: NavItem[] = [
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, LogoMarkComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (isMobile()) {
@@ -43,7 +44,7 @@ const TEACHER_NAV: NavItem[] = [
         <header style="background:var(--primary);color:#fff;padding:12px 16px;display:flex;
           align-items:center;justify-content:space-between;position:sticky;top:0;z-index:30;">
           <div style="display:flex;align-items:center;gap:10px">
-            <div class="logo-mark" style="width:28px;height:28px"></div>
+            <app-logo-mark [size]="28" [mono]="true" />
             <span style="font-weight:800;font-size:var(--text-lg);letter-spacing:-0.02em">Lectivo</span>
           </div>
           <div style="display:flex;align-items:center;gap:10px">
@@ -96,7 +97,7 @@ const TEACHER_NAV: NavItem[] = [
           display:flex;flex-direction:column;position:sticky;top:0;height:100dvh;flex-shrink:0;">
           <div style="padding:20px 18px;border-bottom:1px solid var(--border)">
             <div style="display:flex;align-items:center;gap:10px">
-              <div class="logo-mark" style="width:32px;height:32px;border-radius:9px"></div>
+              <app-logo-mark [size]="32" />
               <span style="font-weight:800;font-size:var(--text-xl);letter-spacing:-0.02em">Lectivo</span>
             </div>
           </div>
@@ -175,12 +176,6 @@ const TEACHER_NAV: NavItem[] = [
     }
   `,
   styles: [`
-    .logo-mark {
-      background: rgba(255,255,255,0.25);
-      border-radius: 8px;
-      width: 28px; height: 28px;
-      flex-shrink: 0;
-    }
     .user-avatar {
       width: 38px; height: 38px; border-radius: 50%;
       background: var(--primary-tint); color: var(--primary-strong);

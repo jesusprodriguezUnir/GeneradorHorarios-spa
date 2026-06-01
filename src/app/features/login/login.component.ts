@@ -4,18 +4,19 @@ import {
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService, DemoUser } from '../../core/auth/auth.service';
+import { LogoMarkComponent } from '../../shared/ui/logo-mark.component';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, LogoMarkComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="login-page" data-testid="login-page">
       <div class="login-card lec-scale-in">
         <!-- Logo -->
         <div class="logo-section">
-          <div class="logo-mark-large"></div>
+          <app-logo-mark [size]="56" />
           <div>
             <h1 class="logo-name">Lectivo</h1>
             <p class="tagline">Los horarios de tu colegio, resueltos en minutos.</p>
@@ -95,18 +96,6 @@ import { AuthService, DemoUser } from '../../core/auth/auth.service';
       align-items: center;
       gap: 16px;
       margin-bottom: 24px;
-    }
-    .logo-mark-large {
-      width: 56px;
-      height: 56px;
-      background: var(--primary);
-      border-radius: 14px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 5px;
-      padding: 12px;
-      box-shadow: var(--shadow-primary);
-      flex-shrink: 0;
     }
     .logo-name {
       font-size: var(--text-3xl);

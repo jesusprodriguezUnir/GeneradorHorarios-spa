@@ -7,6 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api/api.service';
 import { ScheduleGrid, ScheduleGridEntry, ScheduleList, Teacher, CourseGroup, Classroom, TimeSlot, cycleFromLevel } from '../../core/models';
 import { ScheduleGridComponent, CellClickEvent } from '../../shared/schedule-grid/schedule-grid.component';
+import { SubjectLegendComponent } from '../../shared/ui/subject-legend.component';
 import { MessageService, ConfirmationService } from 'primeng/api';
 
 type ViewMode = 'group' | 'teacher' | 'room';
@@ -14,7 +15,7 @@ type ViewMode = 'group' | 'teacher' | 'room';
 @Component({
   selector: 'app-schedule-result',
   standalone: true,
-  imports: [CommonModule, FormsModule, ScheduleGridComponent],
+  imports: [CommonModule, FormsModule, ScheduleGridComponent, SubjectLegendComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="lec-fade-up">
@@ -123,14 +124,8 @@ type ViewMode = 'group' | 'teacher' | 'room';
             (cellClick)="onCellClick($event)" />
 
           <!-- Leyenda de colores -->
-          <div class="legend-row">
-            <span style="font-size:var(--text-xs);font-weight:700;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:0.04em">Leyenda:</span>
-            @for (color of subjectLegend; track color.name) {
-              <div class="legend-item">
-                <span class="legend-dot" [style.background]="color.bg"></span>
-                {{ color.name }}
-              </div>
-            }
+          <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border)">
+            <app-subject-legend />
           </div>
         </div>
 
@@ -241,9 +236,6 @@ type ViewMode = 'group' | 'teacher' | 'room';
     .form-field { display: flex; flex-direction: column; gap: 6px; }
     .field-label { font-size: var(--text-xs); font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.04em; }
 
-    .legend-row { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-    .legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-xs); font-weight: 600; color: var(--foreground); }
-    .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
   `],
 })
 export class ScheduleResultComponent implements OnInit {
@@ -301,19 +293,6 @@ export class ScheduleResultComponent implements OnInit {
     { id: 'group' as ViewMode, label: 'Por grupo' },
     { id: 'teacher' as ViewMode, label: 'Por profesor' },
     { id: 'room' as ViewMode, label: 'Por aula' },
-  ];
-
-  readonly subjectLegend = [
-    { name: 'Matemáticas', bg: 'var(--subj-mat)' },
-    { name: 'Lengua', bg: 'var(--subj-len)' },
-    { name: 'Ciencias', bg: 'var(--subj-cie)' },
-    { name: 'Sociales', bg: 'var(--subj-soc)' },
-    { name: 'Inglés', bg: 'var(--subj-ing)' },
-    { name: 'E. Física', bg: 'var(--subj-ef)' },
-    { name: 'Música', bg: 'var(--subj-mus)' },
-    { name: 'Plástica', bg: 'var(--subj-art)' },
-    { name: 'Religión', bg: 'var(--subj-rel)' },
-    { name: 'Tutoría', bg: 'var(--subj-tut)' },
   ];
 
   async ngOnInit(): Promise<void> {

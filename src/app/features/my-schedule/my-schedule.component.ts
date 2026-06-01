@@ -3,14 +3,16 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ApiService } from '../../core/api/api.service';
-import { MySchedule, MyScheduleEntry, TimeSlot, DAYS, DAYS_SHORT, SUBJECT_COLORS } from '../../core/models';
+import { MySchedule, ScheduleGridEntry, TimeSlot, DAYS, DAYS_SHORT } from '../../core/models';
 import { DeviceService } from '../../core/device.service';
 import { MessageService } from 'primeng/api';
+import { ScheduleGridComponent } from '../../shared/schedule-grid/schedule-grid.component';
+import { SubjectLegendComponent } from '../../shared/ui/subject-legend.component';
 
 @Component({
   selector: 'app-my-schedule',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, ScheduleGridComponent, SubjectLegendComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="lec-fade-up">
@@ -49,116 +51,67 @@ import { MessageService } from 'primeng/api';
           </div>
           <h3>El horario aún no está disponible</h3>
           <p>El equipo directivo todavía no ha publicado el horario para este curso. Te avisaremos cuando esté listo.</p>
+          <div style="margin-top:14px">
+            <span class="lec-badge" style="background:var(--warning-tint);color:var(--warning-foreground)">
+              Pendiente de publicación
+            </span>
+          </div>
         </div>
       } @else if (schedule()) {
         <!-- Navegación de semana -->
         <div class="week-nav">
-          <button class="week-btn" (click)="prevWeek()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="15 18 9 12 15 6"/>
-            </svg>
-          </button>
-          <span class="week-label">Semana actual</span>
-          <button class="week-btn" (click)="nextWeek()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="9 18 15 12 9 6"/>
-            </svg>
-          </button>
+          <div style="display:flex;align-items:center;gap:8px">
+            <button class="week-btn" (click)="prevWeek()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+            <div style="min-width:150px;text-align:center">
+              <div style="font-weight:700;font-size:var(--text-base)">Semana actual</div>
+              <div style="font-size:11px;color:var(--muted-foreground)">Curso {{ schedule()!.academicYear }}</div>
+            </div>
+            <button class="week-btn" (click)="nextWeek()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </button>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="lec-badge" style="background:var(--success-tint);color:var(--success)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:3px">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              Publicado
+            </span>
+            @if (totalHours() > 0) {
+              <span style="font-size:var(--text-sm);color:var(--muted-foreground)">
+                <b style="color:var(--foreground)">{{ totalHours() }}h</b> lectivas/semana
+              </span>
+            }
+          </div>
         </div>
 
-        @if (isMobile()) {
-          <!-- Vista móvil: día a día -->
-          <div>
-            <div style="display:flex;gap:6px;margin-bottom:12px">
-              @for (day of days; track $index) {
-                <button class="day-tab"
-                  [class.day-tab--active]="selectedDay() === $index"
-                  (click)="selectedDay.set($index)">
-                  {{ daysShort[$index] }}
-                </button>
-              }
-            </div>
+        <!-- Banner semana en curso -->
+        <div class="week-banner">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          Esta es tu semana en curso.
+        </div>
 
-            <div style="display:flex;flex-direction:column;gap:8px">
-              @for (slot of lectiveSlots(); track slot.index) {
-                @if (slot.index === breakAfterIndex()) {
-                  <div class="recreo-band">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2M7 2v20M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
-                    </svg>
-                    RECREO · {{ breakTime() }}
-                  </div>
-                }
-                <div style="display:grid;grid-template-columns:56px 1fr;gap:10px;align-items:stretch">
-                  <div class="time-label">
-                    <span class="time-h">{{ slot.startTime }}</span>
-                    <span class="time-end">{{ slot.endTime }}</span>
-                  </div>
-                  <ng-container [ngTemplateOutlet]="cellTpl"
-                    [ngTemplateOutletContext]="{entry: getEntry(selectedDay(), slot.index)}" />
-                </div>
-              }
-            </div>
-          </div>
-        } @else {
-          <!-- Vista escritorio: semana completa -->
-          <div class="grid-wrapper thin-scroll">
-            <div class="grid-inner">
-              <!-- Header días -->
-              <div class="grid-header">
-                <div></div>
-                @for (day of days; track $index) {
-                  <div class="day-header">{{ day }}</div>
-                }
-              </div>
-              <!-- Filas -->
-              @for (slot of lectiveSlots(); track slot.index) {
-                @if (slot.index === breakAfterIndex()) {
-                  <div class="grid-row">
-                    <div></div>
-                    <div class="recreo-band" style="grid-column:span 5">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2M7 2v20M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
-                      </svg>
-                      RECREO · {{ breakTime() }}
-                    </div>
-                  </div>
-                }
-                <div class="grid-row">
-                  <div class="time-label">
-                    <span class="time-h">{{ slot.startTime }}</span>
-                    <span class="time-end">{{ slot.endTime }}</span>
-                  </div>
-                  @for (day of days; track $index) {
-                    <ng-container [ngTemplateOutlet]="cellTpl"
-                      [ngTemplateOutletContext]="{entry: getEntry($index, slot.index), dense: true}" />
-                  }
-                </div>
-              }
-            </div>
-          </div>
-        }
+        <!-- Rejilla compartida -->
+        <div class="lec-card" style="padding:var(--space-4)">
+          <app-schedule-grid
+            [entries]="gridEntries()"
+            [slots]="slots()"
+            [conflicts]="[]"
+            [editable]="false" />
+        </div>
+
+        <!-- Leyenda -->
+        <app-subject-legend [subjectKeys]="usedSubjectKeys()" style="display:block;margin-top:16px" />
       }
     </div>
-
-    <!-- Template de celda -->
-    <ng-template #cellTpl let-entry="entry" let-dense="dense">
-      @if (entry) {
-        <div class="schedule-cell"
-          [style.background]="cellBg(entry.subjectKey)"
-          [style.color]="cellFg(entry.subjectKey)">
-          <span class="cell-bar" [style.background]="cellFg(entry.subjectKey)"></span>
-          <div class="cell-subject">{{ entry.subjectShort }}</div>
-          <div class="cell-meta">
-            <span>{{ entry.groupLabel }}</span>
-            <span style="opacity:0.5">·</span>
-            <span>{{ entry.classroomName }}</span>
-          </div>
-        </div>
-      } @else {
-        <div class="cell-empty"></div>
-      }
-    </ng-template>
   `,
   styles: [`
     .page-head {
@@ -174,7 +127,7 @@ import { MessageService } from 'primeng/api';
       background: var(--card); color: var(--foreground);
       box-shadow: inset 0 0 0 1px var(--border-strong);
       border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm);
-      cursor: pointer; transition: all .15s;
+      cursor: pointer; transition: all .15s; white-space: nowrap;
     }
     .btn-pdf:hover { box-shadow: inset 0 0 0 1px var(--primary); color: var(--primary); }
     .loading-state, .empty-state {
@@ -189,93 +142,72 @@ import { MessageService } from 'primeng/api';
       animation: lec-spin 0.8s linear infinite; margin: 0 auto 16px;
     }
     .week-nav {
-      display: flex; align-items: center; gap: 12px;
-      margin-bottom: 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-bottom: 12px; flex-wrap: wrap;
     }
     .week-btn {
-      width: 34px; height: 34px; border-radius: var(--radius-md);
-      background: var(--card); border: 1px solid var(--border);
+      width: 38px; height: 38px; border-radius: var(--radius-md);
+      background: var(--card); border: 1px solid var(--border-strong);
       display: flex; align-items: center; justify-content: center;
-      cursor: pointer; transition: all .15s;
+      cursor: pointer; transition: all .15s; color: var(--foreground);
     }
     .week-btn:hover { border-color: var(--primary); color: var(--primary); }
-    .week-label { font-weight: 600; font-size: var(--text-sm); }
-    .day-tab {
-      flex: 1; min-width: 0; padding: 9px 4px;
-      border-radius: var(--radius-md); font-weight: 700;
-      font-size: var(--text-sm); cursor: pointer; transition: all .15s;
-      background: var(--card); color: var(--muted-foreground);
-      border: 1px solid var(--border);
+    .week-banner {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--primary-tint); color: var(--primary-strong);
+      padding: 9px 14px; border-radius: var(--radius-md);
+      font-size: var(--text-sm); font-weight: 600;
+      margin-bottom: 16px; width: fit-content;
     }
-    .day-tab--active {
-      background: var(--primary) !important;
-      color: #fff !important;
-      border-color: var(--primary) !important;
-    }
-    .recreo-band {
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-      background: var(--secondary); border-radius: var(--radius-sm);
-      color: var(--muted-foreground); font-weight: 600;
-      font-size: var(--text-xs); padding: 7px 0; letter-spacing: 0.03em;
-    }
-    .time-label {
-      display: flex; flex-direction: column;
-      align-items: flex-end; justify-content: center; line-height: 1.2;
-    }
-    .time-h { font-weight: 700; font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
-    .time-end { font-size: 11px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
-    .grid-wrapper { overflow-x: auto; }
-    .grid-inner { min-width: 720px; }
-    .grid-header {
-      display: grid; grid-template-columns: 64px repeat(5, 1fr);
-      gap: 8px; margin-bottom: 8px;
-    }
-    .day-header { text-align: center; font-weight: 700; font-size: var(--text-sm); padding: 4px 0; }
-    .grid-row { display: grid; grid-template-columns: 64px repeat(5, 1fr); gap: 8px; margin-bottom: 8px; }
-    .schedule-cell {
-      position: relative; border-radius: var(--radius-sm);
-      min-height: 62px; padding: 8px 10px 8px 13px; overflow: hidden;
-    }
-    .cell-bar {
-      position: absolute; left: 0; top: 6px; bottom: 6px;
-      width: 4px; border-radius: 99px; opacity: 0.65;
-    }
-    .cell-subject { font-weight: 700; font-size: var(--text-sm); line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .cell-meta { font-size: var(--text-xs); opacity: 0.82; margin-top: 2px; font-weight: 500; display: flex; align-items: center; gap: 5px; }
-    .cell-empty { border: 1.5px dashed var(--border-strong); background: var(--surface-2); border-radius: var(--radius-sm); min-height: 62px; }
   `],
 })
 export class MyScheduleComponent implements OnInit {
-  private readonly api = inject(ApiService);
+  private readonly api    = inject(ApiService);
   protected readonly device = inject(DeviceService);
-  private readonly toast = inject(MessageService);
+  private readonly toast  = inject(MessageService);
 
-  readonly schedule = signal<MySchedule | null>(null);
-  readonly loading = signal(true);
+  readonly schedule    = signal<MySchedule | null>(null);
+  readonly loading     = signal(true);
   readonly notPublished = signal(false);
-  readonly selectedDay = signal(new Date().getDay() - 1 < 0 ? 0 : Math.min(new Date().getDay() - 1, 4));
 
-  readonly isMobile = this.device.isMobile;
-  readonly days = DAYS;
+  readonly days     = DAYS;
   readonly daysShort = DAYS_SHORT;
 
-  readonly lectiveSlots = computed(() =>
-    (this.schedule()?.slots ?? []).filter(s => !s.isBreak)
-  );
-
-  readonly breakAfterIndex = computed(() => {
-    const slots = this.schedule()?.slots ?? [];
-    let count = 0;
-    for (const s of slots) {
-      if (s.isBreak) return count;
-      count++;
-    }
-    return 2;
+  /** Entradas convertidas al formato que espera ScheduleGridComponent */
+  readonly gridEntries = computed((): ScheduleGridEntry[] => {
+    const s = this.schedule();
+    if (!s) return [];
+    return s.entries.map(e => ({
+      id:              `${e.dayOfWeek}-${e.slotIndex}`,
+      dayOfWeek:       e.dayOfWeek,
+      slotIndex:       e.slotIndex,
+      groupId:         '',
+      groupDisplay:    e.groupLabel,
+      teacherId:       '',
+      teacherName:     '',
+      teacherColorKey: '',
+      allocationId:    '',
+      subjectName:     e.subjectName,
+      subjectKey:      e.subjectKey,
+      subjectShort:    e.subjectShort,
+      classroomId:     '',
+      classroomName:   e.classroomName,
+      isManualOverride: false,
+    }));
   });
 
-  readonly breakTime = computed(() => {
-    const s = (this.schedule()?.slots ?? []).find(s => s.isBreak);
-    return s ? `${s.startTime}–${s.endTime}` : '11:00–11:30';
+  readonly slots = computed((): TimeSlot[] => this.schedule()?.slots ?? []);
+
+  readonly totalHours = computed(() => {
+    const s = this.schedule();
+    if (!s) return 0;
+    return s.entries.length;   // cada entrada = 1 sesión = 1h (aprox.)
+  });
+
+  readonly usedSubjectKeys = computed(() => {
+    const s = this.schedule();
+    if (!s) return [];
+    return [...new Set(s.entries.map(e => e.subjectKey))];
   });
 
   async ngOnInit(): Promise<void> {
@@ -293,21 +225,8 @@ export class MyScheduleComponent implements OnInit {
     }
   }
 
-  getEntry(dayIndex: number, slotIndex: number): MyScheduleEntry | null {
-    return this.schedule()?.entries.find(
-      e => (e.dayOfWeek - 1) === dayIndex && e.slotIndex === slotIndex
-    ) ?? null;
-  }
-
-  cellBg(key: string): string {
-    return SUBJECT_COLORS[key]?.bg ?? SUBJECT_COLORS['tut'].bg;
-  }
-  cellFg(key: string): string {
-    return SUBJECT_COLORS[key]?.fg ?? SUBJECT_COLORS['tut'].fg;
-  }
-
-  prevWeek(): void { /* navegación semana - en v2 */ }
-  nextWeek(): void { /* navegación semana - en v2 */ }
+  prevWeek(): void { /* navegación de semana — v2 */ }
+  nextWeek(): void { /* navegación de semana — v2 */ }
 
   downloadPdf(): void {
     window.print();

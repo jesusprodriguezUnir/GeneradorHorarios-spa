@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d/Personal/GeneradorHorarios/doc/horarios-escolares/docs/specs/**)",
+      "Bash(ls d:/Personal/GeneradorHorarios/ --depth 1)",
+      "Read(//d/Personal/GeneradorHorarios/**)"
+    ],
+    "additionalDirectories": [
+      "d:\\Personal\\GeneradorHorarios\\doc\\horarios-escolares\\docs\\adr",
+      "d:\\Personal\\GeneradorHorarios\\doc\\horarios-escolares\\docs\\specs",
+      "d:\\Personal\\GeneradorHorarios\\docs"
+    ]
+  }
+}
