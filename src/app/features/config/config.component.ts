@@ -1,5 +1,5 @@
 import {
-  Component, OnInit, inject, signal, ChangeDetectionStrategy
+  Component, OnInit, inject, signal, computed, ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -267,12 +267,12 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
           @case ('teachers') {
             <div data-testid="config-teachers-section">
             <ng-container [ngTemplateOutlet]="tableHeader"
-              [ngTemplateOutletContext]="{title:'Profesores', addLabel:'+ Añadir profesor'}" />
+              [ngTemplateOutletContext]="{title:'Profesores', addLabel:'+ Añadir profesor', tab:'teachers'}" />
             <table class="data-table">
               <thead>
                 <tr>
                   <th>Nombre</th><th>Email</th><th>Tipo</th>
-                  <th>H. máx/semana</th><th>Especialidades</th><th>H. asignadas</th><th></th>
+                  <th>H. máx/semana</th><th>Especialidades</th><th>H. asignadas</th><th style="text-align:right;padding-right:24px">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -290,12 +290,19 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
                       </div>
                       <span style="font-size:11px">{{ t.assignedHours }}/{{ t.maxWeeklyHours }}</span>
                     </td>
-                    <td>
-                      <button (click)="deleteTeacher(t.id)" class="btn-del">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-                        </svg>
-                      </button>
+                    <td style="text-align:right;padding-right:16px">
+                      <div style="display:inline-flex;gap:4px">
+                        <button (click)="editTeacher(t)" class="btn-edit" title="Editar profesor" style="color:var(--muted-foreground);padding:6px;border-radius:6px;cursor:pointer;transition:color .15s;background:none;border:none">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </button>
+                        <button (click)="deleteTeacher(t.id)" class="btn-del" title="Eliminar profesor" style="background:none;border:none">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 }
@@ -344,13 +351,37 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
             <div data-testid="config-subjects-section">
             <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
               <h3 style="font-weight:700">Asignaturas y horas semanales</h3>
-              <span class="official-badge">Plantilla oficial Madrid</span>
+              @if (isOfficialTemplate()) {
+                <span class="official-badge">Plantilla oficial Madrid</span>
+              } @else {
+                <button class="btn-primary" style="padding:6px 12px;font-size:var(--text-xs);border-radius:var(--radius-sm);cursor:pointer" (click)="openAddModal('subjects')">
+                  + Añadir asignatura
+                </button>
+              }
             </div>
+
+            @if (isOfficialTemplate()) {
+              <div style="background:linear-gradient(135deg, var(--primary-tint) 0%, var(--surface) 100%);border:1px solid var(--primary);border-radius:12px;padding:20px;margin:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px">
+                <div style="flex:1">
+                  <h4 style="font-weight:700;color:var(--primary-strong);font-size:var(--text-sm);margin-bottom:4px">Plantilla LOMLOE Oficial Activa</h4>
+                  <p style="font-size:var(--text-xs);color:var(--muted-foreground);max-width:540px;line-height:1.4">
+                    Estás visualizando la configuración de asignaturas oficial del Decreto 61/2022 de Madrid. Para poder añadir asignaturas propias, cambiar nombres o modificar especialidades, debes personalizar el currículo de tu centro.
+                  </p>
+                </div>
+                <button (click)="cloneOfficialTemplate()" class="btn-primary" style="padding:10px 18px;font-size:var(--text-xs);white-space:nowrap">
+                  Personalizar Asignaturas
+                </button>
+              </div>
+            }
+
             <table class="data-table">
               <thead>
                 <tr>
                   <th>Asignatura</th><th>Clave</th><th>Horas (mín–máx)</th>
                   <th>Horas actuales</th><th>Especialista</th>
+                  @if (!isOfficialTemplate()) {
+                    <th style="text-align:right;padding-right:24px">Acciones</th>
+                  }
                 </tr>
               </thead>
               <tbody>
@@ -375,6 +406,22 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
                         (change)="updateSubjectHours(s.id, $event, s.weeklyHoursMin, s.weeklyHoursMax)" />
                     </td>
                     <td>{{ s.requiresSpecialist ? 'Sí' : '—' }}</td>
+                    @if (!isOfficialTemplate()) {
+                      <td style="text-align:right;padding-right:16px">
+                        <div style="display:inline-flex;gap:4px">
+                          <button (click)="editSubject(s)" class="btn-edit" title="Editar asignatura" style="color:var(--muted-foreground);padding:6px;border-radius:6px;cursor:pointer;transition:color .15s;background:none;border:none">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                          </button>
+                          <button (click)="deleteSubject(s.id)" class="btn-del" title="Eliminar asignatura" style="background:none;border:none">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    }
                   </tr>
                 }
               </tbody>
@@ -544,6 +591,35 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
                 </div>
               </div>
 
+              <!-- Sección de Horas por Asignatura -->
+              <div class="form-field-premium" style="border-top:1px solid var(--border);padding-top:18px">
+                <label class="field-label-premium" style="margin-bottom:12px;display:flex;align-items:center;gap:6px">
+                  <span>⏱️</span> Horas Requeridas por Asignatura
+                </label>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:12px">
+                  @for (s of subjects(); track s.id) {
+                    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--secondary);border-radius:8px;padding:8px 12px;border:1px solid var(--border)">
+                      <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1">
+                        <span class="subj-dot" [style.background]="'var(--subj-' + s.subjectKey + ')'" style="width:8px;height:8px;border-radius:50%"></span>
+                        <span style="font-size:var(--text-xs);font-weight:700;color:var(--foreground);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" [title]="s.subjectName">
+                          {{ s.subjectShort }}
+                        </span>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:6px">
+                        <input type="number" 
+                          [ngModel]="groupForm().subjectHours[s.subjectKey]" 
+                          (ngModelChange)="onGroupSubjectHourChange(s.subjectKey, $event)"
+                          [min]="s.weeklyHoursMin" 
+                          [max]="s.weeklyHoursMax" 
+                          class="hours-input" 
+                          style="width:50px;padding:4px 6px;font-size:var(--text-xs);font-weight:700" />
+                        <span style="font-size:10px;color:var(--muted-foreground)">h</span>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+
             </div>
             
             <!-- Pie de Botones Premium -->
@@ -684,6 +760,335 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
                 Cancelar
               </button>
               <button class="btn-save-premium" (click)="saveClassroom()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;vertical-align:middle;display:inline-block">
+                  <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                  <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                Guardar Cambios
+              </button>
+            </div>
+            
+          </div>
+        </div>
+      }
+
+      <!-- Modal para Añadir / Editar Profesor (Diseño Premium Drawer) -->
+      @if (isTeacherModalOpen()) {
+        <div class="modal-backdrop" (click)="isTeacherModalOpen.set(false)">
+          <div class="modal-card lec-scale-in" (click)="$event.stopPropagation()">
+            
+            <!-- Cabecera Premium -->
+            <div class="modal-header-premium">
+              <div>
+                <span class="premium-badge">{{ editingTeacher() ? 'MODIFICACIÓN' : 'NUEVO REGISTRO' }}</span>
+                <h3 class="premium-title">{{ editingTeacher() ? 'Editar Profesor' : 'Crear Nuevo Profesor' }}</h3>
+              </div>
+              <button (click)="isTeacherModalOpen.set(false)" class="close-btn-premium">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            
+            <!-- Cuerpo del Formulario -->
+            <div class="modal-body-premium">
+              
+              <!-- Tarjeta de Vista Previa -->
+              <div class="preview-card-premium">
+                <div class="preview-badge-label">VISTA PREVIA DE PROFESOR</div>
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <span class="preview-group-dot" [style.background]="'var(--subj-' + teacherForm().colorKey + ')'">
+                      {{ teacherForm().fullName ? initials(teacherForm().fullName) : 'PR' }}
+                    </span>
+                    <div>
+                      <div style="font-weight:700;font-size:var(--text-md);color:var(--foreground)">
+                        {{ teacherForm().fullName || 'Nuevo Profesor/a' }}
+                      </div>
+                      <div style="font-size:var(--text-xs);color:var(--muted-foreground)">
+                        {{ teacherForm().email || 'sin-email@centro.es' }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="preview-meta-pill" [class.preview-meta-pill--active]="teacherForm().teacherType === 'definitivo'">
+                    {{ teacherForm().teacherType === 'definitivo' ? 'Definitivo' : 'Especialista' }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Nombre del Profesor -->
+              <div class="form-field-premium">
+                <label class="field-label-premium">Nombre Completo</label>
+                <div class="input-with-icon-premium">
+                  <span class="input-icon-premium" style="font-size:15px">👤</span>
+                  <input [(ngModel)]="teacherForm().fullName" 
+                    class="field-input-premium" 
+                    placeholder="Ej: Laura Fernández, Carlos Martínez..." 
+                    type="text" 
+                    maxlength="100" />
+                </div>
+              </div>
+
+              <!-- Email -->
+              <div class="form-field-premium">
+                <label class="field-label-premium">Correo Electrónico</label>
+                <div class="input-with-icon-premium">
+                  <span class="input-icon-premium" style="font-size:15px">✉️</span>
+                  <input [(ngModel)]="teacherForm().email" 
+                    class="field-input-premium" 
+                    placeholder="Ej: laura.fernandez@centro.es" 
+                    type="email" 
+                    maxlength="100" />
+                </div>
+              </div>
+
+              <!-- Fila con Tipo y Horas Máximas -->
+              <div class="form-row-premium">
+                
+                <!-- Tipo de Profesor -->
+                <div class="form-field-premium" style="flex:1">
+                  <label class="field-label-premium">Tipo de Docente</label>
+                  <div class="input-with-icon-premium">
+                    <span class="input-icon-premium" style="font-size:15px">💼</span>
+                    <select [(ngModel)]="teacherForm().teacherType" class="field-select-premium">
+                      <option value="definitivo">Definitivo / Generalista</option>
+                      <option value="especialista">Especialista / Interino</option>
+                    </select>
+                  </div>
+                 </div>
+
+                 <!-- Horas Máximas Semanales -->
+                 <div class="form-field-premium" style="flex:1">
+                   <label class="field-label-premium">Horas Máximas Semanales</label>
+                   <div class="student-counter-premium">
+                     <button class="counter-btn-premium" (click)="adjustTeacherHours(-1)">−</button>
+                     <input [(ngModel)]="teacherForm().maxWeeklyHours" 
+                       class="counter-input-premium" 
+                       type="number" min="1" max="40" />
+                     <button class="counter-btn-premium" (click)="adjustTeacherHours(1)">+</button>
+                   </div>
+                 </div>
+
+              </div>
+
+              <!-- Especialidades (Comma Separated) -->
+              <div class="form-field-premium">
+                <label class="field-label-premium">Especialidades (separadas por comas)</label>
+                <div class="input-with-icon-premium">
+                  <span class="input-icon-premium" style="font-size:15px">🏅</span>
+                  <input [(ngModel)]="teacherForm().specialtiesRaw" 
+                    class="field-input-premium" 
+                    placeholder="Ej: Generalista, Inglés, Educación Física..." 
+                    type="text" />
+                </div>
+              </div>
+
+              <!-- Selector de Color Key -->
+              <div class="form-field-premium">
+                <label class="field-label-premium">Color Representativo</label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+                  @for (color of ['len', 'mat', 'cie', 'ing', 'ef', 'mus', 'art', 'rel', 'tut']; track color) {
+                    <button class="color-select-btn" 
+                      [style.background]="'var(--subj-' + color + ')'"
+                      [class.color-select-btn--active]="teacherForm().colorKey === color"
+                      (click)="teacherForm().colorKey = color"
+                      style="width:36px;height:36px;border-radius:50%;border:3px solid transparent;cursor:pointer;transition:all 0.15s;box-shadow:0 2px 4px rgba(0,0,0,0.1)">
+                      @if (teacherForm().colorKey === color) {
+                        <span style="color:#fff;font-weight:900;text-shadow:0 1px 2px rgba(0,0,0,0.5);font-size:12px">✓</span>
+                      }
+                    </button>
+                  }
+                </div>
+              </div>
+
+            </div>
+            
+            <!-- Pie de Botones Premium -->
+            <div class="modal-footer-premium">
+              <button class="btn-cancel-premium" (click)="isTeacherModalOpen.set(false)">
+                Cancelar
+              </button>
+              <button class="btn-save-premium" (click)="saveTeacher()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;vertical-align:middle;display:inline-block">
+                  <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                  <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                Guardar Cambios
+              </button>
+            </div>
+            
+          </div>
+        </div>
+      }
+
+      <!-- Modal para Añadir / Editar Asignatura (Diseño Premium Drawer) -->
+      @if (isSubjectModalOpen()) {
+        <div class="modal-backdrop" (click)="isSubjectModalOpen.set(false)">
+          <div class="modal-card lec-scale-in" (click)="$event.stopPropagation()">
+            
+            <!-- Cabecera Premium -->
+            <div class="modal-header-premium">
+              <div>
+                <span class="premium-badge">{{ editingSubject() ? 'MODIFICACIÓN' : 'NUEVO REGISTRO' }}</span>
+                <h3 class="premium-title">{{ editingSubject() ? 'Editar Asignatura' : 'Crear Nueva Asignatura' }}</h3>
+              </div>
+              <button (click)="isSubjectModalOpen.set(false)" class="close-btn-premium">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            
+            <!-- Cuerpo del Formulario -->
+            <div class="modal-body-premium">
+              
+              <!-- Tarjeta de Vista Previa -->
+              <div class="preview-card-premium">
+                <div class="preview-badge-label">VISTA PREVIA DE ASIGNATURA</div>
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <span class="subj-dot" [style.background]="'var(--subj-' + subjectForm().subjectKey + ')'" style="width:36px;height:36px;border-radius:50%"></span>
+                    <div>
+                      <div style="font-weight:700;font-size:var(--text-md);color:var(--foreground)">
+                        {{ subjectForm().subjectName || 'Nueva Asignatura' }} ({{ subjectForm().subjectShort || '?' }})
+                      </div>
+                      <div style="font-size:var(--text-xs);color:var(--muted-foreground)">
+                        Horas semanales: {{ subjectForm().weeklyHoursDefault }}h (Rango: {{ subjectForm().weeklyHoursMin }}–{{ subjectForm().weeklyHoursMax }}h)
+                      </div>
+                    </div>
+                  </div>
+                  <div class="preview-meta-pill" [class.preview-meta-pill--active]="subjectForm().requiresSpecialist">
+                    {{ subjectForm().requiresSpecialist ? 'Requiere Especialista' : 'Tutor / Generalista' }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Fila con Nombre y Nombre Corto -->
+              <div class="form-row-premium">
+                <div class="form-field-premium" style="flex:2">
+                  <label class="field-label-premium">Nombre Completo</label>
+                  <div class="input-with-icon-premium">
+                    <span class="input-icon-premium" style="font-size:15px">📚</span>
+                    <input [(ngModel)]="subjectForm().subjectName" 
+                      class="field-input-premium" 
+                      placeholder="Ej: Lengua Castellana, Matemáticas..." 
+                      type="text" 
+                      maxlength="100" />
+                  </div>
+                </div>
+                <div class="form-field-premium" style="flex:1">
+                  <label class="field-label-premium">Siglas / Corto</label>
+                  <input [(ngModel)]="subjectForm().subjectShort" 
+                    class="field-input-premium" 
+                    placeholder="Mates, Lengua..." 
+                    type="text" 
+                    maxlength="15"
+                    style="padding-left:14px" />
+                </div>
+              </div>
+
+              <!-- Fila con Clave de Asignatura y Aula Requerida -->
+              <div class="form-row-premium">
+                <div class="form-field-premium" style="flex:1">
+                  <label class="field-label-premium">Clave Única (SubjectKey)</label>
+                  <input [(ngModel)]="subjectForm().subjectKey" 
+                    class="field-input-premium" 
+                    placeholder="Ej: len, mat, rob..." 
+                    type="text" 
+                    maxlength="5"
+                    style="padding-left:14px"
+                    [disabled]="editingSubject() !== null" />
+                </div>
+                <div class="form-field-premium" style="flex:1">
+                  <label class="field-label-premium">Aula Requerida</label>
+                  <div class="input-with-icon-premium">
+                    <span class="input-icon-premium" style="font-size:15px">🚪</span>
+                    <select [(ngModel)]="subjectForm().requiredClassroomType" class="field-select-premium">
+                      <option value="">Cualquier Aula Ordinaria</option>
+                      <option value="gym">Gimnasio</option>
+                      <option value="music">Aula de Música</option>
+                      <option value="lab">Laboratorio</option>
+                      <option value="it">Aula de Informática</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Fila con Horas Mínimas, Máximas y Default -->
+              <div class="form-row-premium">
+                <div class="form-field-premium" style="flex:1">
+                  <label class="field-label-premium">Horas Mínimas</label>
+                  <input [(ngModel)]="subjectForm().weeklyHoursMin" class="field-input-premium" type="number" min="0" max="10" style="padding-left:14px" />
+                </div>
+                <div class="form-field-premium" style="flex:1">
+                  <label class="field-label-premium">Horas Máximas</label>
+                  <input [(ngModel)]="subjectForm().weeklyHoursMax" class="field-input-premium" type="number" min="1" max="15" style="padding-left:14px" />
+                </div>
+                <div class="form-field-premium" style="flex:1">
+                  <label class="field-label-premium">Horas Recomendadas</label>
+                  <input [(ngModel)]="subjectForm().weeklyHoursDefault" class="field-input-premium" type="number" min="0" max="15" style="padding-left:14px" />
+                </div>
+              </div>
+
+              <!-- Especialista e Integridad (Toggles) -->
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <!-- Requiere Especialista -->
+                <div class="toggle-card-premium" 
+                     [class.toggle-card-premium--active]="subjectForm().requiresSpecialist"
+                     (click)="subjectForm().requiresSpecialist = !subjectForm().requiresSpecialist">
+                  <div style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:var(--secondary);font-size:16px">
+                    🏅
+                  </div>
+                  <div style="flex:1">
+                    <div style="font-weight:700;font-size:var(--text-sm)">¿Requiere un profesor especialista?</div>
+                    <div style="font-size:11px;opacity:0.8">Habilita esta opción si debe ser impartida por docentes con titulación específica (Inglés, Educación Física, etc.).</div>
+                  </div>
+                  <div style="display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:2px solid var(--border);position:relative">
+                    @if (subjectForm().requiresSpecialist) {
+                      <div style="width:10px;height:10px;border-radius:50%;background:var(--primary)"></div>
+                    }
+                  </div>
+                </div>
+
+                <!-- Splittable -->
+                <div class="toggle-card-premium" 
+                     [class.toggle-card-premium--active]="subjectForm().splittableAcrossDays"
+                     (click)="subjectForm().splittableAcrossDays = !subjectForm().splittableAcrossDays">
+                  <div style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:var(--secondary);font-size:16px">
+                    📅
+                  </div>
+                  <div style="flex:1">
+                    <div style="font-weight:700;font-size:var(--text-sm)">¿Divisible en varios días?</div>
+                    <div style="font-size:11px;opacity:0.8">Permite que las sesiones semanales se repartan en días distintos. Si se desactiva, se impartirán todas juntas.</div>
+                  </div>
+                  <div style="display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:2px solid var(--border);position:relative">
+                    @if (subjectForm().splittableAcrossDays) {
+                      <div style="width:10px;height:10px;border-radius:50%;background:var(--primary)"></div>
+                    }
+                  </div>
+                </div>
+              </div>
+
+              <!-- Max Consecutive Slots -->
+              <div class="form-field-premium">
+                <label class="field-label-premium">Máximo de horas consecutivas al día</label>
+                <div class="student-counter-premium" style="width:180px">
+                  <button class="counter-btn-premium" (click)="adjustMaxConsecutive(-1)">−</button>
+                  <input [(ngModel)]="subjectForm().maxConsecutiveSlots" class="counter-input-premium" type="number" min="1" max="4" />
+                  <button class="counter-btn-premium" (click)="adjustMaxConsecutive(1)">+</button>
+                </div>
+              </div>
+
+            </div>
+            
+            <!-- Pie de Botones Premium -->
+            <div class="modal-footer-premium">
+              <button class="btn-cancel-premium" (click)="isSubjectModalOpen.set(false)">
+                Cancelar
+              </button>
+              <button class="btn-save-premium" (click)="saveSubject()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;vertical-align:middle;display:inline-block">
                   <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
                   <polyline points="17 21 17 13 7 13 7 21"/>
@@ -1095,6 +1500,16 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
       color: var(--primary-strong) !important;
       box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
     }
+    .color-select-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .color-select-btn--active {
+      border-color: var(--foreground) !important;
+      transform: scale(1.1);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2) !important;
+    }
   `],
 })
 export class ConfigComponent implements OnInit {
@@ -1118,6 +1533,7 @@ export class ConfigComponent implements OnInit {
     studentCount: 25,
     tutorId: '',
     homeClassroomId: '',
+    subjectHours: {} as Record<string, number>,
   });
 
   // ── Modales de Aulas ───────────────────────────────────────────────────────
@@ -1129,6 +1545,36 @@ export class ConfigComponent implements OnInit {
     capacity: 30,
     isShared: false,
   });
+
+  // ── Modales de Profesores ──────────────────────────────────────────────────
+  readonly isTeacherModalOpen = signal(false);
+  readonly editingTeacher = signal<Teacher | null>(null);
+  readonly teacherForm = signal({
+    fullName: '',
+    email: '',
+    teacherType: 'definitivo',
+    maxWeeklyHours: 25,
+    specialtiesRaw: '',
+    colorKey: 'mat',
+  });
+
+  // ── Modales de Asignaturas ─────────────────────────────────────────────────
+  readonly isSubjectModalOpen = signal(false);
+  readonly editingSubject = signal<SubjectAllocation | null>(null);
+  readonly subjectForm = signal({
+    subjectName: '',
+    subjectShort: '',
+    subjectKey: '',
+    weeklyHoursMin: 1,
+    weeklyHoursMax: 6,
+    weeklyHoursDefault: 3,
+    requiresSpecialist: false,
+    requiredClassroomType: '',
+    maxConsecutiveSlots: 2,
+    splittableAcrossDays: true,
+  });
+
+  readonly isOfficialTemplate = computed(() => this.subjects().length > 0 && this.subjects().every(s => s.isOfficial));
 
   readonly tabs = [
     { id: 'school' as Tab, label: 'Centro' },
@@ -1407,6 +1853,10 @@ export class ConfigComponent implements OnInit {
   openAddModal(tab: string): void {
     if (tab === 'groups') {
       const minCourse = this.school()?.minCourseLevel ?? 1;
+      const initialHours: Record<string, number> = {};
+      for (const s of this.subjects()) {
+        initialHours[s.subjectKey] = s.weeklyHoursDefault;
+      }
       this.editingGroup.set(null);
       this.groupForm.set({
         courseLevel: minCourse,
@@ -1414,6 +1864,7 @@ export class ConfigComponent implements OnInit {
         studentCount: 25,
         tutorId: '',
         homeClassroomId: '',
+        subjectHours: initialHours,
       });
       this.isGroupModalOpen.set(true);
     } else if (tab === 'classrooms') {
@@ -1425,17 +1876,48 @@ export class ConfigComponent implements OnInit {
         isShared: false,
       });
       this.isClassroomModalOpen.set(true);
+    } else if (tab === 'teachers') {
+      this.editingTeacher.set(null);
+      this.teacherForm.set({
+        fullName: '',
+        email: '',
+        teacherType: 'definitivo',
+        maxWeeklyHours: 25,
+        specialtiesRaw: 'Generalista',
+        colorKey: 'mat',
+      });
+      this.isTeacherModalOpen.set(true);
+    } else if (tab === 'subjects') {
+      this.editingSubject.set(null);
+      this.subjectForm.set({
+        subjectName: '',
+        subjectShort: '',
+        subjectKey: '',
+        weeklyHoursMin: 1,
+        weeklyHoursMax: 6,
+        weeklyHoursDefault: 3,
+        requiresSpecialist: false,
+        requiredClassroomType: '',
+        maxConsecutiveSlots: 2,
+        splittableAcrossDays: true,
+      });
+      this.isSubjectModalOpen.set(true);
     }
   }
 
   editGroup(g: CourseGroup): void {
     this.editingGroup.set(g);
+    const initialHours: Record<string, number> = {};
+    for (const s of this.subjects()) {
+      initialHours[s.subjectKey] = g.subjectHours?.[s.subjectKey] ?? s.weeklyHoursDefault;
+    }
     this.groupForm.set({
       courseLevel: g.courseLevel,
       groupLabel: g.groupLabel,
       studentCount: g.studentCount,
       tutorId: g.tutorId ?? '',
       homeClassroomId: g.homeClassroomId ?? '',
+      subjectHours: initialHours,
     });
     this.isGroupModalOpen.set(true);
   }
@@ -1455,6 +1937,7 @@ export class ConfigComponent implements OnInit {
       studentCount: Number(form.studentCount),
       tutorId: form.tutorId ? form.tutorId : null,
       homeClassroomId: form.homeClassroomId ? form.homeClassroomId : null,
+      subjectHours: form.subjectHours,
     };
 
     try {
@@ -1565,5 +2048,160 @@ export class ConfigComponent implements OnInit {
       lab: 'Laboratorio', it: 'Informática', support: 'Apoyo',
     };
     return map[type] ?? type;
+  }
+
+  editTeacher(t: Teacher): void {
+    this.editingTeacher.set(t);
+    this.teacherForm.set({
+      fullName: t.fullName,
+      email: t.email,
+      teacherType: t.teacherType,
+      maxWeeklyHours: t.maxWeeklyHours,
+      specialtiesRaw: t.specialties.join(', '),
+      colorKey: t.colorKey,
+    });
+    this.isTeacherModalOpen.set(true);
+  }
+
+  async saveTeacher(): Promise<void> {
+    const form = this.teacherForm();
+    const editing = this.editingTeacher();
+
+    if (!form.fullName || form.fullName.trim() === '') {
+      alert('El nombre del profesor es obligatorio.');
+      return;
+    }
+    if (!form.email || form.email.trim() === '') {
+      alert('El email es obligatorio.');
+      return;
+    }
+
+    const specialties = form.specialtiesRaw
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
+    const payload = {
+      fullName: form.fullName.trim(),
+      email: form.email.trim(),
+      teacherType: form.teacherType,
+      maxWeeklyHours: Number(form.maxWeeklyHours),
+      specialties,
+      colorKey: form.colorKey,
+    };
+
+    try {
+      if (editing) {
+        await this.api.updateTeacher(editing.id, payload);
+      } else {
+        await this.api.createTeacher(payload);
+      }
+      
+      const updatedTeachers = await this.api.getTeachers();
+      this.teachers.set(updatedTeachers);
+      this.isTeacherModalOpen.set(false);
+    } catch (err) {
+      alert('Error al guardar el profesor. Por favor, comprueba los datos.');
+    }
+  }
+
+  adjustTeacherHours(amount: number): void {
+    this.teacherForm.update(f => {
+      const newHours = Math.max(1, Math.min(40, f.maxWeeklyHours + amount));
+      return { ...f, maxWeeklyHours: newHours };
+    });
+  }
+
+  async cloneOfficialTemplate(): Promise<void> {
+    if (!confirm('¿Deseas personalizar el currículo oficial para tu centro? Esto te permitirá añadir y modificar asignaturas propias.')) return;
+    try {
+      const cloned = await this.api.cloneOfficialTemplate();
+      this.subjects.set(cloned);
+      alert('¡Plantilla LOMLOE personalizada con éxito! Ya puedes añadir y editar asignaturas.');
+    } catch {
+      alert('Error al personalizar la plantilla.');
+    }
+  }
+
+  editSubject(s: SubjectAllocation): void {
+    this.editingSubject.set(s);
+    this.subjectForm.set({
+      subjectName: s.subjectName,
+      subjectShort: s.subjectShort,
+      subjectKey: s.subjectKey,
+      weeklyHoursMin: s.weeklyHoursMin,
+      weeklyHoursMax: s.weeklyHoursMax,
+      weeklyHoursDefault: s.weeklyHoursDefault,
+      requiresSpecialist: s.requiresSpecialist,
+      requiredClassroomType: s.requiredClassroomType ?? '',
+      maxConsecutiveSlots: s.maxConsecutiveSlots,
+      splittableAcrossDays: s.splittableAcrossDays,
+    });
+    this.isSubjectModalOpen.set(true);
+  }
+
+  async saveSubject(): Promise<void> {
+    const form = this.subjectForm();
+    const editing = this.editingSubject();
+
+    if (!form.subjectName || form.subjectName.trim() === '') {
+      alert('El nombre de la asignatura es obligatorio.');
+      return;
+    }
+    if (!form.subjectShort || form.subjectShort.trim() === '') {
+      alert('Las siglas/nombre corto son obligatorias.');
+      return;
+    }
+    if (!form.subjectKey || form.subjectKey.trim() === '') {
+      alert('La clave de asignatura es obligatoria.');
+      return;
+    }
+
+    const payload = {
+      subjectName: form.subjectName.trim(),
+      subjectShort: form.subjectShort.trim(),
+      subjectKey: form.subjectKey.trim().toLowerCase(),
+      weeklyHoursMin: Number(form.weeklyHoursMin),
+      weeklyHoursMax: Number(form.weeklyHoursMax),
+      weeklyHoursDefault: Number(form.weeklyHoursDefault),
+      requiresSpecialist: form.requiresSpecialist,
+      requiredClassroomType: form.requiredClassroomType ? form.requiredClassroomType : null,
+      maxConsecutiveSlots: Number(form.maxConsecutiveSlots),
+      splittableAcrossDays: form.splittableAcrossDays,
+    };
+
+    try {
+      if (editing) {
+        await this.api.updateSubject(editing.id, payload);
+      } else {
+        await this.api.createSubject(payload);
+      }
+      
+      const updatedSubjects = await this.api.getSubjects();
+      this.subjects.set(updatedSubjects);
+      this.isSubjectModalOpen.set(false);
+    } catch (err) {
+      alert('Error al guardar la asignatura. Por favor, comprueba los datos.');
+    }
+  }
+
+  async deleteSubject(id: string): Promise<void> {
+    if (!confirm('¿Eliminar esta asignatura?')) return;
+    await this.api.deleteSubject(id).catch(() => {});
+    this.subjects.update(ss => ss.filter(s => s.id !== id));
+  }
+
+  adjustMaxConsecutive(amount: number): void {
+    this.subjectForm.update(f => {
+      const newSlots = Math.max(1, Math.min(4, f.maxConsecutiveSlots + amount));
+      return { ...f, maxConsecutiveSlots: newSlots };
+    });
+  }
+
+  onGroupSubjectHourChange(key: string, val: number): void {
+    this.groupForm.update(f => {
+      const updated = { ...f.subjectHours, [key]: Number(val) };
+      return { ...f, subjectHours: updated };
+    });
   }
 }

@@ -39,6 +39,10 @@ export class ApiService {
 
   // ── Subjects ──────────────────────────────────────────────────────────────
   getSubjects = () => firstValueFrom(this.http.get<SubjectAllocation[]>(`${this.base}/subjects`));
+  cloneOfficialTemplate = () => firstValueFrom(this.http.post<SubjectAllocation[]>(`${this.base}/subjects/clone-official`, {}));
+  createSubject = (data: Partial<SubjectAllocation>) => firstValueFrom(this.http.post<SubjectAllocation>(`${this.base}/subjects`, data));
+  updateSubject = (id: string, data: Partial<SubjectAllocation>) => firstValueFrom(this.http.put<SubjectAllocation>(`${this.base}/subjects/${id}`, data));
+  deleteSubject = (id: string) => firstValueFrom(this.http.delete(`${this.base}/subjects/${id}`));
   updateSubjectHours = (id: string, hours: number) =>
     firstValueFrom(this.http.put<SubjectAllocation>(`${this.base}/subjects/${id}/hours`, { weeklyHoursDefault: hours }));
 

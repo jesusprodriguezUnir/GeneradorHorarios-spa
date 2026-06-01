@@ -72,6 +72,7 @@ export interface CourseGroup {
   tutorId: string | null;
   tutorName: string | null;
   homeClassroomId: string | null;
+  subjectHours?: Record<string, number>;
 }
 
 export interface Classroom {
