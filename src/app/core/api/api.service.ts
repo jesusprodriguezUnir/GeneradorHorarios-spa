@@ -34,6 +34,7 @@ export class ApiService {
   // ── Classrooms ────────────────────────────────────────────────────────────
   getClassrooms = () => firstValueFrom(this.http.get<Classroom[]>(`${this.base}/classrooms`));
   createClassroom = (data: Partial<Classroom>) => firstValueFrom(this.http.post<Classroom>(`${this.base}/classrooms`, data));
+  updateClassroom = (id: string, data: Partial<Classroom>) => firstValueFrom(this.http.put<Classroom>(`${this.base}/classrooms/${id}`, data));
   deleteClassroom = (id: string) => firstValueFrom(this.http.delete(`${this.base}/classrooms/${id}`));
 
   // ── Subjects ──────────────────────────────────────────────────────────────

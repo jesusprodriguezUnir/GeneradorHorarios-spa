@@ -25,21 +25,22 @@ export interface CellClickEvent {
       <div class="cell"
         [class.cell--conflict]="isConflict()"
         [class.cell--editable]="editable()"
-        [style.background]="cellBg()"
+        [style.background]="isConflict() ? 'var(--destructive-tint)' : 'color-mix(in srgb, ' + cellBg() + ' 12%, var(--card))'"
+        [style.border-color]="isConflict() ? 'var(--destructive)' : 'color-mix(in srgb, ' + cellBg() + ' 30%, transparent)'"
         [style.color]="cellFg()"
         (click)="editable() && cellClick.emit(entry())">
-        <span class="cell-bar" [style.background]="isConflict() ? 'var(--destructive)' : cellFg()"></span>
+        <span class="cell-bar" [style.background]="isConflict() ? 'var(--destructive)' : cellBg()"></span>
         <div class="cell-subject">{{ entry()!.subjectShort }}</div>
         <div class="cell-meta">
-          <span>{{ entry()!.groupDisplay }}</span>
+          <span class="cell-group">{{ entry()!.groupDisplay }}</span>
           @if (entry()!.classroomName) {
-            <span style="opacity:0.5">·</span>
-            <span>{{ entry()!.classroomName }}</span>
+            <span class="cell-dot">·</span>
+            <span class="cell-classroom">{{ entry()!.classroomName }}</span>
           }
         </div>
         @if (isConflict()) {
           <span class="cell-conflict-icon">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--destructive)" stroke-width="2.25">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--destructive)" stroke-width="2.5">
               <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" />
             </svg>
           </span>
@@ -49,7 +50,7 @@ export interface CellClickEvent {
       <div class="cell cell--empty" [class.cell--editable]="editable()"
         (click)="editable() && cellClick.emit(null)">
         @if (editable()) {
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg class="cell-plus-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
         }
@@ -58,23 +59,94 @@ export interface CellClickEvent {
   `,
   styles: [`
     .cell {
-      position: relative; border-radius: var(--radius-sm);
-      min-height: 62px; padding: 8px 10px 8px 13px;
-      overflow: hidden; transition: transform .12s, box-shadow .15s;
+      position: relative;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      min-height: 64px;
+      padding: 10px 10px 8px 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .cell--conflict {
+      border-color: var(--destructive) !important;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.12) !important;
+    }
+    .cell--editable {
+      cursor: pointer;
+    }
+    .cell--editable:hover {
+      transform: translateY(-3px) scale(1.01);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02);
+      filter: brightness(1.02);
+    }
+    .cell-bar {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 5px;
+      opacity: 0.9;
+    }
+    .cell-subject {
+      font-weight: 800;
+      font-size: var(--text-sm);
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .cell-meta {
+      font-size: 11px;
+      opacity: 0.85;
+      margin-top: 4px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .cell-classroom {
+      font-weight: 600;
+      opacity: 0.75;
+    }
+    .cell-dot {
+      opacity: 0.5;
+    }
+    .cell-conflict-icon {
+      position: absolute;
+      top: 6px;
+      right: 6px;
     }
     .cell--empty {
-      border: 1.5px dashed var(--border-strong); background: var(--surface-2);
-      color: var(--muted-foreground); display: flex; align-items: center; justify-content: center;
-      min-height: 62px; border-radius: var(--radius-sm);
+      border: 1.5px dashed var(--border);
+      background: rgba(15, 23, 42, 0.01);
+      color: var(--muted-foreground);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 64px;
+      border-radius: 12px;
+      transition: all 0.2s ease;
     }
-    .cell--editable { cursor: pointer; }
-    .cell--editable:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
-    .cell--conflict { box-shadow: inset 0 0 0 1.5px var(--destructive); }
-    .cell-bar { position: absolute; left: 0; top: 6px; bottom: 6px; width: 4px; border-radius: 99px; opacity: 0.65; }
-    .cell--conflict .cell-bar { opacity: 1; }
-    .cell-subject { font-weight: 700; font-size: var(--text-sm); line-height: 1.15; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .cell-meta { font-size: var(--text-xs); opacity: 0.82; margin-top: 2px; font-weight: 500; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-    .cell-conflict-icon { position: absolute; top: 6px; right: 6px; }
+    .cell--empty.cell--editable:hover {
+      border-color: var(--primary);
+      background: var(--primary-tint);
+      color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
+    }
+    .cell-plus-icon {
+      opacity: 0.4;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .cell--empty.cell--editable:hover .cell-plus-icon {
+      opacity: 1;
+      transform: scale(1.15) rotate(90deg);
+    }
   `],
 })
 export class ScheduleCellComponent {
@@ -110,35 +182,37 @@ export class ScheduleCellComponent {
     @if (isMobile()) {
       <!-- ── MÓVIL: un día a la vez ─────────────────────────────────────────── -->
       <div>
-        <!-- Tabs de días -->
-        <div style="display:flex;gap:6px;margin-bottom:12px">
+        <!-- Tabs de días (Móvil) -->
+        <div class="mobile-days-bar">
           @for (day of days; track $index) {
             <button (click)="selectedDay.set($index)"
-              style="flex:1;min-width:0;padding:9px 4px;border-radius:var(--radius-md);
-                font-weight:700;font-size:var(--text-sm);transition:all .15s;cursor:pointer;"
-              [style.background]="selectedDay() === $index ? 'var(--primary)' : 'var(--card)'"
-              [style.color]="selectedDay() === $index ? '#fff' : 'var(--muted-foreground)'"
-              [style.border]="'1px solid ' + (selectedDay() === $index ? 'var(--primary)' : 'var(--border)')">
+              class="mobile-day-btn"
+              [class.mobile-day-btn--active]="selectedDay() === $index">
               {{ daysShort[$index] }}
             </button>
           }
         </div>
 
         <!-- Slots del día seleccionado -->
-        <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;flex-direction:column;gap:10px">
           @for (slot of lectiveSlots(); track slot.index) {
             @if (slot.index === breakAfterIndex()) {
-              <div class="recreo-band">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2M7 2v20M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
-                </svg>
-                RECREO · {{ breakSlot()?.startTime }} – {{ breakSlot()?.endTime }}
+              <div style="display:grid;grid-template-columns:64px 1fr;gap:10px;align-items:stretch">
+                <div class="time-slot-card" style="border-right-style: dashed;height:38px">
+                  <span class="time-start" style="color:var(--muted-foreground);font-size:var(--text-xs)">{{ breakSlot()?.startTime }}</span>
+                </div>
+                <div class="recreo-band-premium" style="font-size:10px">
+                  <svg class="recreo-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2M7 2v20M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
+                  </svg>
+                  <span>RECREO · {{ breakSlot()?.startTime }} – {{ breakSlot()?.endTime }}</span>
+                </div>
               </div>
             }
-            <div style="display:grid;grid-template-columns:56px 1fr;gap:10px;align-items:stretch">
-              <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:center;line-height:1.2">
-                <span style="font-weight:700;font-size:var(--text-sm);font-variant-numeric:tabular-nums">{{ slot.startTime }}</span>
-                <span style="font-size:11px;color:var(--muted-foreground);font-variant-numeric:tabular-nums">{{ slot.endTime }}</span>
+            <div style="display:grid;grid-template-columns:64px 1fr;gap:10px;align-items:stretch">
+              <div class="time-slot-card">
+                <span class="time-start">{{ slot.startTime }}</span>
+                <span class="time-end">{{ slot.endTime }}</span>
               </div>
               <app-schedule-cell
                 [entry]="getCellEntry(selectedDay(), slot.index)"
@@ -152,30 +226,38 @@ export class ScheduleCellComponent {
     } @else {
       <!-- ── ESCRITORIO: semana completa ────────────────────────────────────── -->
       <div class="thin-scroll" style="overflow-x:auto">
-        <div style="min-width:720px">
-          <div style="display:grid;grid-template-columns:64px repeat(5, 1fr);gap:8px;margin-bottom:8px">
+        <div style="min-width:720px; padding: 4px 0">
+          <div style="display:grid;grid-template-columns:80px repeat(5, 1fr);gap:10px;margin-bottom:12px">
             <div></div>
             @for (day of days; track $index) {
-              <div style="text-align:center;font-weight:700;font-size:var(--text-sm);padding:4px 0">{{ day }}</div>
+              <div class="day-header-pill">
+                <span class="day-header-short">{{ daysShort[$index] }}</span>
+                <span class="day-header-full">{{ day }}</span>
+              </div>
             }
           </div>
-          <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;flex-direction:column;gap:10px">
             @for (slot of lectiveSlots(); track slot.index) {
               @if (slot.index === breakAfterIndex()) {
-                <div style="display:grid;grid-template-columns:64px repeat(5, 1fr);gap:8px">
-                  <div></div>
-                  <div class="recreo-band" style="grid-column:span 5">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <div style="display:grid;grid-template-columns:80px repeat(5, 1fr);gap:10px">
+                  <div class="time-slot-card" style="border-right-style: dashed;">
+                    <span class="time-start" style="color:var(--muted-foreground)">{{ breakSlot()?.startTime }}</span>
+                    <span class="time-end">{{ breakSlot()?.endTime }}</span>
+                  </div>
+                  <div class="recreo-band-premium" style="grid-column:span 5">
+                    <svg class="recreo-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                       <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2M7 2v20M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
                     </svg>
-                    RECREO · {{ breakSlot()?.startTime }} – {{ breakSlot()?.endTime }}
+                    <span>RECREO ESCOLAR</span>
+                    <span style="opacity:0.6;font-weight:500">•</span>
+                    <span style="font-weight:700">{{ breakSlot()?.startTime }} – {{ breakSlot()?.endTime }}</span>
                   </div>
                 </div>
               }
-              <div style="display:grid;grid-template-columns:64px repeat(5, 1fr);gap:8px">
-                <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:center;line-height:1.2">
-                  <span style="font-weight:700;font-size:var(--text-sm);font-variant-numeric:tabular-nums">{{ slot.startTime }}</span>
-                  <span style="font-size:11px;color:var(--muted-foreground);font-variant-numeric:tabular-nums">{{ slot.endTime }}</span>
+              <div style="display:grid;grid-template-columns:80px repeat(5, 1fr);gap:10px">
+                <div class="time-slot-card">
+                  <span class="time-start">{{ slot.startTime }}</span>
+                  <span class="time-end">{{ slot.endTime }}</span>
                 </div>
                 @for (day of days; track $index) {
                   <app-schedule-cell
@@ -193,11 +275,120 @@ export class ScheduleCellComponent {
     }
   `,
   styles: [`
-    .recreo-band {
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-      background: var(--secondary); border-radius: var(--radius-sm);
-      color: var(--muted-foreground); font-weight: 600; font-size: var(--text-xs);
-      padding: 7px 0; letter-spacing: 0.03em;
+    .recreo-band-premium {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: linear-gradient(90deg, rgba(99, 102, 241, 0.04) 0%, rgba(99, 102, 241, 0.01) 50%, rgba(99, 102, 241, 0.04) 100%);
+      border: 1.5px dashed var(--border-strong);
+      border-radius: 12px;
+      color: var(--muted-foreground);
+      font-weight: 800;
+      font-size: 11px;
+      padding: 10px 0;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.01);
+    }
+    .recreo-icon {
+      color: var(--primary);
+      animation: nudge 2.5s ease-in-out infinite;
+    }
+    @keyframes nudge {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-2px); }
+    }
+    .day-header-pill {
+      text-align: center;
+      font-weight: 800;
+      font-size: var(--text-xs);
+      padding: 12px 4px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--foreground);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-xs);
+    }
+    .day-header-short {
+      display: none;
+    }
+    .day-header-full {
+      display: inline;
+    }
+    @media (max-width: 900px) {
+      .day-header-short { display: inline; }
+      .day-header-full { display: none; }
+    }
+    .time-slot-card {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: center;
+      padding-right: 12px;
+      border-right: 2px solid var(--border);
+      position: relative;
+    }
+    .time-slot-card::after {
+      content: '';
+      position: absolute;
+      right: -5px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 8px;
+      height: 8px;
+      background: var(--border-strong);
+      border: 2px solid var(--card);
+      border-radius: 50%;
+      z-index: 10;
+    }
+    .time-start {
+      font-weight: 800;
+      font-size: var(--text-sm);
+      color: var(--foreground);
+      font-variant-numeric: tabular-nums;
+    }
+    .time-end {
+      font-size: 11px;
+      color: var(--muted-foreground);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      margin-top: 1px;
+    }
+    .mobile-days-bar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 16px;
+      background: var(--secondary);
+      padding: 4px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+    .mobile-day-btn {
+      flex: 1;
+      min-width: 0;
+      padding: 10px 4px;
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: var(--text-xs);
+      transition: all 0.2s ease;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--muted-foreground);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .mobile-day-btn--active {
+      background: var(--card);
+      color: var(--primary);
+      box-shadow: var(--shadow-sm);
     }
   `],
 })

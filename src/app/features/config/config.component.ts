@@ -386,88 +386,313 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
           @case ('classrooms') {
             <div data-testid="config-classrooms-section">
             <ng-container [ngTemplateOutlet]="tableHeader"
-              [ngTemplateOutletContext]="{title:'Aulas', addLabel:'+ Añadir aula'}" />
+              [ngTemplateOutletContext]="{title:'Aulas', addLabel:'+ Añadir aula', tab:'classrooms'}" />
             <table class="data-table">
-              <thead><tr><th>Nombre</th><th>Tipo</th><th>Capacidad</th><th></th></tr></thead>
+              <thead><tr><th>Nombre</th><th>Tipo</th><th>Capacidad</th><th>Uso</th><th style="text-align:right;padding-right:24px">Acciones</th></tr></thead>
               <tbody>
                 @for (r of classrooms(); track r.id) {
                   <tr>
-                    <td>{{ r.name }}</td>
+                    <td><strong>{{ r.name }}</strong></td>
                     <td>{{ classroomTypeLabel(r.classroomType) }}</td>
                     <td>{{ r.capacity }} alumnos</td>
                     <td>
-                      <button (click)="deleteClassroom(r.id)" class="btn-del">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-                        </svg>
-                      </button>
+                      <span [class]="r.isShared ? 'official-mini' : 'preview-meta-pill'" 
+                            [style.background]="r.isShared ? 'var(--primary-tint)' : 'var(--secondary)'"
+                            [style.color]="r.isShared ? 'var(--primary-strong)' : 'var(--muted-foreground)'"
+                            style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px">
+                        {{ r.isShared ? 'Compartida' : 'Exclusiva' }}
+                      </span>
+                    </td>
+                    <td style="text-align:right;padding-right:16px">
+                      <div style="display:inline-flex;gap:4px">
+                        <button (click)="editClassroom(r)" class="btn-edit" title="Editar aula" style="color:var(--muted-foreground);padding:6px;border-radius:6px;cursor:pointer;transition:color .15s;background:none;border:none">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </button>
+                        <button (click)="deleteClassroom(r.id)" class="btn-del" title="Eliminar aula" style="background:none;border:none">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 }
               </tbody>
-                            </table>
+            </table>
             </div>
           }
         }
       </div>
 
-      <!-- Modal para Añadir / Editar Grupo -->
+      <!-- Modal para Añadir / Editar Grupo (Diseño Premium Drawer) -->
       @if (isGroupModalOpen()) {
         <div class="modal-backdrop" (click)="isGroupModalOpen.set(false)">
           <div class="modal-card lec-scale-in" (click)="$event.stopPropagation()">
-            <div class="modal-header">
-              <h3>{{ editingGroup() ? 'Editar grupo' : 'Añadir grupo' }}</h3>
-              <button (click)="isGroupModalOpen.set(false)" style="padding:4px;color:var(--muted-foreground);cursor:pointer;background:none;border:none">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            
+            <!-- Cabecera Premium -->
+            <div class="modal-header-premium">
+              <div>
+                <span class="premium-badge">{{ editingGroup() ? 'MODIFICACIÓN' : 'NUEVO REGISTRO' }}</span>
+                <h3 class="premium-title">{{ editingGroup() ? 'Editar Grupo' : 'Crear Nuevo Grupo' }}</h3>
+              </div>
+              <button (click)="isGroupModalOpen.set(false)" class="close-btn-premium">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
               </button>
             </div>
-            <div style="padding:20px; display:flex; flex-direction:column; gap:16px">
-              <div class="form-field">
-                <label class="field-label">Nivel del curso</label>
-                <select [(ngModel)]="groupForm().courseLevel" class="field-input" style="width:100%">
+            
+            <!-- Cuerpo del Formulario -->
+            <div class="modal-body-premium">
+              
+              <!-- Tarjeta de Vista Previa -->
+              <div class="preview-card-premium">
+                <div class="preview-badge-label">VISTA PREVIA DEL GRUPO</div>
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <span class="preview-group-dot">
+                      {{ groupForm().courseLevel }}º{{ groupForm().groupLabel ? groupForm().groupLabel.toUpperCase() : '?' }}
+                    </span>
+                    <div>
+                      <div style="font-weight:700;font-size:var(--text-md);color:var(--foreground)">
+                        Curso {{ groupForm().courseLevel }}º — Grupo {{ groupForm().groupLabel ? groupForm().groupLabel.toUpperCase() : 'Sin definir' }}
+                      </div>
+                      <div style="font-size:var(--text-xs);color:var(--muted-foreground)">
+                        {{ groupForm().studentCount }} alumnos registrados
+                      </div>
+                    </div>
+                  </div>
+                  <div class="preview-meta-pill" [class.preview-meta-pill--active]="groupForm().tutorId">
+                    {{ getTutorInitialsOrText() }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Selector de Nivel de Curso (Tarjetas Interactivas) -->
+              <div class="form-field-premium">
+                <label class="field-label-premium">Nivel del Curso</label>
+                <div class="course-levels-grid">
                   @for (level of getSchoolCourseLevels(); track level) {
-                    <option [value]="level">{{ level }}º de Primaria</option>
+                    <button class="course-level-card" 
+                      [class.course-level-card--active]="groupForm().courseLevel === level"
+                      (click)="groupForm().courseLevel = level">
+                      <span class="course-level-card-num">{{ level }}º</span>
+                      <span class="course-level-card-sub">Primaria</span>
+                    </button>
                   }
-                </select>
+                </div>
               </div>
               
-              <div class="form-field">
-                <label class="field-label">Letra / Etiqueta del grupo</label>
-                <input [(ngModel)]="groupForm().groupLabel" class="field-input" style="width:100%" placeholder="Ej: A, B, C..." type="text" maxlength="5" />
+              <!-- Fila con Letra de Grupo y Número de Alumnos -->
+              <div class="form-row-premium">
+                
+                <!-- Letra del Grupo -->
+                <div class="form-field-premium" style="flex:1">
+                  <label class="field-label-premium">Letra / Etiqueta</label>
+                  <div class="input-with-icon-premium">
+                    <span class="input-icon-premium" style="font-size:16px;font-weight:800;color:var(--muted-foreground)">A</span>
+                    <input [ngModel]="groupForm().groupLabel" 
+                      class="field-input-premium" 
+                      placeholder="Ej: A, B..." 
+                      type="text" 
+                      maxlength="5" 
+                      (input)="onGroupLabelInput($event)" />
+                  </div>
+                </div>
+
+                <!-- Cantidad de Alumnos -->
+                <div class="form-field-premium" style="flex:1">
+                  <label class="field-label-premium">Nº de Alumnos</label>
+                  <div class="student-counter-premium">
+                    <button class="counter-btn-premium" (click)="adjustStudentCount(-1)">−</button>
+                    <input [(ngModel)]="groupForm().studentCount" 
+                      class="counter-input-premium" 
+                      type="number" min="1" max="100" />
+                    <button class="counter-btn-premium" (click)="adjustStudentCount(1)">+</button>
+                  </div>
+                </div>
+
               </div>
 
-              <div class="form-field">
-                <label class="field-label">Número de alumnos</label>
-                <input [(ngModel)]="groupForm().studentCount" class="field-input" style="width:100%" type="number" min="1" max="100" />
+              <!-- Asignación de Tutor/a -->
+              <div class="form-field-premium">
+                <label class="field-label-premium">Profesor/a Tutor/a</label>
+                <div class="input-with-icon-premium">
+                  <span class="input-icon-premium" style="font-size:15px">👤</span>
+                  <select [(ngModel)]="groupForm().tutorId" class="field-select-premium">
+                    <option value="">Sin tutor asignado</option>
+                    @for (t of teachers(); track t.id) {
+                      <option [value]="t.id">{{ t.fullName }} — {{ t.teacherType }}</option>
+                    }
+                  </select>
+                </div>
               </div>
 
-              <div class="form-field">
-                <label class="field-label">Tutor / a</label>
-                <select [(ngModel)]="groupForm().tutorId" class="field-input" style="width:100%">
-                  <option value="">Sin tutor asignado</option>
-                  @for (t of teachers(); track t.id) {
-                    <option [value]="t.id">{{ t.fullName }}</option>
-                  }
-                </select>
+              <!-- Aula de Referencia -->
+              <div class="form-field-premium">
+                <label class="field-label-premium">Aula de Referencia</label>
+                <div class="input-with-icon-premium">
+                  <span class="input-icon-premium" style="font-size:15px">🚪</span>
+                  <select [(ngModel)]="groupForm().homeClassroomId" class="field-select-premium">
+                    <option value="">Sin aula de referencia</option>
+                    @for (c of classrooms(); track c.id) {
+                      <option [value]="c.id">{{ c.name }} ({{ classroomTypeLabel(c.classroomType) }})</option>
+                    }
+                  </select>
+                </div>
               </div>
 
-              <div class="form-field">
-                <label class="field-label">Aula de referencia</label>
-                <select [(ngModel)]="groupForm().homeClassroomId" class="field-input" style="width:100%">
-                  <option value="">Sin aula de referencia</option>
-                  @for (c of classrooms(); track c.id) {
-                    <option [value]="c.id">{{ c.name }} ({{ classroomTypeLabel(c.classroomType) }})</option>
-                  }
-                </select>
-              </div>
             </div>
             
-            <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
-              <button class="btn-secondary" (click)="isGroupModalOpen.set(false)" style="padding:8px 16px;border-radius:var(--radius-sm);cursor:pointer;font-weight:600">Cancelar</button>
-              <button class="btn-primary" (click)="saveGroup()" style="padding:8px 16px;border-radius:var(--radius-sm);cursor:pointer;font-weight:600">Guardar</button>
+            <!-- Pie de Botones Premium -->
+            <div class="modal-footer-premium">
+              <button class="btn-cancel-premium" (click)="isGroupModalOpen.set(false)">
+                Cancelar
+              </button>
+              <button class="btn-save-premium" (click)="saveGroup()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;vertical-align:middle;display:inline-block">
+                  <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                  <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                Guardar Cambios
+              </button>
             </div>
+            
+          </div>
+        </div>
+      }
+
+      <!-- Modal para Añadir / Editar Aula (Diseño Premium Drawer) -->
+      @if (isClassroomModalOpen()) {
+        <div class="modal-backdrop" (click)="isClassroomModalOpen.set(false)">
+          <div class="modal-card lec-scale-in" (click)="$event.stopPropagation()">
+            
+            <!-- Cabecera Premium -->
+            <div class="modal-header-premium">
+              <div>
+                <span class="premium-badge">{{ editingClassroom() ? 'MODIFICACIÓN' : 'NUEVO REGISTRO' }}</span>
+                <h3 class="premium-title">{{ editingClassroom() ? 'Editar Aula' : 'Crear Nueva Aula' }}</h3>
+              </div>
+              <button (click)="isClassroomModalOpen.set(false)" class="close-btn-premium">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            
+            <!-- Cuerpo del Formulario -->
+            <div class="modal-body-premium">
+              
+              <!-- Tarjeta de Vista Previa -->
+              <div class="preview-card-premium">
+                <div class="preview-badge-label">VISTA PREVIA DE AULA</div>
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <span class="preview-group-dot" style="background: linear-gradient(135deg, var(--primary) 0%, oklch(0.5 0.2 240) 100%);">
+                      {{ classroomForm().name ? classroomForm().name.substring(0, 3).toUpperCase() : 'AUL' }}
+                    </span>
+                    <div>
+                      <div style="font-weight:700;font-size:var(--text-md);color:var(--foreground)">
+                        {{ classroomForm().name || 'Nueva Aula' }}
+                      </div>
+                      <div style="font-size:var(--text-xs);color:var(--muted-foreground)">
+                        Tipo: {{ classroomTypeLabel(classroomForm().classroomType) }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="preview-meta-pill" [class.preview-meta-pill--active]="classroomForm().isShared">
+                    {{ classroomForm().isShared ? 'Uso Compartido' : 'Uso Exclusivo' }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Nombre del Aula -->
+              <div class="form-field-premium">
+                <label class="field-label-premium">Nombre del Aula</label>
+                <div class="input-with-icon-premium">
+                  <span class="input-icon-premium" style="font-size:15px">🚪</span>
+                  <input [(ngModel)]="classroomForm().name" 
+                    class="field-input-premium" 
+                    placeholder="Ej: Aula 101, Laboratorio de Física..." 
+                    type="text" 
+                    maxlength="50" />
+                </div>
+              </div>
+
+              <!-- Fila con Tipo y Capacidad -->
+              <div class="form-row-premium">
+                
+                <!-- Tipo de Aula -->
+                <div class="form-field-premium" style="flex:1">
+                  <label class="field-label-premium">Tipo de Aula</label>
+                  <div class="input-with-icon-premium">
+                    <span class="input-icon-premium" style="font-size:15px">🔧</span>
+                    <select [(ngModel)]="classroomForm().classroomType" class="field-select-premium">
+                      <option value="regular">Ordinaria</option>
+                      <option value="gym">Gimnasio</option>
+                      <option value="music">Música</option>
+                      <option value="lab">Laboratorio</option>
+                      <option value="it">Informática</option>
+                      <option value="support">Apoyo</option>
+                    </select>
+                  </div>
+                 </div>
+
+                 <!-- Capacidad -->
+                 <div class="form-field-premium" style="flex:1">
+                   <label class="field-label-premium">Capacidad (Alumnos)</label>
+                   <div class="student-counter-premium">
+                     <button class="counter-btn-premium" (click)="adjustClassroomCapacity(-1)">−</button>
+                     <input [(ngModel)]="classroomForm().capacity" 
+                       class="counter-input-premium" 
+                       type="number" min="1" max="100" />
+                     <button class="counter-btn-premium" (click)="adjustClassroomCapacity(1)">+</button>
+                   </div>
+                 </div>
+
+              </div>
+
+              <!-- Uso Compartido Toggle Card -->
+              <div class="form-field-premium">
+                <label class="field-label-premium">Configuración de Uso</label>
+                <div class="toggle-card-premium" 
+                     [class.toggle-card-premium--active]="classroomForm().isShared"
+                     (click)="classroomForm().isShared = !classroomForm().isShared">
+                  <div style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:var(--secondary);font-size:16px">
+                    🤝
+                  </div>
+                  <div style="flex:1">
+                    <div style="font-weight:700;font-size:var(--text-sm)">¿Es un aula de uso compartido?</div>
+                    <div style="font-size:11px;opacity:0.8">Permite que el aula sea asignada a varias asignaturas a la vez.</div>
+                  </div>
+                  <div style="display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:2px solid var(--border);position:relative">
+                    @if (classroomForm().isShared) {
+                      <div style="width:10px;height:10px;border-radius:50%;background:var(--primary)"></div>
+                    }
+                  </div>
+                </div>
+              </div>
+
+            </div>
+            
+            <!-- Pie de Botones Premium -->
+            <div class="modal-footer-premium">
+              <button class="btn-cancel-premium" (click)="isClassroomModalOpen.set(false)">
+                Cancelar
+              </button>
+              <button class="btn-save-premium" (click)="saveClassroom()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;vertical-align:middle;display:inline-block">
+                  <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                  <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                Guardar Cambios
+              </button>
+            </div>
+            
           </div>
         </div>
       }
@@ -529,9 +754,9 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
     .hours-input { width: 64px; padding: 5px 8px; border: 1px solid var(--input); border-radius: var(--radius-sm); font-size: var(--text-sm); font-family: var(--font-sans); text-align: center; }
 
     /* Modales */
-    .modal-backdrop { position: fixed; inset: 0; z-index: 80; background: oklch(0.2 0.02 255 / 0.45); display: flex; align-items: flex-end; justify-content: center; backdrop-filter: blur(2px); }
+    .modal-backdrop { position: fixed; inset: 0; z-index: 80; background: rgba(15, 23, 42, 0.3); display: flex; align-items: flex-end; justify-content: center; backdrop-filter: blur(12px) saturate(180%); }
     @media (min-width: 640px) { .modal-backdrop { align-items: center; } }
-    .modal-card { background: var(--card); border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; max-height: 90vh; overflow: auto; box-shadow: var(--shadow-lg); border: 1px solid var(--border); display: flex; flex-direction: column; }
+    .modal-card { background: var(--card); border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; max-height: 90vh; overflow: auto; box-shadow: 0 25px 50px -12px rgba(99, 102, 241, 0.15), 0 0 40px rgba(99, 102, 241, 0.05); border: 1px solid var(--border); display: flex; flex-direction: column; }
     @media (min-width: 640px) { .modal-card { border-radius: var(--radius-lg); } }
     .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border); }
     .modal-header h3 { font-size: var(--text-lg); font-weight: 700; }
@@ -544,6 +769,332 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
     .btn-secondary { padding: 9px 20px; background: var(--card); color: var(--foreground); border: 1px solid var(--input); border-radius: var(--radius-sm); font-size: var(--text-sm); font-weight: 600; cursor: pointer; transition: background .15s; }
     .btn-secondary:hover { background: var(--surface-2); }
     .btn-edit:hover { color: var(--primary) !important; }
+
+    /* Modal Premium Styles */
+    .modal-header-premium {
+      padding: 24px 28px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(to bottom, var(--surface), var(--card));
+    }
+    .premium-badge {
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--primary);
+      background: var(--primary-tint);
+      padding: 3px 8px;
+      border-radius: 99px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+    .premium-title {
+      font-size: var(--text-xl);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--foreground) 30%, var(--primary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .close-btn-premium {
+      color: var(--muted-foreground);
+      padding: 8px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      background: var(--secondary);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .close-btn-premium:hover {
+      background: var(--border);
+      color: var(--foreground);
+      transform: rotate(90deg);
+    }
+    .modal-body-premium {
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      overflow-y: auto;
+      max-height: 60vh;
+      background: var(--card);
+    }
+    .preview-card-premium {
+      background: linear-gradient(135deg, var(--surface-2) 0%, var(--secondary) 100%);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .preview-badge-label {
+      font-size: 9px;
+      font-weight: 800;
+      color: var(--muted-foreground);
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+    }
+    .preview-group-dot {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 52px;
+      height: 52px;
+      background: linear-gradient(135deg, var(--primary) 0%, oklch(0.6 0.18 330) 100%);
+      color: #fff;
+      font-weight: 800;
+      font-size: 18px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+    }
+    .preview-meta-pill {
+      font-size: var(--text-xs);
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 99px;
+      background: var(--border);
+      color: var(--muted-foreground);
+      transition: all 0.2s;
+    }
+    .preview-meta-pill--active {
+      background: var(--success-tint);
+      color: var(--success);
+      font-weight: 700;
+    }
+    
+    .form-field-premium {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .field-label-premium {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted-foreground);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .course-levels-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+    }
+    @media (max-width: 480px) {
+      .course-levels-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    .course-level-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 4px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .course-level-card:hover {
+      border-color: var(--primary);
+      background: var(--surface-2);
+      transform: translateY(-2px);
+    }
+    .course-level-card--active {
+      background: linear-gradient(135deg, var(--primary) 0%, oklch(0.55 0.16 260) 100%) !important;
+      border-color: transparent !important;
+      color: #fff !important;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+    }
+    .course-level-card-num {
+      font-size: var(--text-md);
+      font-weight: 800;
+    }
+    .course-level-card-sub {
+      font-size: 9px;
+      opacity: 0.7;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    
+    .form-row-premium {
+      display: flex;
+      gap: 16px;
+    }
+    @media (max-width: 480px) {
+      .form-row-premium {
+        flex-direction: column;
+      }
+    }
+    .input-with-icon-premium {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+    .input-icon-premium {
+      position: absolute;
+      left: 14px;
+      font-weight: 800;
+      color: var(--muted-foreground);
+      font-size: var(--text-sm);
+      pointer-events: none;
+    }
+    .field-input-premium {
+      width: 100%;
+      padding: 12px 14px 12px 38px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: var(--text-sm);
+      background: var(--card);
+      color: var(--foreground);
+      font-family: var(--font-sans);
+      transition: all 0.2s;
+    }
+    .field-input-premium:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-tint);
+      outline: none;
+    }
+    .field-select-premium {
+      width: 100%;
+      padding: 12px 14px 12px 38px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: var(--text-sm);
+      background: var(--card);
+      color: var(--foreground);
+      font-family: var(--font-sans);
+      cursor: pointer;
+      appearance: none;
+      transition: all 0.2s;
+    }
+    .field-select-premium:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-tint);
+      outline: none;
+    }
+    
+    .student-counter-premium {
+      display: flex;
+      align-items: center;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--card);
+      height: 46px;
+    }
+    .counter-btn-premium {
+      background: var(--surface-2);
+      border: none;
+      width: 44px;
+      height: 100%;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--foreground);
+      cursor: pointer;
+      transition: background 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .counter-btn-premium:hover {
+      background: var(--border);
+    }
+    .counter-input-premium {
+      flex: 1;
+      border: none;
+      background: transparent;
+      text-align: center;
+      font-weight: 700;
+      font-size: var(--text-sm);
+      color: var(--foreground);
+      width: 100%;
+      height: 100%;
+    }
+    .counter-input-premium::-webkit-outer-spin-button,
+    .counter-input-premium::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    
+    .modal-footer-premium {
+      padding: 20px 28px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      background: linear-gradient(to top, var(--surface), var(--card));
+    }
+    .btn-cancel-premium {
+      padding: 11px 24px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--foreground);
+      border-radius: 10px;
+      font-size: var(--text-sm);
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-cancel-premium:hover {
+      background: var(--surface-2);
+      border-color: var(--muted-foreground);
+    }
+    .btn-save-premium {
+      padding: 11px 24px;
+      background: linear-gradient(135deg, var(--primary) 0%, oklch(0.55 0.16 260) 100%);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: var(--text-sm);
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-save-premium:hover {
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
+      transform: translateY(-1px);
+    }
+    .btn-save-premium:active {
+      transform: translateY(1px);
+    }
+
+    /* Toggle Card Premium */
+    .toggle-card-premium {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      background: var(--card);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .toggle-card-premium:hover {
+      border-color: var(--primary);
+      background: var(--surface-2);
+      transform: translateY(-1px);
+    }
+    .toggle-card-premium--active {
+      background: var(--primary-tint) !important;
+      border-color: var(--primary) !important;
+      color: var(--primary-strong) !important;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+    }
   `],
 })
 export class ConfigComponent implements OnInit {
@@ -569,12 +1120,22 @@ export class ConfigComponent implements OnInit {
     homeClassroomId: '',
   });
 
+  // ── Modales de Aulas ───────────────────────────────────────────────────────
+  readonly isClassroomModalOpen = signal(false);
+  readonly editingClassroom = signal<Classroom | null>(null);
+  readonly classroomForm = signal({
+    name: '',
+    classroomType: 'regular',
+    capacity: 30,
+    isShared: false,
+  });
+
   readonly tabs = [
     { id: 'school' as Tab, label: 'Centro' },
+    { id: 'classrooms' as Tab, label: 'Aulas' },
     { id: 'groups' as Tab, label: 'Grupos' },
     { id: 'teachers' as Tab, label: 'Profesores' },
     { id: 'subjects' as Tab, label: 'Asignaturas' },
-    { id: 'classrooms' as Tab, label: 'Aulas' },
   ];
 
   readonly courseLevels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -855,6 +1416,15 @@ export class ConfigComponent implements OnInit {
         homeClassroomId: '',
       });
       this.isGroupModalOpen.set(true);
+    } else if (tab === 'classrooms') {
+      this.editingClassroom.set(null);
+      this.classroomForm.set({
+        name: '',
+        classroomType: 'regular',
+        capacity: 30,
+        isShared: false,
+      });
+      this.isClassroomModalOpen.set(true);
     }
   }
 
@@ -901,6 +1471,75 @@ export class ConfigComponent implements OnInit {
     } catch (err) {
       alert('Error al guardar el grupo. Por favor, comprueba los datos.');
     }
+  }
+
+  onGroupLabelInput(ev: Event): void {
+    const val = (ev.target as HTMLInputElement).value;
+    this.groupForm.update(f => ({ ...f, groupLabel: val.toUpperCase() }));
+  }
+
+  adjustStudentCount(amount: number): void {
+    this.groupForm.update(f => {
+      const newCount = Math.max(1, Math.min(100, f.studentCount + amount));
+      return { ...f, studentCount: newCount };
+    });
+  }
+
+  getTutorInitialsOrText(): string {
+    const tutorId = this.groupForm().tutorId;
+    if (!tutorId) return 'Sin tutor';
+    const tutor = this.teachers().find(t => t.id === tutorId);
+    return tutor ? `Tutor: ${tutor.fullName}` : 'Sin tutor';
+  }
+
+  editClassroom(c: Classroom): void {
+    this.editingClassroom.set(c);
+    this.classroomForm.set({
+      name: c.name,
+      classroomType: c.classroomType,
+      capacity: c.capacity,
+      isShared: c.isShared,
+    });
+    this.isClassroomModalOpen.set(true);
+  }
+
+  async saveClassroom(): Promise<void> {
+    const form = this.classroomForm();
+    const editing = this.editingClassroom();
+
+    if (!form.name || form.name.trim() === '') {
+      alert('El nombre del aula es obligatorio.');
+      return;
+    }
+
+    const payload = {
+      name: form.name.trim(),
+      classroomType: form.classroomType,
+      capacity: Number(form.capacity),
+      isShared: form.isShared,
+    };
+
+    try {
+      if (editing) {
+        await this.api.updateClassroom(editing.id, payload);
+      } else {
+        await this.api.createClassroom(payload);
+      }
+      
+      // Refresh classrooms list
+      const updatedClassrooms = await this.api.getClassrooms();
+      this.classrooms.set(updatedClassrooms);
+      this.isClassroomModalOpen.set(false);
+    } catch (err) {
+      alert('Error al guardar el aula. Por favor, comprueba los datos.');
+    }
+  }
+
+  adjustClassroomCapacity(amount: number): void {
+    this.classroomForm.update(f => {
+      const newCapacity = Math.max(1, Math.min(100, f.capacity + amount));
+      return { ...f, capacity: newCapacity };
+    });
   }
 
   async deleteClassroom(id: string): Promise<void> {
