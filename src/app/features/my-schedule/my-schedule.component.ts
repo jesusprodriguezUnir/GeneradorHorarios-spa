@@ -5,6 +5,7 @@ import { CommonModule } from '@angular/common';
 import { ApiService } from '../../core/api/api.service';
 import { MySchedule, MyScheduleEntry, TimeSlot, DAYS, DAYS_SHORT, SUBJECT_COLORS } from '../../core/models';
 import { DeviceService } from '../../core/device.service';
+import { MessageService } from 'primeng/api';
 
 @Component({
   selector: 'app-my-schedule',
@@ -247,6 +248,7 @@ import { DeviceService } from '../../core/device.service';
 export class MyScheduleComponent implements OnInit {
   private readonly api = inject(ApiService);
   protected readonly device = inject(DeviceService);
+  private readonly toast = inject(MessageService);
 
   readonly schedule = signal<MySchedule | null>(null);
   readonly loading = signal(true);
@@ -283,6 +285,8 @@ export class MyScheduleComponent implements OnInit {
     } catch (err: any) {
       if (err?.status === 404) {
         this.notPublished.set(true);
+      } else {
+        this.toast.add({ severity: 'error', summary: 'Error de carga', detail: 'No se pudo obtener tu horario.' });
       }
     } finally {
       this.loading.set(false);

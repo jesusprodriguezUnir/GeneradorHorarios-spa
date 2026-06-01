@@ -1,5 +1,5 @@
 import {
-  Component, inject, computed, signal, ChangeDetectionStrategy
+  Component, OnInit, inject, computed, signal, ChangeDetectionStrategy
 } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -47,6 +47,15 @@ const TEACHER_NAV: NavItem[] = [
             <span style="font-weight:800;font-size:var(--text-lg);letter-spacing:-0.02em">Lectivo</span>
           </div>
           <div style="display:flex;align-items:center;gap:10px">
+            <!-- Selector Tema Móvil -->
+            <button (click)="toggleDarkMode()" style="color:#fff;padding:6px;cursor:pointer;display:flex;align-items:center;" title="Cambiar tema">
+              @if (isDarkMode()) {
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/></svg>
+              } @else {
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+              }
+            </button>
+            
             <span style="font-size:var(--text-xs);opacity:0.85">{{ schoolName() }}</span>
             <button (click)="logout()"
               style="background:rgba(255,255,255,0.15);border-radius:var(--radius-full);
@@ -116,7 +125,19 @@ const TEACHER_NAV: NavItem[] = [
             }
           </nav>
 
+          <!-- Toggle de modo oscuro en la parte inferior de la barra de navegación -->
           <div style="padding:12px;border-top:1px solid var(--border)">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px;margin-bottom:8px;border-bottom:1px solid var(--border)">
+              <span style="font-weight:700;font-size:11px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:0.04em">Tema oscuro</span>
+              <button (click)="toggleDarkMode()" style="color:var(--muted-foreground);padding:6px;border-radius:6px;cursor:pointer;display:flex;background:var(--secondary);border:1px solid var(--border);" title="Alternar tema" data-testid="theme-toggle">
+                @if (isDarkMode()) {
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.5"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/></svg>
+                } @else {
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                }
+              </button>
+            </div>
+            
             <div style="display:flex;align-items:center;gap:10px;padding:8px">
               <div class="user-avatar">{{ userInitials() }}</div>
               <div style="min-width:0;flex:1">
@@ -168,7 +189,7 @@ const TEACHER_NAV: NavItem[] = [
     }
   `],
 })
-export class AppShellComponent {
+export class AppShellComponent implements OnInit {
   protected readonly auth = inject(AuthService);
   protected readonly device = inject(DeviceService);
 
@@ -190,6 +211,29 @@ export class AppShellComponent {
   readonly roleLabel = computed(() =>
     this.auth.isAdmin() ? 'Jefatura de estudios' : 'Profesor/a'
   );
+
+  readonly isDarkMode = signal(false);
+
+  ngOnInit(): void {
+    const dark = localStorage.getItem('lectivo-dark') === 'true';
+    this.isDarkMode.set(dark);
+    this.applyTheme(dark);
+  }
+
+  toggleDarkMode(): void {
+    const next = !this.isDarkMode();
+    this.isDarkMode.set(next);
+    localStorage.setItem('lectivo-dark', String(next));
+    this.applyTheme(next);
+  }
+
+  private applyTheme(dark: boolean): void {
+    if (dark) {
+      document.documentElement.classList.add('lectivo-dark');
+    } else {
+      document.documentElement.classList.remove('lectivo-dark');
+    }
+  }
 
   logout(): void { this.auth.logout(); }
 }

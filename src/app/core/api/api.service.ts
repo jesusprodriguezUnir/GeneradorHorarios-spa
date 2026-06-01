@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
-  School, Teacher, CourseGroup, Classroom, SubjectAllocation,
+  School, CycleSchedule, Teacher, CourseGroup, Classroom, SubjectAllocation,
   AssignmentSummary, ScheduleList, ScheduleGrid, MySchedule,
   TeacherConstraint
 } from '../models';
@@ -16,6 +16,8 @@ export class ApiService {
   // ── School ────────────────────────────────────────────────────────────────
   getMySchool = () => firstValueFrom(this.http.get<School>(`${this.base}/schools/me`));
   updateMySchool = (data: Partial<School>) => firstValueFrom(this.http.put<School>(`${this.base}/schools/me`, data));
+  updateCycleSchedule = (cycle: number, data: { morningStart: string; endTime: string; afternoonStart?: string | null }) =>
+    firstValueFrom(this.http.put<CycleSchedule>(`${this.base}/schools/me/cycles/${cycle}`, data));
 
   // ── Teachers ──────────────────────────────────────────────────────────────
   getTeachers = () => firstValueFrom(this.http.get<Teacher[]>(`${this.base}/teachers`));
@@ -26,6 +28,7 @@ export class ApiService {
   // ── Groups ────────────────────────────────────────────────────────────────
   getGroups = () => firstValueFrom(this.http.get<CourseGroup[]>(`${this.base}/groups`));
   createGroup = (data: Partial<CourseGroup>) => firstValueFrom(this.http.post<CourseGroup>(`${this.base}/groups`, data));
+  updateGroup = (id: string, data: Partial<CourseGroup>) => firstValueFrom(this.http.put<CourseGroup>(`${this.base}/groups/${id}`, data));
   deleteGroup = (id: string) => firstValueFrom(this.http.delete(`${this.base}/groups/${id}`));
 
   // ── Classrooms ────────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ import { CommonModule } from '@angular/common';
 import { ApiService } from '../../core/api/api.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { Teacher, TeacherConstraint, DAYS, DAYS_SHORT } from '../../core/models';
+import { MessageService } from 'primeng/api';
 
 @Component({
   selector: 'app-teacher-profile',
@@ -108,6 +109,7 @@ import { Teacher, TeacherConstraint, DAYS, DAYS_SHORT } from '../../core/models'
 export class TeacherProfileComponent implements OnInit {
   private readonly api = inject(ApiService);
   private readonly auth = inject(AuthService);
+  private readonly toast = inject(MessageService);
 
   readonly teacher = signal<Teacher | null>(null);
   readonly constraints = signal<TeacherConstraint[]>([]);
@@ -125,12 +127,16 @@ export class TeacherProfileComponent implements OnInit {
     const user = this.auth.currentUser();
     if (!user?.teacher?.id) return;
 
-    const [teachers, constraints] = await Promise.all([
-      this.api.getTeachers().catch(() => [] as Teacher[]),
-      this.api.getTeacherConstraints(user.teacher.id).catch(() => [] as TeacherConstraint[]),
-    ]);
-    this.teacher.set(teachers.find(t => t.id === user.teacher!.id) ?? null);
-    this.constraints.set(constraints);
+    try {
+      const [teachers, constraints] = await Promise.all([
+        this.api.getTeachers(),
+        this.api.getTeacherConstraints(user.teacher.id),
+      ]);
+      this.teacher.set(teachers.find(t => t.id === user.teacher!.id) ?? null);
+      this.constraints.set(constraints);
+    } catch {
+      this.toast.add({ severity: 'error', summary: 'Error de carga', detail: 'No se pudieron obtener los datos de tu perfil.' });
+    }
   }
 
   hasConstraint(day: number, slot: number): boolean {
@@ -140,16 +146,26 @@ export class TeacherProfileComponent implements OnInit {
   async toggleConstraint(day: number, slot: number): Promise<void> {
     const existing = this.constraints().find(c => c.dayOfWeek === day && c.slotIndex === slot);
     if (existing) {
-      await this.api.deleteConstraint(existing.id).catch(() => {});
-      this.constraints.update(cs => cs.filter(c => c.id !== existing.id));
+      try {
+        await this.api.deleteConstraint(existing.id);
+        this.constraints.update(cs => cs.filter(c => c.id !== existing.id));
+        this.toast.add({ severity: 'success', summary: 'Disponibilidad guardada', detail: 'Franja horaria liberada.' });
+      } catch {
+        this.toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo modificar la disponibilidad.' });
+      }
     } else {
       const teacherId = this.teacher()?.id;
       if (!teacherId) return;
-      const newC = await this.api.createConstraint({
-        teacherId, constraintType: 'unavailable',
-        dayOfWeek: day, slotIndex: slot, weight: 10,
-      } as any).catch(() => null);
-      if (newC) this.constraints.update(cs => [...cs, newC]);
+      try {
+        const newC = await this.api.createConstraint({
+          teacherId, constraintType: 'unavailable',
+          dayOfWeek: day, slotIndex: slot, weight: 10,
+        } as any);
+        this.constraints.update(cs => [...cs, newC]);
+        this.toast.add({ severity: 'success', summary: 'Disponibilidad guardada', detail: 'Franja horaria marcada como no disponible.' });
+      } catch {
+        this.toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo marcar la franja horaria.' });
+      }
     }
   }
 

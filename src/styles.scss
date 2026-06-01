@@ -182,3 +182,103 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin
   letter-spacing: 0.01em;
   white-space: nowrap;
 }
+
+// ── Variables CSS de Modo Oscuro (.lectivo-dark) ──────────────────────────────
+.lectivo-dark {
+  /* Fondos */
+  --background:           oklch(0.12 0.015 250);
+  --surface-2:            oklch(0.15 0.015 250);
+  --foreground:           oklch(0.95 0.005 250);
+  --card:                 oklch(0.16 0.015 250);
+  --card-foreground:      oklch(0.95 0.005 250);
+
+  /* Primario: teal profundo ajustado para modo oscuro */
+  --primary:              oklch(0.62 0.12 200);
+  --primary-strong:       oklch(0.68 0.12 200);
+  --primary-foreground:   oklch(0.12 0.015 250);
+  --primary-tint:         oklch(0.20 0.05 200);
+  --primary-tint-2:       oklch(0.25 0.06 200);
+
+  /* Acento: ámbar cálido ajustado */
+  --accent:               oklch(0.82 0.11 70);
+  --accent-foreground:    oklch(0.18 0.04 70);
+  --accent-tint:          oklch(0.22 0.04 70);
+
+  /* Secundario */
+  --secondary:            oklch(0.18 0.015 250);
+  --secondary-foreground: oklch(0.90 0.005 250);
+
+  /* Muted */
+  --muted:                oklch(0.18 0.015 250);
+  --muted-foreground:     oklch(0.60 0.01 250);
+
+  /* Bordes */
+  --border:               oklch(0.22 0.015 250);
+  --border-strong:        oklch(0.28 0.015 250);
+  --input:                oklch(0.22 0.015 250);
+
+  /* Sombras oscuras */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.6);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.8);
+}
+
+// ── Estilos de Impresión Profesionales ────────────────────────────────────────
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11px !important;
+  }
+  
+  /* Ocultar elementos de navegación y de control de la UI */
+  aside, 
+  header,
+  .nav-buttons,
+  .week-nav,
+  .page-head button,
+  .view-tabs,
+  .field-select,
+  .btn-primary,
+  .btn-secondary,
+  .logo-mark,
+  .user-avatar {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 auto !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .lec-card {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+
+  .grid-wrapper {
+    overflow: visible !important;
+  }
+
+  .grid-inner {
+    min-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Forzar colores de fondo de celdas en el PDF */
+  .schedule-cell {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    border: 1px solid #ddd !important;
+  }
+  
+  .cell-empty {
+    border: 1px dashed #aaa !important;
+    background: transparent !important;
+  }
+}

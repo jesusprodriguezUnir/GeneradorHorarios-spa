@@ -6,8 +6,10 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import * as signalR from '@microsoft/signalr';
 import { ApiService } from '../../core/api/api.service';
-import { AssignmentSummary, TeacherConstraint, Teacher } from '../../core/models';
+import { AssignmentSummary, TeacherConstraint, Teacher, School } from '../../core/models';
 import { environment } from '../../../environments/environment';
+import { MessageService } from 'primeng/api';
+import { AuthService } from '../../core/auth/auth.service';
 
 interface ProgressMessage {
   assigned: number;
@@ -201,9 +203,14 @@ interface StepLog {
 
           @case (3) {
             <!-- Paso 4: Generación -->
-            <h2 class="step-title">Generar horario</h2>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+              <h2 class="step-title">Generar horario</h2>
+              <span class="hub-status-badge" [class.hub--connected]="hubStatus() === 'connected'" [class.hub--disconnected]="hubStatus() === 'disconnected'" [class.hub--connecting]="hubStatus() === 'connecting'">
+                SignalR: {{ hubStatus() === 'connected' ? 'Conectado' : hubStatus() === 'connecting' ? 'Conectando...' : 'Desconectado' }}
+              </span>
+            </div>
             <p class="step-desc">
-              El motor analizará las {{ assignments().reduce(sum, 0) }} asignaciones
+              El motor analizará las {{ totalRequiredHours() }} asignaciones
               y generará el horario óptimo en menos de 30 segundos.
             </p>
 
@@ -381,11 +388,18 @@ interface StepLog {
       cursor: pointer; white-space: nowrap;
     }
     .nav-buttons { display: flex; justify-content: space-between; gap: 12px; }
+
+    .hub-status-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: var(--radius-full); background: var(--secondary); color: var(--secondary-foreground); }
+    .hub--connected { background: var(--success-tint); color: var(--success); }
+    .hub--connecting { background: var(--warning-tint); color: oklch(0.74 0.14 70); }
+    .hub--disconnected { background: var(--destructive-tint); color: var(--destructive); }
   `],
 })
 export class GeneratorComponent implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
+  private readonly toast = inject(MessageService);
+  private readonly auth = inject(AuthService);
   private hubConnection?: signalR.HubConnection;
 
   readonly currentStep = signal(0);
@@ -401,6 +415,8 @@ export class GeneratorComponent implements OnInit, OnDestroy {
   readonly totalConflicts = signal(0);
   readonly generationSeconds = signal(0);
   readonly hasConflicts = computed(() => this.totalConflicts() > 0);
+  readonly completionWarning = computed(() => this.assignments().some(a => a.completionPct < 100));
+  readonly hubStatus = signal<'connected' | 'disconnected' | 'connecting'>('connecting');
 
   private lastScheduleId = '';
 
@@ -419,15 +435,23 @@ export class GeneratorComponent implements OnInit, OnDestroy {
 
   readonly stepLabels = ['Configuración', 'Asignaciones', 'Restricciones', 'Generar'];
 
+  readonly totalRequiredHours = computed(() =>
+    this.assignments().reduce((sum, a) => sum + a.requiredHours, 0)
+  );
+
   async ngOnInit(): Promise<void> {
-    const [teachers, constraints] = await Promise.all([
-      this.api.getTeachers().catch(() => []),
-      this.api.getConstraints().catch(() => []),
-    ]);
-    this.teachers.set(teachers);
-    this.constraints.set(constraints);
-    await this.loadAssignments();
-    this.setupSignalR();
+    try {
+      const [teachers, constraints] = await Promise.all([
+        this.api.getTeachers().catch(() => []),
+        this.api.getConstraints().catch(() => []),
+      ]);
+      this.teachers.set(teachers);
+      this.constraints.set(constraints);
+      await this.loadAssignments();
+      this.setupSignalR();
+    } catch {
+      this.toast.add({ severity: 'error', summary: 'Error de carga', detail: 'No se pudieron cargar los datos del generador.' });
+    }
   }
 
   ngOnDestroy(): void {
@@ -446,7 +470,6 @@ export class GeneratorComponent implements OnInit, OnDestroy {
       this.progressLog.update(log => {
         const existing = log.find(l => l.text === msg.currentAction);
         if (!existing) {
-          // Marcar el anterior como hecho
           const updated = log.map(l => ({ ...l, done: true }));
           return [...updated, { text: msg.currentAction, done: false }];
         }
@@ -454,7 +477,21 @@ export class GeneratorComponent implements OnInit, OnDestroy {
       });
     });
 
-    this.hubConnection.start().catch(() => {});
+    this.hubStatus.set('connecting');
+    this.hubConnection.start()
+      .then(async () => {
+        this.hubStatus.set('connected');
+        const user = this.auth.currentUser();
+        if (user?.schoolId) {
+          await this.hubConnection?.invoke('JoinSchoolGroup', user.schoolId).catch(err => {
+            console.error('Error joining school SignalR group:', err);
+          });
+        }
+      })
+      .catch(() => {
+        this.hubStatus.set('disconnected');
+        this.toast.add({ severity: 'warn', summary: 'Canal de progreso desconectado', detail: 'Los avisos en tiempo real no estarán activos, pero la generación funcionará.' });
+      });
   }
 
   private async loadAssignments(): Promise<void> {
@@ -462,6 +499,8 @@ export class GeneratorComponent implements OnInit, OnDestroy {
     try {
       const data = await this.api.getAssignments();
       this.assignments.set(data);
+    } catch {
+      this.toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar las asignaciones curriculares.' });
     } finally {
       this.loadingAssignments.set(false);
     }
@@ -476,25 +515,34 @@ export class GeneratorComponent implements OnInit, OnDestroy {
   }
 
   async addConstraint(): Promise<void> {
-    if (!this.constraintTeacher) return;
+    if (!this.constraintTeacher) {
+      this.toast.add({ severity: 'warn', summary: 'Falta profesor', detail: 'Por favor, selecciona un profesor para la restricción.' });
+      return;
+    }
     try {
       await this.api.createConstraint({
         teacherId: this.constraintTeacher,
         constraintType: 'unavailable',
-        dayOfWeek: this.constraintDay,
-        slotIndex: this.constraintSlot,
+        dayOfWeek: Number(this.constraintDay),
+        slotIndex: Number(this.constraintSlot),
         weight: 10,
-      } as any);
+      });
       const data = await this.api.getConstraints();
       this.constraints.set(data);
-    } catch {}
+      this.toast.add({ severity: 'success', summary: 'Restricción añadida', detail: 'Profesor marcado como no disponible en la franja.' });
+    } catch {
+      this.toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo añadir la restricción.' });
+    }
   }
 
   async removeConstraint(id: string): Promise<void> {
     try {
       await this.api.deleteConstraint(id);
       this.constraints.update(cs => cs.filter(c => c.id !== id));
-    } catch {}
+      this.toast.add({ severity: 'success', summary: 'Restricción eliminada', detail: 'La restricción ha sido removida.' });
+    } catch {
+      this.toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo eliminar la restricción.' });
+    }
   }
 
   async generate(): Promise<void> {
@@ -502,24 +550,31 @@ export class GeneratorComponent implements OnInit, OnDestroy {
     this.progressLog.set([{ text: 'Cargando configuración del colegio...', done: false }]);
     this.progressPct.set(0);
 
+    const startTime = performance.now();
     try {
       // Actualizar configuración de jornada
-      await this.api.updateMySchool({
-        scheduleType: this.scheduleType,
+      const schoolConfig: Partial<School> = {
+        scheduleType: this.scheduleType as 'continua' | 'partida',
         morningStart: this.morningStart,
-        slotMinutes: this.slotMinutes,
-        breakAfterSlot: this.breakAfterSlot,
-        breakMinutes: this.breakMinutes,
-      } as any);
+        slotMinutes: Number(this.slotMinutes),
+        breakAfterSlot: Number(this.breakAfterSlot),
+        breakMinutes: Number(this.breakMinutes),
+      };
+      await this.api.updateMySchool(schoolConfig);
 
       const result = await this.api.generateSchedule(this.academicYear, 30);
       this.lastScheduleId = result.scheduleId;
       this.totalConflicts.set(result.totalConflicts);
-      this.generationSeconds.set(0);
+      
+      const endTime = performance.now();
+      this.generationSeconds.set(Math.max(1, Math.round((endTime - startTime) / 1000)));
+      
       this.progressLog.update(log => log.map(l => ({ ...l, done: true })));
       this.generated.set(true);
+      this.toast.add({ severity: 'success', summary: 'Horario generado', detail: 'El motor ha terminado con éxito.' });
     } catch (err: any) {
       console.error('Error generando horario:', err);
+      this.toast.add({ severity: 'error', summary: 'Error de generación', detail: 'No se pudo completar el horario. Revisa especialistas o aulas.' });
     } finally {
       this.generating.set(false);
     }
@@ -529,15 +584,7 @@ export class GeneratorComponent implements OnInit, OnDestroy {
     this.router.navigate(['/horarios', this.lastScheduleId]);
   }
 
-  sum(acc: number, s: AssignmentSummary): number {
-    return acc + s.assignedHours;
-  }
-
   dayName(day: number): string {
     return ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'][day - 1] ?? '?';
   }
-
-  completionWarning = computed(() =>
-    this.assignments().some(a => a.completionPct < 100)
-  );
 }

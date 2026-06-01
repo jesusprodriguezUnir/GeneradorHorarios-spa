@@ -5,8 +5,9 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api/api.service';
-import { ScheduleGrid, ScheduleGridEntry, ScheduleList, Teacher, CourseGroup, Classroom } from '../../core/models';
+import { ScheduleGrid, ScheduleGridEntry, ScheduleList, Teacher, CourseGroup, Classroom, TimeSlot, cycleFromLevel } from '../../core/models';
 import { ScheduleGridComponent, CellClickEvent } from '../../shared/schedule-grid/schedule-grid.component';
+import { MessageService, ConfirmationService } from 'primeng/api';
 
 type ViewMode = 'group' | 'teacher' | 'room';
 
@@ -23,7 +24,7 @@ type ViewMode = 'group' | 'teacher' | 'room';
           <h1 class="page-title" data-testid="page-title">Horarios generados</h1>
           @if (currentSchedule()) {
             <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-                <span class="status-badge" [class.badge--published]="currentSchedule()!.status === 'published'"
+              <span class="status-badge" [class.badge--published]="currentSchedule()!.status === 'published'"
                 [class.badge--generated]="currentSchedule()!.status === 'generated'" data-testid="status-badge">
                 {{ statusLabel(currentSchedule()!.status) }}
               </span>
@@ -116,10 +117,21 @@ type ViewMode = 'group' | 'teacher' | 'room';
         <div class="lec-card" style="padding:var(--space-5)">
           <app-schedule-grid
             [entries]="filteredEntries()"
-            [slots]="grid()!.slots"
+            [slots]="activeSlots()"
             [conflicts]="grid()!.conflicts"
             [editable]="grid()!.status !== 'published'"
             (cellClick)="onCellClick($event)" />
+
+          <!-- Leyenda de colores -->
+          <div class="legend-row">
+            <span style="font-size:var(--text-xs);font-weight:700;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:0.04em">Leyenda:</span>
+            @for (color of subjectLegend; track color.name) {
+              <div class="legend-item">
+                <span class="legend-dot" [style.background]="color.bg"></span>
+                {{ color.name }}
+              </div>
+            }
+          </div>
         </div>
 
         <!-- Conflictos -->
@@ -210,26 +222,36 @@ type ViewMode = 'group' | 'teacher' | 'room';
     .btn-secondary { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--card); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--border-strong); border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm); cursor: pointer; }
     .field-select { padding: 9px 12px; border: 1px solid var(--input); border-radius: var(--radius-md); font-size: var(--text-sm); font-family: var(--font-sans); background: var(--card); color: var(--foreground); }
     .spinner { width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--primary); animation: lec-spin 0.8s linear infinite; margin: 0 auto 16px; }
+    
     .view-tabs { display: inline-flex; background: var(--secondary); border-radius: var(--radius-md); padding: 4px; gap: 2px; }
     .view-tab { padding: 7px 16px; border-radius: var(--radius-sm); font-size: var(--text-sm); font-weight: 600; cursor: pointer; transition: all .15s; background: transparent; color: var(--muted-foreground); }
     .view-tab--active { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
+    
     .conflict-row { padding: 12px 14px; border-radius: var(--radius-md); font-size: var(--text-sm); }
     .conflict-error { background: var(--destructive-tint); color: var(--destructive); }
     .conflict-warn { background: var(--warning-tint); color: oklch(0.45 0.11 65); }
+    
     .empty-state { text-align: center; padding: 48px 16px; color: var(--muted-foreground); }
     .empty-state h3 { font-size: var(--text-xl); font-weight: 700; color: var(--foreground); margin-bottom: 8px; }
+    
     .modal-backdrop { position: fixed; inset: 0; z-index: 80; background: oklch(0.2 0.02 255 / 0.45); display: flex; align-items: flex-end; justify-content: center; }
     .modal-card { background: var(--card); border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; max-height: 90vh; overflow: auto; box-shadow: var(--shadow-lg); }
     .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border); }
     .modal-header h3 { font-size: var(--text-lg); font-weight: 700; }
     .form-field { display: flex; flex-direction: column; gap: 6px; }
     .field-label { font-size: var(--text-xs); font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.04em; }
+
+    .legend-row { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-xs); font-weight: 600; color: var(--foreground); }
+    .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
   `],
 })
 export class ScheduleResultComponent implements OnInit {
   protected readonly api = inject(ApiService);
   protected readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly toast = inject(MessageService);
+  private readonly confirmation = inject(ConfirmationService);
 
   readonly schedules = signal<ScheduleList[]>([]);
   readonly grid = signal<ScheduleGrid | null>(null);
@@ -260,32 +282,63 @@ export class ScheduleResultComponent implements OnInit {
     }
   });
 
+  /**
+   * Slots a mostrar en el grid: cuando la vista es "por grupo" usamos los slots
+   * del ciclo del grupo seleccionado; en las demás vistas usamos los del colegio.
+   */
+  readonly activeSlots = computed((): TimeSlot[] => {
+    const g = this.grid();
+    if (!g) return [];
+    if (this.viewMode() !== 'group') return g.slots;
+    const groupId = this.selectedFilter();
+    const group = this.groups().find(gr => gr.id === groupId);
+    if (!group) return g.slots;
+    const cycle = cycleFromLevel(group.courseLevel);
+    return g.slotsByCycle?.[cycle] ?? g.slots;
+  });
+
   readonly viewTabs = [
     { id: 'group' as ViewMode, label: 'Por grupo' },
     { id: 'teacher' as ViewMode, label: 'Por profesor' },
     { id: 'room' as ViewMode, label: 'Por aula' },
   ];
 
+  readonly subjectLegend = [
+    { name: 'Matemáticas', bg: 'var(--subj-mat)' },
+    { name: 'Lengua', bg: 'var(--subj-len)' },
+    { name: 'Ciencias', bg: 'var(--subj-cie)' },
+    { name: 'Sociales', bg: 'var(--subj-soc)' },
+    { name: 'Inglés', bg: 'var(--subj-ing)' },
+    { name: 'E. Física', bg: 'var(--subj-ef)' },
+    { name: 'Música', bg: 'var(--subj-mus)' },
+    { name: 'Plástica', bg: 'var(--subj-art)' },
+    { name: 'Religión', bg: 'var(--subj-rel)' },
+    { name: 'Tutoría', bg: 'var(--subj-tut)' },
+  ];
+
   async ngOnInit(): Promise<void> {
     const id = this.route.snapshot.paramMap.get('id');
-    const [schedules, teachers, groups, classrooms] = await Promise.all([
-      this.api.getSchedules().catch(() => []),
-      this.api.getTeachers().catch(() => []),
-      this.api.getGroups().catch(() => []),
-      this.api.getClassrooms().catch(() => []),
-    ]);
-    this.schedules.set(schedules);
-    this.teachers.set(teachers);
-    this.groups.set(groups);
-    this.classrooms.set(classrooms);
+    try {
+      const [schedules, teachers, groups, classrooms] = await Promise.all([
+        this.api.getSchedules(),
+        this.api.getTeachers(),
+        this.api.getGroups(),
+        this.api.getClassrooms(),
+      ]);
+      this.schedules.set(schedules);
+      this.teachers.set(teachers);
+      this.groups.set(groups);
+      this.classrooms.set(classrooms);
 
-    // Inicializar filtros con primer elemento
-    if (groups.length > 0) this.selectedFilter.set(groups[0].id);
+      if (groups.length > 0) this.selectedFilter.set(groups[0].id);
 
-    const targetId = id ?? schedules.find(s => s.status === 'published')?.id ?? schedules[0]?.id;
-    if (targetId) {
-      this.selectedId.set(targetId);
-      await this.loadGrid(targetId);
+      const targetId = id ?? schedules.find(s => s.status === 'published')?.id ?? schedules[0]?.id;
+      if (targetId) {
+        this.selectedId.set(targetId);
+        await this.loadGrid(targetId);
+      }
+    } catch {
+      this.toast.add({ severity: 'error', summary: 'Error de carga', detail: 'No se pudieron cargar los datos de horarios.' });
     }
   }
 
@@ -294,6 +347,8 @@ export class ScheduleResultComponent implements OnInit {
     try {
       const grid = await this.api.getSchedule(id);
       this.grid.set(grid);
+    } catch {
+      this.toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo obtener el grid del horario.' });
     } finally {
       this.loading.set(false);
     }
@@ -324,18 +379,33 @@ export class ScheduleResultComponent implements OnInit {
       await this.api.updateScheduleEntry(id, entry.id, this.editTeacherId, this.editClassroomId);
       await this.loadGrid(id);
       this.editModal.set(null);
-    } catch {}
+      this.toast.add({ severity: 'success', summary: 'Sesión editada', detail: 'Se ha actualizado la sesión correctamente.' });
+    } catch {
+      this.toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo guardar la edición de la sesión.' });
+    }
   }
 
-  async publish(): Promise<void> {
+  publish(): void {
     const id = this.selectedId();
     if (!id) return;
-    try {
-      await this.api.publishSchedule(id);
-      const schedules = await this.api.getSchedules();
-      this.schedules.set(schedules);
-      await this.loadGrid(id);
-    } catch {}
+    this.confirmation.confirm({
+      message: '¿Estás seguro de que deseas publicar este horario? Una vez publicado, todos los profesores podrán visualizar su horario correspondiente en sus perfiles.',
+      header: 'Confirmar publicación',
+      icon: 'pi pi-send',
+      acceptLabel: 'Publicar',
+      rejectLabel: 'Cancelar',
+      accept: async () => {
+        try {
+          await this.api.publishSchedule(id);
+          const schedules = await this.api.getSchedules();
+          this.schedules.set(schedules);
+          await this.loadGrid(id);
+          this.toast.add({ severity: 'success', summary: 'Horario publicado', detail: 'El horario está ahora activo y visible para los profesores.' });
+        } catch {
+          this.toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo publicar el horario.' });
+        }
+      }
+    });
   }
 
   exportPdf(): void {

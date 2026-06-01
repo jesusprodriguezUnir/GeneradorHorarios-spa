@@ -1,15 +1,40 @@
 // ── Modelos de dominio compartidos ────────────────────────────────────────────
 
+export interface CycleSchedule {
+  /** Número de ciclo: 1 (1º-2º), 2 (3º-4º), 3 (5º-6º). */
+  cycle: number;
+  morningStart: string;
+  endTime: string;
+  afternoonStart: string | null;
+  computedSlots: TimeSlot[];
+}
+
 export interface School {
   id: string;
   name: string;
   slug: string;
+  // Identificación
+  centerCode: string | null;
+  locality: string | null;
+  community: string;
+  stage: string;
+  minCourseLevel: number;
+  maxCourseLevel: number;
+  academicYear: string;
+  // Jornada
   scheduleType: 'continua' | 'partida';
   morningStart: string;
+  afternoonStart: string | null;
   slotMinutes: number;
   breakAfterSlot: number;
   breakMinutes: number;
+  slotsPerDay: number;
+  afternoonSlots: number;
+  daysPerWeek: number;
+  workingDays: number[];
   computedSlots: TimeSlot[];
+  // Ciclos
+  cycles: CycleSchedule[];
 }
 
 export interface TimeSlot {
@@ -109,6 +134,13 @@ export interface ScheduleGrid {
   entries: ScheduleGridEntry[];
   conflicts: ScheduleConflict[];
   slots: TimeSlot[];
+  /** Slots calculados para cada ciclo (clave = número de ciclo: 1, 2 o 3). */
+  slotsByCycle: Record<number, TimeSlot[]>;
+}
+
+/** Retorna el número de ciclo (1, 2 o 3) a partir del nivel de curso (1-6). */
+export function cycleFromLevel(courseLevel: number): number {
+  return Math.ceil(courseLevel / 2);
 }
 
 export interface ScheduleGridEntry {
