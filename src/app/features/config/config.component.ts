@@ -3,6 +3,8 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MessageService, ConfirmationService } from 'primeng/api';
+import { Dialog } from 'primeng/dialog';
 import { ApiService } from '../../core/api/api.service';
 import { School, CycleSchedule, Teacher, CourseGroup, Classroom, SubjectAllocation, DAYS } from '../../core/models';
 
@@ -11,7 +13,7 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
 @Component({
   selector: 'app-config',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, Dialog],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="lec-fade-up">
@@ -317,7 +319,7 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
             <ng-container [ngTemplateOutlet]="tableHeader"
               [ngTemplateOutletContext]="{title:'Grupos y cursos', addLabel:'+ Añadir grupo', tab:'groups'}" />
             <table class="data-table">
-              <thead><tr><th>Grupo</th><th>Alumnos</th><th>Tutor/a</th><th>Aula de referencia</th><th style="text-align:right;padding-right:24px">Acciones</th></tr></thead>
+              <thead><tr><th>Grupo</th><th>Alumnos</th><th>Tutor/a</th><th>Aula de referencia</th><th>Carga Lectiva</th><th style="text-align:right;padding-right:24px">Acciones</th></tr></thead>
               <tbody>
                 @for (g of groups(); track g.id) {
                   <tr>
@@ -325,6 +327,20 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
                     <td>{{ g.studentCount }} alumnos</td>
                     <td>{{ g.tutorName ?? '—' }}</td>
                     <td>{{ getClassroomName(g.homeClassroomId) }}</td>
+                    <td>
+                      <div style="display:flex;flex-wrap:wrap;gap:4px;max-width:320px">
+                        @for (sh of getSubjectHoursList(g); track sh.key) {
+                          <span class="preview-meta-pill" 
+                            [style.background]="'var(--subj-' + sh.key + ')'"
+                            [style.color]="'var(--subj-' + sh.key + '-fg)'"
+                            style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:99px;display:inline-flex;align-items:center;gap:3px;border:1px solid rgba(0,0,0,0.1)">
+                            {{ sh.short }}: {{ sh.hours }}h
+                          </span>
+                        } @empty {
+                          <span style="font-size:var(--text-xs);color:var(--muted-foreground);font-style:italic">— Sin configurar —</span>
+                        }
+                      </div>
+                    </td>
                     <td style="text-align:right;padding-right:16px">
                       <div style="display:inline-flex;gap:4px">
                         <button (click)="editGroup(g)" class="btn-edit" title="Editar grupo" style="color:var(--muted-foreground);padding:6px;border-radius:6px;cursor:pointer;transition:color .15s;background:none;border:none">
@@ -473,26 +489,25 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
         }
       </div>
 
-      <!-- Modal para Añadir / Editar Grupo (Diseño Premium Drawer) -->
-      @if (isGroupModalOpen()) {
-        <div class="modal-backdrop" (click)="isGroupModalOpen.set(false)">
-          <div class="modal-card lec-scale-in" (click)="$event.stopPropagation()">
-            
-            <!-- Cabecera Premium -->
-            <div class="modal-header-premium">
-              <div>
-                <span class="premium-badge">{{ editingGroup() ? 'MODIFICACIÓN' : 'NUEVO REGISTRO' }}</span>
-                <h3 class="premium-title">{{ editingGroup() ? 'Editar Grupo' : 'Crear Nuevo Grupo' }}</h3>
-              </div>
-              <button (click)="isGroupModalOpen.set(false)" class="close-btn-premium">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-            
-            <!-- Cuerpo del Formulario -->
-            <div class="modal-body-premium">
+      <!-- Modal para Añadir / Editar Grupo -->
+      <p-dialog
+        [visible]="isGroupModalOpen()"
+        (visibleChange)="isGroupModalOpen.set($event)"
+        [modal]="true"
+        [draggable]="false"
+        [resizable]="false"
+        [closeOnEscape]="true"
+        [style]="{ width: '560px', maxWidth: '95vw' }"
+        [contentStyle]="{ 'overflow-y': 'auto', 'max-height': '62vh' }">
+
+        <ng-template pTemplate="header">
+          <div>
+            <span class="premium-badge">{{ editingGroup() ? 'MODIFICACIÓN' : 'NUEVO REGISTRO' }}</span>
+            <h3 class="premium-title">{{ editingGroup() ? 'Editar Grupo' : 'Crear Nuevo Grupo' }}</h3>
+          </div>
+        </ng-template>
+
+        <div class="modal-body-premium">
               
               <!-- Tarjeta de Vista Previa -->
               <div class="preview-card-premium">
@@ -622,45 +637,38 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
 
             </div>
             
-            <!-- Pie de Botones Premium -->
-            <div class="modal-footer-premium">
-              <button class="btn-cancel-premium" (click)="isGroupModalOpen.set(false)">
-                Cancelar
-              </button>
-              <button class="btn-save-premium" (click)="saveGroup()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;vertical-align:middle;display:inline-block">
-                  <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
-                  <polyline points="17 21 17 13 7 13 7 21"/>
-                  <polyline points="7 3 7 8 15 8"/>
-                </svg>
-                Guardar Cambios
-              </button>
-            </div>
-            
-          </div>
-        </div>
-      }
+        <ng-template pTemplate="footer">
+          <button class="btn-cancel-premium" (click)="isGroupModalOpen.set(false)">Cancelar</button>
+          <button class="btn-save-premium" (click)="saveGroup()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;vertical-align:middle;display:inline-block">
+              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            Guardar Cambios
+          </button>
+        </ng-template>
+      </p-dialog>
 
-      <!-- Modal para Añadir / Editar Aula (Diseño Premium Drawer) -->
-      @if (isClassroomModalOpen()) {
-        <div class="modal-backdrop" (click)="isClassroomModalOpen.set(false)">
-          <div class="modal-card lec-scale-in" (click)="$event.stopPropagation()">
-            
-            <!-- Cabecera Premium -->
-            <div class="modal-header-premium">
-              <div>
-                <span class="premium-badge">{{ editingClassroom() ? 'MODIFICACIÓN' : 'NUEVO REGISTRO' }}</span>
-                <h3 class="premium-title">{{ editingClassroom() ? 'Editar Aula' : 'Crear Nueva Aula' }}</h3>
-              </div>
-              <button (click)="isClassroomModalOpen.set(false)" class="close-btn-premium">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-            
-            <!-- Cuerpo del Formulario -->
-            <div class="modal-body-premium">
+      <!-- Modal para Añadir / Editar Aula -->
+      <p-dialog
+        [visible]="isClassroomModalOpen()"
+        (visibleChange)="isClassroomModalOpen.set($event)"
+        [modal]="true"
+        [draggable]="false"
+        [resizable]="false"
+        [closeOnEscape]="true"
+        [style]="{ width: '520px', maxWidth: '95vw' }"
+        [contentStyle]="{ 'overflow-y': 'auto', 'max-height': '62vh' }">
+
+        <ng-template pTemplate="header">
+          <div>
+            <span class="premium-badge">{{ editingClassroom() ? 'MODIFICACIÓN' : 'NUEVO REGISTRO' }}</span>
+            <h3 class="premium-title">{{ editingClassroom() ? 'Editar Aula' : 'Crear Nueva Aula' }}</h3>
+          </div>
+        </ng-template>
+
+        <div class="modal-body-premium">
               
               <!-- Tarjeta de Vista Previa -->
               <div class="preview-card-premium">
@@ -754,45 +762,38 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
 
             </div>
             
-            <!-- Pie de Botones Premium -->
-            <div class="modal-footer-premium">
-              <button class="btn-cancel-premium" (click)="isClassroomModalOpen.set(false)">
-                Cancelar
-              </button>
-              <button class="btn-save-premium" (click)="saveClassroom()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;vertical-align:middle;display:inline-block">
-                  <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
-                  <polyline points="17 21 17 13 7 13 7 21"/>
-                  <polyline points="7 3 7 8 15 8"/>
-                </svg>
-                Guardar Cambios
-              </button>
-            </div>
-            
-          </div>
-        </div>
-      }
+        <ng-template pTemplate="footer">
+          <button class="btn-cancel-premium" (click)="isClassroomModalOpen.set(false)">Cancelar</button>
+          <button class="btn-save-premium" (click)="saveClassroom()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;vertical-align:middle;display:inline-block">
+              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            Guardar Cambios
+          </button>
+        </ng-template>
+      </p-dialog>
 
-      <!-- Modal para Añadir / Editar Profesor (Diseño Premium Drawer) -->
-      @if (isTeacherModalOpen()) {
-        <div class="modal-backdrop" (click)="isTeacherModalOpen.set(false)">
-          <div class="modal-card lec-scale-in" (click)="$event.stopPropagation()">
-            
-            <!-- Cabecera Premium -->
-            <div class="modal-header-premium">
-              <div>
-                <span class="premium-badge">{{ editingTeacher() ? 'MODIFICACIÓN' : 'NUEVO REGISTRO' }}</span>
-                <h3 class="premium-title">{{ editingTeacher() ? 'Editar Profesor' : 'Crear Nuevo Profesor' }}</h3>
-              </div>
-              <button (click)="isTeacherModalOpen.set(false)" class="close-btn-premium">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-            
-            <!-- Cuerpo del Formulario -->
-            <div class="modal-body-premium">
+      <!-- Modal para Añadir / Editar Profesor -->
+      <p-dialog
+        [visible]="isTeacherModalOpen()"
+        (visibleChange)="isTeacherModalOpen.set($event)"
+        [modal]="true"
+        [draggable]="false"
+        [resizable]="false"
+        [closeOnEscape]="true"
+        [style]="{ width: '560px', maxWidth: '95vw' }"
+        [contentStyle]="{ 'overflow-y': 'auto', 'max-height': '62vh' }">
+
+        <ng-template pTemplate="header">
+          <div>
+            <span class="premium-badge">{{ editingTeacher() ? 'MODIFICACIÓN' : 'NUEVO REGISTRO' }}</span>
+            <h3 class="premium-title">{{ editingTeacher() ? 'Editar Profesor' : 'Crear Nuevo Profesor' }}</h3>
+          </div>
+        </ng-template>
+
+        <div class="modal-body-premium">
               
               <!-- Tarjeta de Vista Previa -->
               <div class="preview-card-premium">
@@ -904,45 +905,38 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
 
             </div>
             
-            <!-- Pie de Botones Premium -->
-            <div class="modal-footer-premium">
-              <button class="btn-cancel-premium" (click)="isTeacherModalOpen.set(false)">
-                Cancelar
-              </button>
-              <button class="btn-save-premium" (click)="saveTeacher()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;vertical-align:middle;display:inline-block">
-                  <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
-                  <polyline points="17 21 17 13 7 13 7 21"/>
-                  <polyline points="7 3 7 8 15 8"/>
-                </svg>
-                Guardar Cambios
-              </button>
-            </div>
-            
-          </div>
-        </div>
-      }
+        <ng-template pTemplate="footer">
+          <button class="btn-cancel-premium" (click)="isTeacherModalOpen.set(false)">Cancelar</button>
+          <button class="btn-save-premium" (click)="saveTeacher()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;vertical-align:middle;display:inline-block">
+              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            Guardar Cambios
+          </button>
+        </ng-template>
+      </p-dialog>
 
-      <!-- Modal para Añadir / Editar Asignatura (Diseño Premium Drawer) -->
-      @if (isSubjectModalOpen()) {
-        <div class="modal-backdrop" (click)="isSubjectModalOpen.set(false)">
-          <div class="modal-card lec-scale-in" (click)="$event.stopPropagation()">
-            
-            <!-- Cabecera Premium -->
-            <div class="modal-header-premium">
-              <div>
-                <span class="premium-badge">{{ editingSubject() ? 'MODIFICACIÓN' : 'NUEVO REGISTRO' }}</span>
-                <h3 class="premium-title">{{ editingSubject() ? 'Editar Asignatura' : 'Crear Nueva Asignatura' }}</h3>
-              </div>
-              <button (click)="isSubjectModalOpen.set(false)" class="close-btn-premium">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-            
-            <!-- Cuerpo del Formulario -->
-            <div class="modal-body-premium">
+      <!-- Modal para Añadir / Editar Asignatura -->
+      <p-dialog
+        [visible]="isSubjectModalOpen()"
+        (visibleChange)="isSubjectModalOpen.set($event)"
+        [modal]="true"
+        [draggable]="false"
+        [resizable]="false"
+        [closeOnEscape]="true"
+        [style]="{ width: '600px', maxWidth: '95vw' }"
+        [contentStyle]="{ 'overflow-y': 'auto', 'max-height': '62vh' }">
+
+        <ng-template pTemplate="header">
+          <div>
+            <span class="premium-badge">{{ editingSubject() ? 'MODIFICACIÓN' : 'NUEVO REGISTRO' }}</span>
+            <h3 class="premium-title">{{ editingSubject() ? 'Editar Asignatura' : 'Crear Nueva Asignatura' }}</h3>
+          </div>
+        </ng-template>
+
+        <div class="modal-body-premium">
               
               <!-- Tarjeta de Vista Previa -->
               <div class="preview-card-premium">
@@ -1083,24 +1077,18 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
 
             </div>
             
-            <!-- Pie de Botones Premium -->
-            <div class="modal-footer-premium">
-              <button class="btn-cancel-premium" (click)="isSubjectModalOpen.set(false)">
-                Cancelar
-              </button>
-              <button class="btn-save-premium" (click)="saveSubject()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;vertical-align:middle;display:inline-block">
-                  <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
-                  <polyline points="17 21 17 13 7 13 7 21"/>
-                  <polyline points="7 3 7 8 15 8"/>
-                </svg>
-                Guardar Cambios
-              </button>
-            </div>
-            
-          </div>
-        </div>
-      }
+        <ng-template pTemplate="footer">
+          <button class="btn-cancel-premium" (click)="isSubjectModalOpen.set(false)">Cancelar</button>
+          <button class="btn-save-premium" (click)="saveSubject()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;vertical-align:middle;display:inline-block">
+              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            Guardar Cambios
+          </button>
+        </ng-template>
+      </p-dialog>
     </div>
 
     <!-- Plantilla cabecera tabla -->
@@ -1514,6 +1502,8 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
 })
 export class ConfigComponent implements OnInit {
   private readonly api = inject(ApiService);
+  private readonly msg = inject(MessageService);
+  private readonly confirmation = inject(ConfirmationService);
 
   readonly activeTab = signal<Tab>('school');
   readonly school = signal<School | null>(null);
@@ -1823,21 +1813,53 @@ export class ConfigComponent implements OnInit {
     }
   }
 
-  async deleteTeacher(id: string): Promise<void> {
-    if (!confirm('¿Eliminar este profesor?')) return;
-    await this.api.deleteTeacher(id).catch(() => {});
-    this.teachers.update(ts => ts.filter(t => t.id !== id));
+  deleteTeacher(id: string): void {
+    this.confirmation.confirm({
+      message: '¿Estás seguro de que deseas eliminar este profesor? Esta acción no se puede deshacer.',
+      header: 'Eliminar profesor',
+      acceptLabel: 'Eliminar',
+      rejectLabel: 'Cancelar',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: async () => {
+        await this.api.deleteTeacher(id).catch(() => {});
+        this.teachers.update(ts => ts.filter(t => t.id !== id));
+        this.msg.add({ severity: 'success', summary: 'Profesor eliminado', detail: 'El profesor ha sido eliminado correctamente.' });
+      },
+    });
   }
 
-  async deleteGroup(id: string): Promise<void> {
-    if (!confirm('¿Eliminar este grupo?')) return;
-    await this.api.deleteGroup(id).catch(() => {});
-    this.groups.update(gs => gs.filter(g => g.id !== id));
+  deleteGroup(id: string): void {
+    this.confirmation.confirm({
+      message: '¿Estás seguro de que deseas eliminar este grupo? Esta acción no se puede deshacer.',
+      header: 'Eliminar grupo',
+      acceptLabel: 'Eliminar',
+      rejectLabel: 'Cancelar',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: async () => {
+        await this.api.deleteGroup(id).catch(() => {});
+        this.groups.update(gs => gs.filter(g => g.id !== id));
+        this.msg.add({ severity: 'success', summary: 'Grupo eliminado', detail: 'El grupo ha sido eliminado correctamente.' });
+      },
+    });
   }
 
   getClassroomName(classroomId: string | null): string {
     if (!classroomId) return '—';
     return this.classrooms().find(c => c.id === classroomId)?.name ?? '—';
+  }
+
+  getSubjectHoursList(g: CourseGroup): { key: string; short: string; hours: number }[] {
+    if (!g.subjectHours) return [];
+    return Object.entries(g.subjectHours)
+      .filter(([_, hours]) => hours > 0)
+      .map(([key, hours]) => {
+        const sub = this.subjects().find(s => s.subjectKey === key);
+        return {
+          key,
+          short: sub?.subjectShort || key.toUpperCase(),
+          hours
+        };
+      });
   }
 
   getSchoolCourseLevels(): number[] {
@@ -1927,7 +1949,7 @@ export class ConfigComponent implements OnInit {
     const editing = this.editingGroup();
 
     if (!form.groupLabel || form.groupLabel.trim() === '') {
-      alert('El identificador/letra del grupo es obligatorio.');
+      this.msg.add({ severity: 'warn', summary: 'Campo requerido', detail: 'El identificador/letra del grupo es obligatorio.' });
       return;
     }
 
@@ -1951,8 +1973,8 @@ export class ConfigComponent implements OnInit {
       const updatedGroups = await this.api.getGroups();
       this.groups.set(updatedGroups);
       this.isGroupModalOpen.set(false);
-    } catch (err) {
-      alert('Error al guardar el grupo. Por favor, comprueba los datos.');
+    } catch {
+      this.msg.add({ severity: 'error', summary: 'Error al guardar', detail: 'No se pudo guardar el grupo. Por favor, comprueba los datos.' });
     }
   }
 
@@ -1991,7 +2013,7 @@ export class ConfigComponent implements OnInit {
     const editing = this.editingClassroom();
 
     if (!form.name || form.name.trim() === '') {
-      alert('El nombre del aula es obligatorio.');
+      this.msg.add({ severity: 'warn', summary: 'Campo requerido', detail: 'El nombre del aula es obligatorio.' });
       return;
     }
 
@@ -2013,8 +2035,8 @@ export class ConfigComponent implements OnInit {
       const updatedClassrooms = await this.api.getClassrooms();
       this.classrooms.set(updatedClassrooms);
       this.isClassroomModalOpen.set(false);
-    } catch (err) {
-      alert('Error al guardar el aula. Por favor, comprueba los datos.');
+    } catch {
+      this.msg.add({ severity: 'error', summary: 'Error al guardar', detail: 'No se pudo guardar el aula. Por favor, comprueba los datos.' });
     }
   }
 
@@ -2025,10 +2047,19 @@ export class ConfigComponent implements OnInit {
     });
   }
 
-  async deleteClassroom(id: string): Promise<void> {
-    if (!confirm('¿Eliminar esta aula?')) return;
-    await this.api.deleteClassroom(id).catch(() => {});
-    this.classrooms.update(rs => rs.filter(r => r.id !== id));
+  deleteClassroom(id: string): void {
+    this.confirmation.confirm({
+      message: '¿Estás seguro de que deseas eliminar esta aula? Esta acción no se puede deshacer.',
+      header: 'Eliminar aula',
+      acceptLabel: 'Eliminar',
+      rejectLabel: 'Cancelar',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: async () => {
+        await this.api.deleteClassroom(id).catch(() => {});
+        this.classrooms.update(rs => rs.filter(r => r.id !== id));
+        this.msg.add({ severity: 'success', summary: 'Aula eliminada', detail: 'El aula ha sido eliminada correctamente.' });
+      },
+    });
   }
 
   async updateSubjectHours(id: string, ev: Event, min: number, max: number): Promise<void> {
@@ -2068,11 +2099,11 @@ export class ConfigComponent implements OnInit {
     const editing = this.editingTeacher();
 
     if (!form.fullName || form.fullName.trim() === '') {
-      alert('El nombre del profesor es obligatorio.');
+      this.msg.add({ severity: 'warn', summary: 'Campo requerido', detail: 'El nombre del profesor es obligatorio.' });
       return;
     }
     if (!form.email || form.email.trim() === '') {
-      alert('El email es obligatorio.');
+      this.msg.add({ severity: 'warn', summary: 'Campo requerido', detail: 'El email es obligatorio.' });
       return;
     }
 
@@ -2100,8 +2131,8 @@ export class ConfigComponent implements OnInit {
       const updatedTeachers = await this.api.getTeachers();
       this.teachers.set(updatedTeachers);
       this.isTeacherModalOpen.set(false);
-    } catch (err) {
-      alert('Error al guardar el profesor. Por favor, comprueba los datos.');
+    } catch {
+      this.msg.add({ severity: 'error', summary: 'Error al guardar', detail: 'No se pudo guardar el profesor. Por favor, comprueba los datos.' });
     }
   }
 
@@ -2112,15 +2143,22 @@ export class ConfigComponent implements OnInit {
     });
   }
 
-  async cloneOfficialTemplate(): Promise<void> {
-    if (!confirm('¿Deseas personalizar el currículo oficial para tu centro? Esto te permitirá añadir y modificar asignaturas propias.')) return;
-    try {
-      const cloned = await this.api.cloneOfficialTemplate();
-      this.subjects.set(cloned);
-      alert('¡Plantilla LOMLOE personalizada con éxito! Ya puedes añadir y editar asignaturas.');
-    } catch {
-      alert('Error al personalizar la plantilla.');
-    }
+  cloneOfficialTemplate(): void {
+    this.confirmation.confirm({
+      message: '¿Deseas personalizar el currículo oficial para tu centro? Esto te permitirá añadir y modificar asignaturas propias.',
+      header: 'Personalizar currículo LOMLOE',
+      acceptLabel: 'Personalizar',
+      rejectLabel: 'Cancelar',
+      accept: async () => {
+        try {
+          const cloned = await this.api.cloneOfficialTemplate();
+          this.subjects.set(cloned);
+          this.msg.add({ severity: 'success', summary: 'Plantilla personalizada', detail: '¡Plantilla LOMLOE personalizada con éxito! Ya puedes añadir y editar asignaturas.' });
+        } catch {
+          this.msg.add({ severity: 'error', summary: 'Error', detail: 'No se pudo personalizar la plantilla. Inténtalo de nuevo.' });
+        }
+      },
+    });
   }
 
   editSubject(s: SubjectAllocation): void {
@@ -2145,15 +2183,15 @@ export class ConfigComponent implements OnInit {
     const editing = this.editingSubject();
 
     if (!form.subjectName || form.subjectName.trim() === '') {
-      alert('El nombre de la asignatura es obligatorio.');
+      this.msg.add({ severity: 'warn', summary: 'Campo requerido', detail: 'El nombre de la asignatura es obligatorio.' });
       return;
     }
     if (!form.subjectShort || form.subjectShort.trim() === '') {
-      alert('Las siglas/nombre corto son obligatorias.');
+      this.msg.add({ severity: 'warn', summary: 'Campo requerido', detail: 'Las siglas/nombre corto son obligatorias.' });
       return;
     }
     if (!form.subjectKey || form.subjectKey.trim() === '') {
-      alert('La clave de asignatura es obligatoria.');
+      this.msg.add({ severity: 'warn', summary: 'Campo requerido', detail: 'La clave de asignatura es obligatoria.' });
       return;
     }
 
@@ -2180,15 +2218,24 @@ export class ConfigComponent implements OnInit {
       const updatedSubjects = await this.api.getSubjects();
       this.subjects.set(updatedSubjects);
       this.isSubjectModalOpen.set(false);
-    } catch (err) {
-      alert('Error al guardar la asignatura. Por favor, comprueba los datos.');
+    } catch {
+      this.msg.add({ severity: 'error', summary: 'Error al guardar', detail: 'No se pudo guardar la asignatura. Por favor, comprueba los datos.' });
     }
   }
 
-  async deleteSubject(id: string): Promise<void> {
-    if (!confirm('¿Eliminar esta asignatura?')) return;
-    await this.api.deleteSubject(id).catch(() => {});
-    this.subjects.update(ss => ss.filter(s => s.id !== id));
+  deleteSubject(id: string): void {
+    this.confirmation.confirm({
+      message: '¿Estás seguro de que deseas eliminar esta asignatura? Esta acción no se puede deshacer.',
+      header: 'Eliminar asignatura',
+      acceptLabel: 'Eliminar',
+      rejectLabel: 'Cancelar',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: async () => {
+        await this.api.deleteSubject(id).catch(() => {});
+        this.subjects.update(ss => ss.filter(s => s.id !== id));
+        this.msg.add({ severity: 'success', summary: 'Asignatura eliminada', detail: 'La asignatura ha sido eliminada correctamente.' });
+      },
+    });
   }
 
   adjustMaxConsecutive(amount: number): void {

@@ -319,8 +319,7 @@ export class GeneratorComponent implements OnInit, OnDestroy {
       await this.api.updateMySchool(schoolConfig);
       const result = await this.api.generateSchedule(this.academicYear, 30);
       this.lastScheduleId = result.scheduleId;
-    } catch (err) {
-      console.error('Error generando horario:', err);
+    } catch {
       this.toast.add({ severity: 'error', summary: 'Error de generación', detail: 'No se pudo completar el horario. Revisa especialistas o aulas.' });
     }
   }
