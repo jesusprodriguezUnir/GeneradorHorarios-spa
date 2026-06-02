@@ -5,6 +5,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { Dialog } from 'primeng/dialog';
+import { TableModule } from 'primeng/table';
+import { InputText } from 'primeng/inputtext';
 import { ApiService } from '../../core/api/api.service';
 import { School, CycleSchedule, Teacher, CourseGroup, Classroom, SubjectAllocation, DAYS } from '../../core/models';
 
@@ -13,7 +15,7 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
 @Component({
   selector: 'app-config',
   standalone: true,
-  imports: [CommonModule, FormsModule, Dialog],
+  imports: [CommonModule, FormsModule, Dialog, TableModule, InputText],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="lec-fade-up">
@@ -270,46 +272,63 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
             <div data-testid="config-teachers-section">
             <ng-container [ngTemplateOutlet]="tableHeader"
               [ngTemplateOutletContext]="{title:'Profesores', addLabel:'+ Añadir profesor', tab:'teachers'}" />
-            <table class="data-table">
-              <thead>
+            <p-table #dtTeachers [value]="teachers()" [paginator]="true" [rows]="10"
+                     [rowsPerPageOptions]="[5,10,25]" dataKey="id"
+                     [globalFilterFields]="['fullName','email','teacherType']"
+                     currentPageReportTemplate="{first}–{last} de {totalRecords}"
+                     [showCurrentPageReport]="true">
+              <ng-template pTemplate="caption">
+                <div class="table-caption">
+                  <input pInputText type="text"
+                         (input)="dtTeachers.filterGlobal($any($event.target).value,'contains')"
+                         placeholder="Buscar profesores…" class="table-filter-input" />
+                </div>
+              </ng-template>
+              <ng-template pTemplate="header">
                 <tr>
-                  <th>Nombre</th><th>Email</th><th>Tipo</th>
-                  <th>H. máx/semana</th><th>Especialidades</th><th>H. asignadas</th><th style="text-align:right;padding-right:24px">Acciones</th>
+                  <th pSortableColumn="fullName">Nombre <p-sortIcon field="fullName"/></th>
+                  <th pSortableColumn="email">Email <p-sortIcon field="email"/></th>
+                  <th pSortableColumn="teacherType">Tipo <p-sortIcon field="teacherType"/></th>
+                  <th pSortableColumn="maxWeeklyHours">H. máx/semana <p-sortIcon field="maxWeeklyHours"/></th>
+                  <th>Especialidades</th>
+                  <th>H. asignadas</th>
+                  <th class="th-actions">Acciones</th>
                 </tr>
-              </thead>
-              <tbody>
-                @for (t of teachers(); track t.id) {
-                  <tr>
-                    <td><span class="avatar-sm" [style.background]="'var(--subj-' + t.colorKey + ')'">{{ initials(t.fullName) }}</span> {{ t.fullName }}</td>
-                    <td style="color:var(--muted-foreground)">{{ t.email }}</td>
-                    <td>{{ t.teacherType }}</td>
-                    <td>{{ t.maxWeeklyHours }}h</td>
-                    <td>{{ t.specialties.join(', ') }}</td>
-                    <td>
-                      <div class="mini-bar-wrap">
-                        <div class="mini-bar" [style.width]="((t.assignedHours / t.maxWeeklyHours) * 100) + '%'"
-                          [style.background]="t.assignedHours > t.maxWeeklyHours ? 'var(--destructive)' : 'var(--primary)'"></div>
-                      </div>
-                      <span style="font-size:11px">{{ t.assignedHours }}/{{ t.maxWeeklyHours }}</span>
-                    </td>
-                    <td style="text-align:right;padding-right:16px">
-                      <div style="display:inline-flex;gap:4px">
-                        <button (click)="editTeacher(t)" class="btn-edit" title="Editar profesor" style="color:var(--muted-foreground);padding:6px;border-radius:6px;cursor:pointer;transition:color .15s;background:none;border:none">
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                          </svg>
-                        </button>
-                        <button (click)="deleteTeacher(t.id)" class="btn-del" title="Eliminar profesor" style="background:none;border:none">
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
+              </ng-template>
+              <ng-template pTemplate="body" let-t>
+                <tr>
+                  <td><span class="avatar-sm" [style.background]="'var(--subj-' + t.colorKey + ')'">{{ initials(t.fullName) }}</span> {{ t.fullName }}</td>
+                  <td class="td-muted">{{ t.email }}</td>
+                  <td>{{ t.teacherType }}</td>
+                  <td>{{ t.maxWeeklyHours }}h</td>
+                  <td>{{ t.specialties.join(', ') }}</td>
+                  <td>
+                    <div class="mini-bar-wrap">
+                      <div class="mini-bar" [style.width]="((t.assignedHours / t.maxWeeklyHours) * 100) + '%'"
+                        [style.background]="t.assignedHours > t.maxWeeklyHours ? 'var(--destructive)' : 'var(--primary)'"></div>
+                    </div>
+                    <span class="text-xs-dim">{{ t.assignedHours }}/{{ t.maxWeeklyHours }}</span>
+                  </td>
+                  <td class="td-actions">
+                    <div class="row-actions">
+                      <button (click)="editTeacher(t)" class="btn-edit" title="Editar profesor">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                      </button>
+                      <button (click)="deleteTeacher(t.id)" class="btn-del" title="Eliminar profesor">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="7" class="td-empty">No hay profesores registrados.</td></tr>
+              </ng-template>
+            </p-table>
             </div>
           }
 
@@ -318,130 +337,165 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
             <div data-testid="config-groups-section">
             <ng-container [ngTemplateOutlet]="tableHeader"
               [ngTemplateOutletContext]="{title:'Grupos y cursos', addLabel:'+ Añadir grupo', tab:'groups'}" />
-            <table class="data-table">
-              <thead><tr><th>Grupo</th><th>Alumnos</th><th>Tutor/a</th><th>Aula de referencia</th><th>Carga Lectiva</th><th style="text-align:right;padding-right:24px">Acciones</th></tr></thead>
-              <tbody>
-                @for (g of groups(); track g.id) {
-                  <tr>
-                    <td><strong>{{ g.displayName }}</strong></td>
-                    <td>{{ g.studentCount }} alumnos</td>
-                    <td>{{ g.tutorName ?? '—' }}</td>
-                    <td>{{ getClassroomName(g.homeClassroomId) }}</td>
-                    <td>
-                      <div style="display:flex;flex-wrap:wrap;gap:4px;max-width:320px">
-                        @for (sh of getSubjectHoursList(g); track sh.key) {
-                          <span class="preview-meta-pill" 
-                            [style.background]="'var(--subj-' + sh.key + ')'"
-                            [style.color]="'var(--subj-' + sh.key + '-fg)'"
-                            style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:99px;display:inline-flex;align-items:center;gap:3px;border:1px solid rgba(0,0,0,0.1)">
-                            {{ sh.short }}: {{ sh.hours }}h
-                          </span>
-                        } @empty {
-                          <span style="font-size:var(--text-xs);color:var(--muted-foreground);font-style:italic">— Sin configurar —</span>
-                        }
-                      </div>
-                    </td>
-                    <td style="text-align:right;padding-right:16px">
-                      <div style="display:inline-flex;gap:4px">
-                        <button (click)="editGroup(g)" class="btn-edit" title="Editar grupo" style="color:var(--muted-foreground);padding:6px;border-radius:6px;cursor:pointer;transition:color .15s;background:none;border:none">
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                          </svg>
-                        </button>
-                        <button (click)="deleteGroup(g.id)" class="btn-del" title="Eliminar grupo" style="background:none;border:none">
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
+            <p-table #dtGroups [value]="groups()" [paginator]="true" [rows]="10"
+                     [rowsPerPageOptions]="[5,10,25]" dataKey="id"
+                     [globalFilterFields]="['displayName','tutorName']"
+                     currentPageReportTemplate="{first}–{last} de {totalRecords}"
+                     [showCurrentPageReport]="true">
+              <ng-template pTemplate="caption">
+                <div class="table-caption">
+                  <input pInputText type="text"
+                         (input)="dtGroups.filterGlobal($any($event.target).value,'contains')"
+                         placeholder="Buscar grupos…" class="table-filter-input" />
+                </div>
+              </ng-template>
+              <ng-template pTemplate="header">
+                <tr>
+                  <th pSortableColumn="displayName">Grupo <p-sortIcon field="displayName"/></th>
+                  <th pSortableColumn="studentCount">Alumnos <p-sortIcon field="studentCount"/></th>
+                  <th pSortableColumn="tutorName">Tutor/a <p-sortIcon field="tutorName"/></th>
+                  <th>Aula de referencia</th>
+                  <th>Carga Lectiva</th>
+                  <th class="th-actions">Acciones</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-g>
+                <tr>
+                  <td><strong>{{ g.displayName }}</strong></td>
+                  <td>{{ g.studentCount }} alumnos</td>
+                  <td>{{ g.tutorName ?? '—' }}</td>
+                  <td>{{ getClassroomName(g.homeClassroomId) }}</td>
+                  <td>
+                    <div class="pills-wrap">
+                      @for (sh of getSubjectHoursList(g); track sh.key) {
+                        <span class="subj-pill"
+                          [style.background]="'var(--subj-' + sh.key + ')'"
+                          [style.color]="'var(--subj-' + sh.key + '-fg)'">
+                          {{ sh.short }}: {{ sh.hours }}h
+                        </span>
+                      } @empty {
+                        <span class="text-empty-italic">— Sin configurar —</span>
+                      }
+                    </div>
+                  </td>
+                  <td class="td-actions">
+                    <div class="row-actions">
+                      <button (click)="editGroup(g)" class="btn-edit" title="Editar grupo">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                      </button>
+                      <button (click)="deleteGroup(g.id)" class="btn-del" title="Eliminar grupo">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="6" class="td-empty">No hay grupos registrados.</td></tr>
+              </ng-template>
+            </p-table>
             </div>
           }
 
           <!-- ── ASIGNATURAS ─────────────────────────────────────────────────── -->
           @case ('subjects') {
             <div data-testid="config-subjects-section">
-            <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-              <h3 style="font-weight:700">Asignaturas y horas semanales</h3>
+            <div class="section-header">
+              <h3 class="section-title">Asignaturas y horas semanales</h3>
               @if (isOfficialTemplate()) {
                 <span class="official-badge">Plantilla oficial Madrid</span>
               } @else {
-                <button class="btn-primary" style="padding:6px 12px;font-size:var(--text-xs);border-radius:var(--radius-sm);cursor:pointer" (click)="openAddModal('subjects')">
+                <button class="btn-primary btn-primary--sm" (click)="openAddModal('subjects')">
                   + Añadir asignatura
                 </button>
               }
             </div>
 
             @if (isOfficialTemplate()) {
-              <div style="background:linear-gradient(135deg, var(--primary-tint) 0%, var(--surface) 100%);border:1px solid var(--primary);border-radius:12px;padding:20px;margin:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px">
-                <div style="flex:1">
-                  <h4 style="font-weight:700;color:var(--primary-strong);font-size:var(--text-sm);margin-bottom:4px">Plantilla LOMLOE Oficial Activa</h4>
-                  <p style="font-size:var(--text-xs);color:var(--muted-foreground);max-width:540px;line-height:1.4">
+              <div class="lomloe-banner">
+                <div class="lomloe-banner__body">
+                  <h4 class="lomloe-banner__title">Plantilla LOMLOE Oficial Activa</h4>
+                  <p class="lomloe-banner__desc">
                     Estás visualizando la configuración de asignaturas oficial del Decreto 61/2022 de Madrid. Para poder añadir asignaturas propias, cambiar nombres o modificar especialidades, debes personalizar el currículo de tu centro.
                   </p>
                 </div>
-                <button (click)="cloneOfficialTemplate()" class="btn-primary" style="padding:10px 18px;font-size:var(--text-xs);white-space:nowrap">
+                <button (click)="cloneOfficialTemplate()" class="btn-primary btn-primary--sm">
                   Personalizar Asignaturas
                 </button>
               </div>
             }
 
-            <table class="data-table">
-              <thead>
+            <p-table #dtSubjects [value]="subjects()" [paginator]="true" [rows]="10"
+                     [rowsPerPageOptions]="[5,10,25]" dataKey="id"
+                     [globalFilterFields]="['subjectName','subjectShort','subjectKey']"
+                     currentPageReportTemplate="{first}–{last} de {totalRecords}"
+                     [showCurrentPageReport]="true">
+              <ng-template pTemplate="caption">
+                <div class="table-caption">
+                  <input pInputText type="text"
+                         (input)="dtSubjects.filterGlobal($any($event.target).value,'contains')"
+                         placeholder="Buscar asignaturas…" class="table-filter-input" />
+                </div>
+              </ng-template>
+              <ng-template pTemplate="header">
                 <tr>
-                  <th>Asignatura</th><th>Clave</th><th>Horas (mín–máx)</th>
-                  <th>Horas actuales</th><th>Especialista</th>
+                  <th pSortableColumn="subjectName">Asignatura <p-sortIcon field="subjectName"/></th>
+                  <th pSortableColumn="subjectShort">Clave <p-sortIcon field="subjectShort"/></th>
+                  <th>Horas (mín–máx)</th>
+                  <th>Horas actuales</th>
+                  <th>Especialista</th>
                   @if (!isOfficialTemplate()) {
-                    <th style="text-align:right;padding-right:24px">Acciones</th>
+                    <th class="th-actions">Acciones</th>
                   }
                 </tr>
-              </thead>
-              <tbody>
-                @for (s of subjects(); track s.id) {
-                  <tr>
-                    <td>
-                      <div style="display:flex;align-items:center;gap:8px">
-                        <span class="subj-dot" [style.background]="'var(--subj-' + s.subjectKey + ')'"
-                          [style.color]="'var(--subj-' + s.subjectKey + '-fg)'"></span>
-                        {{ s.subjectName }}
-                        @if (s.isOfficial) {
-                          <span class="official-mini">LOMLOE</span>
-                        }
+              </ng-template>
+              <ng-template pTemplate="body" let-s>
+                <tr>
+                  <td>
+                    <div class="subj-name-cell">
+                      <span class="subj-dot" [style.background]="'var(--subj-' + s.subjectKey + ')'"
+                        [style.color]="'var(--subj-' + s.subjectKey + '-fg)'"></span>
+                      {{ s.subjectName }}
+                      @if (s.isOfficial) {
+                        <span class="official-mini">LOMLOE</span>
+                      }
+                    </div>
+                  </td>
+                  <td class="td-muted">{{ s.subjectShort }}</td>
+                  <td class="td-muted">{{ s.weeklyHoursMin }}–{{ s.weeklyHoursMax }}h</td>
+                  <td>
+                    <input type="number" [value]="s.weeklyHoursDefault"
+                      [min]="s.weeklyHoursMin" [max]="s.weeklyHoursMax"
+                      class="hours-input"
+                      (change)="updateSubjectHours(s.id, $event, s.weeklyHoursMin, s.weeklyHoursMax)" />
+                  </td>
+                  <td>{{ s.requiresSpecialist ? 'Sí' : '—' }}</td>
+                  @if (!isOfficialTemplate()) {
+                    <td class="td-actions">
+                      <div class="row-actions">
+                        <button (click)="editSubject(s)" class="btn-edit" title="Editar asignatura">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </button>
+                        <button (click)="deleteSubject(s.id)" class="btn-del" title="Eliminar asignatura">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                          </svg>
+                        </button>
                       </div>
                     </td>
-                    <td style="color:var(--muted-foreground)">{{ s.subjectShort }}</td>
-                    <td style="color:var(--muted-foreground)">{{ s.weeklyHoursMin }}–{{ s.weeklyHoursMax }}h</td>
-                    <td>
-                      <input type="number" [value]="s.weeklyHoursDefault"
-                        [min]="s.weeklyHoursMin" [max]="s.weeklyHoursMax"
-                        class="hours-input"
-                        (change)="updateSubjectHours(s.id, $event, s.weeklyHoursMin, s.weeklyHoursMax)" />
-                    </td>
-                    <td>{{ s.requiresSpecialist ? 'Sí' : '—' }}</td>
-                    @if (!isOfficialTemplate()) {
-                      <td style="text-align:right;padding-right:16px">
-                        <div style="display:inline-flex;gap:4px">
-                          <button (click)="editSubject(s)" class="btn-edit" title="Editar asignatura" style="color:var(--muted-foreground);padding:6px;border-radius:6px;cursor:pointer;transition:color .15s;background:none;border:none">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                            </svg>
-                          </button>
-                          <button (click)="deleteSubject(s.id)" class="btn-del" title="Eliminar asignatura" style="background:none;border:none">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    }
-                  </tr>
-                }
-              </tbody>
-            </table>
+                  }
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td [attr.colspan]="isOfficialTemplate() ? 5 : 6" class="td-empty">No hay asignaturas registradas.</td></tr>
+              </ng-template>
+            </p-table>
             </div>
           }
 
@@ -450,40 +504,57 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
             <div data-testid="config-classrooms-section">
             <ng-container [ngTemplateOutlet]="tableHeader"
               [ngTemplateOutletContext]="{title:'Aulas', addLabel:'+ Añadir aula', tab:'classrooms'}" />
-            <table class="data-table">
-              <thead><tr><th>Nombre</th><th>Tipo</th><th>Capacidad</th><th>Uso</th><th style="text-align:right;padding-right:24px">Acciones</th></tr></thead>
-              <tbody>
-                @for (r of classrooms(); track r.id) {
-                  <tr>
-                    <td><strong>{{ r.name }}</strong></td>
-                    <td>{{ classroomTypeLabel(r.classroomType) }}</td>
-                    <td>{{ r.capacity }} alumnos</td>
-                    <td>
-                      <span [class]="r.isShared ? 'official-mini' : 'preview-meta-pill'" 
-                            [style.background]="r.isShared ? 'var(--primary-tint)' : 'var(--secondary)'"
-                            [style.color]="r.isShared ? 'var(--primary-strong)' : 'var(--muted-foreground)'"
-                            style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px">
-                        {{ r.isShared ? 'Compartida' : 'Exclusiva' }}
-                      </span>
-                    </td>
-                    <td style="text-align:right;padding-right:16px">
-                      <div style="display:inline-flex;gap:4px">
-                        <button (click)="editClassroom(r)" class="btn-edit" title="Editar aula" style="color:var(--muted-foreground);padding:6px;border-radius:6px;cursor:pointer;transition:color .15s;background:none;border:none">
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                          </svg>
-                        </button>
-                        <button (click)="deleteClassroom(r.id)" class="btn-del" title="Eliminar aula" style="background:none;border:none">
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
+            <p-table #dtClassrooms [value]="classrooms()" [paginator]="true" [rows]="10"
+                     [rowsPerPageOptions]="[5,10,25]" dataKey="id"
+                     [globalFilterFields]="['name','classroomType']"
+                     currentPageReportTemplate="{first}–{last} de {totalRecords}"
+                     [showCurrentPageReport]="true">
+              <ng-template pTemplate="caption">
+                <div class="table-caption">
+                  <input pInputText type="text"
+                         (input)="dtClassrooms.filterGlobal($any($event.target).value,'contains')"
+                         placeholder="Buscar aulas…" class="table-filter-input" />
+                </div>
+              </ng-template>
+              <ng-template pTemplate="header">
+                <tr>
+                  <th pSortableColumn="name">Nombre <p-sortIcon field="name"/></th>
+                  <th pSortableColumn="classroomType">Tipo <p-sortIcon field="classroomType"/></th>
+                  <th pSortableColumn="capacity">Capacidad <p-sortIcon field="capacity"/></th>
+                  <th>Uso</th>
+                  <th class="th-actions">Acciones</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-r>
+                <tr>
+                  <td><strong>{{ r.name }}</strong></td>
+                  <td>{{ classroomTypeLabel(r.classroomType) }}</td>
+                  <td>{{ r.capacity }} alumnos</td>
+                  <td>
+                    <span [class]="r.isShared ? 'tag tag--shared' : 'tag tag--exclusive'">
+                      {{ r.isShared ? 'Compartida' : 'Exclusiva' }}
+                    </span>
+                  </td>
+                  <td class="td-actions">
+                    <div class="row-actions">
+                      <button (click)="editClassroom(r)" class="btn-edit" title="Editar aula">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                      </button>
+                      <button (click)="deleteClassroom(r.id)" class="btn-del" title="Eliminar aula">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="5" class="td-empty">No hay aulas registradas.</td></tr>
+              </ng-template>
+            </p-table>
             </div>
           }
         }
@@ -1093,10 +1164,10 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
 
     <!-- Plantilla cabecera tabla -->
     <ng-template #tableHeader let-title="title" let-addLabel="addLabel" let-tab="tab">
-      <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-        <h3 style="font-weight:700">{{ title }}</h3>
+      <div class="section-header">
+        <h3 class="section-title">{{ title }}</h3>
         @if (addLabel) {
-          <button class="btn-primary" style="padding:6px 12px;font-size:var(--text-xs);border-radius:var(--radius-sm);cursor:pointer" (click)="openAddModal(tab)">
+          <button class="btn-primary btn-primary--sm" (click)="openAddModal(tab)">
             {{ addLabel }}
           </button>
         }
@@ -1130,21 +1201,68 @@ type Tab = 'school' | 'teachers' | 'groups' | 'subjects' | 'classrooms';
     .btn-save:disabled { opacity: 0.5; cursor: default; }
     .btn-save:not(:disabled):hover { opacity: 0.88; }
 
-    /* Tablas */
-    .data-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
-    .data-table th { padding: 10px 14px; text-align: left; font-size: var(--text-xs); font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border); }
-    .data-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-    .data-table tr:last-child td { border-bottom: none; }
-    .data-table tr:hover td { background: var(--surface-2); }
+    /* Encabezado de sección (usado en tableHeader template y asignaturas) */
+    .section-title { font-weight: 700; }
+    .btn-primary--sm { padding: 6px 12px; font-size: var(--text-xs); }
+
+    /* p-table overrides: adaptar al diseño Lectivo */
+    :host ::ng-deep .p-datatable .p-datatable-thead > tr > th {
+      padding: 10px 14px; font-size: var(--text-xs); font-weight: 700; color: var(--muted-foreground);
+      text-transform: uppercase; letter-spacing: 0.04em; background: var(--card);
+      border-color: var(--border);
+    }
+    :host ::ng-deep .p-datatable .p-datatable-tbody > tr > td {
+      padding: 10px 14px; border-color: var(--border); background: var(--card);
+      font-size: var(--text-sm); color: var(--foreground); vertical-align: middle;
+    }
+    :host ::ng-deep .p-datatable .p-datatable-tbody > tr:hover > td { background: var(--surface-2); }
+    :host ::ng-deep .p-datatable .p-paginator { background: var(--card); border-top: 1px solid var(--border); border-radius: 0; }
+    :host ::ng-deep .p-datatable .p-datatable-caption { background: var(--card); border-bottom: 1px solid var(--border); padding: 10px 14px; }
+
+    /* Barra de filtro en caption de p-table */
+    .table-caption { display: flex; align-items: center; }
+    .table-filter-input { padding: 7px 12px; border: 1px solid var(--input); border-radius: var(--radius-sm); font-size: var(--text-sm); font-family: var(--font-sans); background: var(--card); color: var(--foreground); width: 240px; }
+    .table-filter-input::placeholder { color: var(--muted-foreground); }
+
+    /* Columnas y celdas de acciones */
+    .th-actions { text-align: right !important; padding-right: 16px !important; }
+    .td-actions { text-align: right; padding-right: 16px !important; }
+    .td-muted { color: var(--muted-foreground); }
+    .td-empty { text-align: center; padding: 32px !important; color: var(--muted-foreground); font-style: italic; }
+    .text-xs-dim { font-size: 11px; color: var(--muted-foreground); }
+
+    /* Botones de acción en filas de tabla */
+    .row-actions { display: inline-flex; gap: 4px; justify-content: flex-end; }
+    .btn-edit { color: var(--muted-foreground); padding: 6px; border-radius: 6px; cursor: pointer; transition: color .15s; background: none; border: none; display: flex; align-items: center; }
+    .btn-edit:hover { color: var(--primary); }
+    .btn-del { color: var(--muted-foreground); padding: 6px; border-radius: 6px; cursor: pointer; transition: color .15s; background: none; border: none; display: flex; align-items: center; }
+    .btn-del:hover { color: var(--destructive); }
+
+    /* Tablas: clases de contenido */
     .avatar-sm { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; font-weight: 700; font-size: 11px; margin-right: 8px; }
     .mini-bar-wrap { height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; width: 60px; display: inline-block; margin-right: 6px; vertical-align: middle; }
     .mini-bar { height: 100%; border-radius: 99px; transition: width .3s; }
-    .btn-del { color: var(--muted-foreground); padding: 6px; border-radius: 6px; cursor: pointer; transition: color .15s; }
-    .btn-del:hover { color: var(--destructive); }
     .official-badge { background: var(--primary-tint); color: var(--primary-strong); font-size: var(--text-xs); font-weight: 700; padding: 4px 12px; border-radius: var(--radius-full); }
     .official-mini { background: var(--primary-tint); color: var(--primary-strong); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: var(--radius-full); }
     .subj-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+    .subj-name-cell { display: flex; align-items: center; gap: 8px; }
     .hours-input { width: 64px; padding: 5px 8px; border: 1px solid var(--input); border-radius: var(--radius-sm); font-size: var(--text-sm); font-family: var(--font-sans); text-align: center; }
+
+    /* Pills de carga lectiva en grupos */
+    .pills-wrap { display: flex; flex-wrap: wrap; gap: 4px; max-width: 320px; }
+    .subj-pill { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 99px; display: inline-flex; align-items: center; gap: 3px; border: 1px solid rgba(0,0,0,0.1); }
+    .text-empty-italic { font-size: var(--text-xs); color: var(--muted-foreground); font-style: italic; }
+
+    /* Tags de uso de aula */
+    .tag { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+    .tag--shared { background: var(--primary-tint); color: var(--primary-strong); }
+    .tag--exclusive { background: var(--secondary); color: var(--muted-foreground); }
+
+    /* Banner LOMLOE en pestaña asignaturas */
+    .lomloe-banner { background: linear-gradient(135deg, var(--primary-tint) 0%, var(--surface) 100%); border: 1px solid var(--primary); border-radius: 12px; padding: 20px; margin: 16px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .lomloe-banner__body { flex: 1; }
+    .lomloe-banner__title { font-weight: 700; color: var(--primary-strong); font-size: var(--text-sm); margin-bottom: 4px; }
+    .lomloe-banner__desc { font-size: var(--text-xs); color: var(--muted-foreground); max-width: 540px; line-height: 1.4; }
 
     /* Modales */
     .modal-backdrop { position: fixed; inset: 0; z-index: 80; background: rgba(15, 23, 42, 0.3); display: flex; align-items: flex-end; justify-content: center; backdrop-filter: blur(12px) saturate(180%); }

@@ -326,7 +326,7 @@ export class TeacherProfileComponent implements OnInit {
         const newC = await this.api.createConstraint({
           teacherId, constraintType: 'unavailable',
           dayOfWeek: day, slotIndex: slot, weight: 10,
-        } as any);
+        });
         this.constraints.update(cs => [...cs, newC]);
         this.toast.add({ severity: 'success', summary: 'Disponibilidad guardada', detail: 'Franja horaria marcada como no disponible.' });
       } catch {

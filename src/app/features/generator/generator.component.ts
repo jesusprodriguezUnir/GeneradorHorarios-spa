@@ -47,11 +47,17 @@ interface ProgressMessage { assigned: number; total: number; percentage: number;
       </div>
 
       <!-- Stepper -->
-      <div class="stepper">
+      <div class="stepper" role="list" aria-label="Pasos del generador">
         @for (s of steps; track $index) {
-          <div class="step" [class.step--active]="currentStep() === $index" [class.step--done]="currentStep() > $index"
-            [style.cursor]="$index < currentStep() ? 'pointer' : 'default'" (click)="jumpTo($index)">
-            <div class="step-num">
+          <div class="step" role="listitem"
+            [class.step--active]="currentStep() === $index"
+            [class.step--done]="currentStep() > $index"
+            [attr.role]="$index < currentStep() ? 'button' : 'listitem'"
+            [attr.aria-label]="$index < currentStep() ? 'Volver a: ' + s.t : s.t"
+            [attr.aria-current]="currentStep() === $index ? 'step' : null"
+            [style.cursor]="$index < currentStep() ? 'pointer' : 'default'"
+            (click)="jumpTo($index)">
+            <div class="step-num" aria-hidden="true">
               @if (currentStep() > $index) {
                 <lec-icon name="check" [size]="15" [stroke]="3"></lec-icon>
               } @else {
@@ -64,7 +70,7 @@ interface ProgressMessage { assigned: number; total: number; percentage: number;
             </div>
           </div>
           @if ($index < steps.length - 1) {
-            <div class="step-line" [class.step-line--done]="currentStep() > $index"></div>
+            <div class="step-line" [class.step-line--done]="currentStep() > $index" aria-hidden="true"></div>
           }
         }
       </div>
@@ -130,6 +136,15 @@ interface ProgressMessage { assigned: number; total: number; percentage: number;
               [groups]="groupNames()" [slots]="slots()" [(constraints)]="proConstraints" />
           }
           @case (3) {
+            @if (hubState() !== 'connected') {
+              <div class="hub-banner" [class.hub-banner--connecting]="hubState() === 'connecting'" role="status" aria-live="polite">
+                @if (hubState() === 'connecting') {
+                  <span class="hub-dot hub-dot--pulse" aria-hidden="true"></span> Conectando al servidor de generación…
+                } @else {
+                  <span class="hub-dot hub-dot--error" aria-hidden="true"></span> Sin conexión al servidor. El progreso en tiempo real no está disponible.
+                }
+              </div>
+            }
             <app-step-generation [(objectives)]="objectives"
               [constraintsCount]="proConstraints().length" [hardCount]="hardCount()"
               [groupsCount]="groups().length" [teachersCount]="teachers().length" [completionPct]="completionPct()"
@@ -179,6 +194,13 @@ interface ProgressMessage { assigned: number; total: number; percentage: number;
     .btn-primary:hover { background: var(--primary-strong); }
     .btn-secondary { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--card); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--border-strong); border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm); }
     .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Banner de estado del hub SignalR */
+    .hub-banner { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: var(--radius-md); font-size: var(--text-xs); font-weight: 600; margin-bottom: 12px; background: var(--destructive-tint); color: var(--destructive); border: 1px solid var(--destructive); }
+    .hub-banner--connecting { background: var(--warning-tint); color: var(--warning-foreground); border-color: var(--warning); }
+    .hub-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .hub-dot--pulse { background: var(--warning); animation: lec-pulse-dot 1.1s ease-in-out infinite; }
+    .hub-dot--error { background: var(--destructive); }
   `],
 })
 export class GeneratorComponent implements OnInit, OnDestroy {
@@ -191,6 +213,7 @@ export class GeneratorComponent implements OnInit, OnDestroy {
 
   readonly currentStep = signal(0);
   readonly loading = signal(true);
+  readonly hubState = signal<'disconnected' | 'connecting' | 'connected'>('disconnected');
   readonly teachers = signal<Teacher[]>([]);
   readonly groups = signal<CourseGroup[]>([]);
   readonly subjects = signal<SubjectAllocation[]>([]);
@@ -287,19 +310,24 @@ export class GeneratorComponent implements OnInit, OnDestroy {
   }
 
   private setupSignalR(): void {
+    this.hubState.set('connecting');
     this.hubConnection = new signalR.HubConnectionBuilder()
       .withUrl(environment.signalrUrl)
       .withAutomaticReconnect()
       .build();
+    this.hubConnection.onreconnecting(() => this.hubState.set('connecting'));
+    this.hubConnection.onreconnected(() => this.hubState.set('connected'));
+    this.hubConnection.onclose(() => this.hubState.set('disconnected'));
     this.hubConnection.on('Progress', (_msg: ProgressMessage) => { /* el motor en vivo es visual; el progreso real se ignora aquí */ });
     this.hubConnection.start()
       .then(async () => {
+        this.hubState.set('connected');
         const user = this.auth.currentUser();
         if (user?.schoolId) {
           await this.hubConnection?.invoke('JoinSchoolGroup', user.schoolId).catch(() => {});
         }
       })
-      .catch(() => {});
+      .catch(() => this.hubState.set('disconnected'));
   }
 
   jumpTo(i: number): void { if (i < this.currentStep()) this.currentStep.set(i); }

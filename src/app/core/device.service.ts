@@ -12,12 +12,19 @@ export class DeviceService {
   private readonly _isMobile = signal(false);
   readonly isMobile = this._isMobile.asReadonly();
 
+  private resizeRaf?: number;
+
   constructor() {
     if (isPlatformBrowser(this.platformId)) {
       this.update();
-      window.addEventListener('resize', () => this.update());
+      window.addEventListener('resize', this.onResize);
     }
   }
+
+  private readonly onResize = (): void => {
+    if (this.resizeRaf !== undefined) cancelAnimationFrame(this.resizeRaf);
+    this.resizeRaf = requestAnimationFrame(() => this.update());
+  };
 
   private update(): void {
     this._isMobile.set(window.innerWidth < 760);
