@@ -8,6 +8,8 @@ import { ApiService } from '../../core/api/api.service';
 import { ScheduleGrid, ScheduleGridEntry, ScheduleList, Teacher, CourseGroup, Classroom, TimeSlot, cycleFromLevel } from '../../core/models';
 import { ScheduleGridComponent, CellClickEvent } from '../../shared/schedule-grid/schedule-grid.component';
 import { SubjectLegendComponent } from '../../shared/ui/subject-legend.component';
+import { QualityScorecardComponent } from '../../shared/ui/quality-scorecard.component';
+import { GenerationStateService } from '../../core/generation-state.service';
 import { MessageService, ConfirmationService } from 'primeng/api';
 
 type ViewMode = 'group' | 'teacher' | 'room';
@@ -15,7 +17,7 @@ type ViewMode = 'group' | 'teacher' | 'room';
 @Component({
   selector: 'app-schedule-result',
   standalone: true,
-  imports: [CommonModule, FormsModule, ScheduleGridComponent, SubjectLegendComponent],
+  imports: [CommonModule, FormsModule, ScheduleGridComponent, SubjectLegendComponent, QualityScorecardComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="lec-fade-up">
@@ -81,8 +83,13 @@ type ViewMode = 'group' | 'teacher' | 'room';
           Cargando horario...
         </div>
       } @else if (grid()) {
+        <!-- Cuadro de calidad del horario -->
+        <app-quality-scorecard [solution]="chosenSolution()"
+          [state]="grid()!.conflicts.length > 0 ? 'conflicts' : 'clean'"
+          [conflicts]="grid()!.conflicts.length" />
+
         <!-- Tabs de vista -->
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;margin-top:16px;flex-wrap:wrap">
           <div class="view-tabs">
             @for (t of viewTabs; track t.id) {
               <button class="view-tab" [class.view-tab--active]="viewMode() === t.id"
@@ -244,6 +251,10 @@ export class ScheduleResultComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(MessageService);
   private readonly confirmation = inject(ConfirmationService);
+  private readonly genState = inject(GenerationStateService);
+
+  /** Candidata elegida en el generador (para el Cuadro de calidad). */
+  readonly chosenSolution = this.genState.chosenSolution;
 
   readonly schedules = signal<ScheduleList[]>([]);
   readonly grid = signal<ScheduleGrid | null>(null);

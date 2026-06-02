@@ -20,18 +20,18 @@ test.describe('Generator', () => {
     // Step 3: Constraints
     await page.getByTestId('wizard-next').click();
 
-    // Step 4: Generate
+    // Step 4: Generate — objetivos + motor en vivo + candidatas
     await expect(page.getByTestId('generate-button')).toBeVisible();
     await page.getByTestId('generate-button').click();
 
-    // Wait for progress overlay
-    await expect(page.getByTestId('progress-overlay')).toBeVisible();
+    // El motor en vivo se anima mientras el backend genera en paralelo
+    await expect(page.getByTestId('live-engine')).toBeVisible();
 
-    // Wait for result (up to 60s)
-    await expect(page.getByTestId('result-box')).toBeVisible({ timeout: 60000 });
+    // Aparecen las soluciones candidatas (hasta 60s incluyendo la animación)
+    await expect(page.getByTestId('candidate-card').first()).toBeVisible({ timeout: 60000 });
 
-    // View schedule
-    await page.getByTestId('view-schedule-button').click();
+    // Elegir una candidata → abre el horario real
+    await page.getByTestId('choose-candidate').first().click();
     await page.waitForURL(/\/horarios\/.+/);
     await expect(page.getByTestId('page-title')).toBeVisible();
   });

@@ -3,12 +3,17 @@
     "allow": [
       "Read(//d/Personal/GeneradorHorarios/doc/horarios-escolares/docs/specs/**)",
       "Bash(ls d:/Personal/GeneradorHorarios/ --depth 1)",
-      "Read(//d/Personal/GeneradorHorarios/**)"
+      "Read(//d/Personal/GeneradorHorarios/**)",
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(mkdir -p design2)",
+      "Bash(tar -xzf webfetch-1780362239673-kfjekx.bin -C design2)",
+      "PowerShell(npx ng build --configuration development 2>&1)"
     ],
     "additionalDirectories": [
       "d:\\Personal\\GeneradorHorarios\\doc\\horarios-escolares\\docs\\adr",
       "d:\\Personal\\GeneradorHorarios\\doc\\horarios-escolares\\docs\\specs",
-      "d:\\Personal\\GeneradorHorarios\\docs"
+      "d:\\Personal\\GeneradorHorarios\\docs",
+      "d:\\Personal\\GeneradorHorarios\\doc\\horarios-escolares\\docs"
     ]
   }
 }
