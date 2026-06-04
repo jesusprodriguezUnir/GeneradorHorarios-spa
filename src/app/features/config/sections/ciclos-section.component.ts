@@ -15,6 +15,8 @@ export interface CycleRecreo {
 export interface LocalCycleConfig {
   id: number;
   entrada: string;
+  /** Hora de salida oficial (editada por el usuario). Se envía al backend como endTime. */
+  salida: string;
   recreos: CycleRecreo[];
 }
 
@@ -27,7 +29,6 @@ export interface DayBlock {
 }
 
 const STORAGE_KEY = 'lectivo-cycles-v2';
-const ENTRADA_OPTIONS = ['08:30', '09:00', '09:30'];
 const RECREO_OPTIONS = [15, 20, 30];
 
 const CYCLE_LABELS: Record<number, { name: string; courses: string }> = {
@@ -64,7 +65,6 @@ export class CiclosSectionComponent {
   readonly savedCycleId = signal<number | null>(null);
   readonly errorCycleId = signal<number | null>(null);
 
-  readonly entradaOptions = ENTRADA_OPTIONS;
   readonly recreoOptions = RECREO_OPTIONS;
 
   readonly slotAfterOptions = computed(() => {
@@ -84,27 +84,51 @@ export class CiclosSectionComponent {
     try {
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') as LocalCycleConfig[] | null;
       if (stored?.length === 3) {
-        this.cycles.set(stored);
+        // Retrocompatibilidad: configs antiguas (v2 sin campo salida) la calculamos aquí
+        const migrated = stored.map(c => ({
+          ...c,
+          salida: c.salida ?? this.computeSalida(c, s),
+        }));
+        this.cycles.set(migrated);
         return;
       }
-    } catch {}
+    } catch { /* localStorage no disponible o JSON inválido — se generan los defaults */ }
 
-    const defaultCycles: LocalCycleConfig[] = [
-      { id: 1, entrada: s.cycles?.find(c => c.cycle === 1)?.morningStart || '09:00', recreos: [{ after: 2, min: 30 }] },
-      { id: 2, entrada: s.cycles?.find(c => c.cycle === 2)?.morningStart || '09:00', recreos: [{ after: 3, min: 30 }] },
-      { id: 3, entrada: s.cycles?.find(c => c.cycle === 3)?.morningStart || '09:00', recreos: [{ after: 3, min: 20 }] },
-    ];
+    const defaultCycles: LocalCycleConfig[] = [1, 2, 3].map(id => {
+      const backend = s.cycles?.find(c => c.cycle === id);
+      const entrada = backend?.morningStart || '09:00';
+      const recreosPorDefecto: CycleRecreo[] = id === 1
+        ? [{ after: 2, min: 30 }]
+        : id === 2
+          ? [{ after: 3, min: 30 }]
+          : [{ after: 3, min: 20 }];
+      const salidaCalculada = this.computeSalidaRaw(entrada, recreosPorDefecto, s);
+      return {
+        id,
+        entrada,
+        salida: backend?.endTime || salidaCalculada,
+        recreos: recreosPorDefecto,
+      };
+    });
     this.cycles.set(defaultCycles);
     this.saveLocal(defaultCycles);
   }
 
   private saveLocal(cycles: LocalCycleConfig[]): void {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cycles)); } catch {}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cycles)); } catch { /* localStorage no disponible */ }
   }
 
   setCycleEntrada(cycleId: number, entrada: string): void {
     this.cycles.update(ccs => {
       const updated = ccs.map(c => c.id === cycleId ? { ...c, entrada } : c);
+      this.saveLocal(updated);
+      return updated;
+    });
+  }
+
+  setCycleSalida(cycleId: number, salida: string): void {
+    this.cycles.update(ccs => {
+      const updated = ccs.map(c => c.id === cycleId ? { ...c, salida } : c);
       this.saveLocal(updated);
       return updated;
     });
@@ -175,14 +199,19 @@ export class CiclosSectionComponent {
     const localCycle = this.cycles().find(c => c.id === cycleId);
     if (!localCycle) return;
 
+    // Validación: la salida debe ser posterior a la entrada
+    if (parseTime(localCycle.salida) <= parseTime(localCycle.entrada)) {
+      this.errorCycleId.set(cycleId);
+      return;
+    }
+
     this.savingCycleId.set(cycleId);
     this.errorCycleId.set(null);
-    const endTime = this.computeSalida(localCycle, school);
 
     try {
       const updated = await this.api.updateCycleSchedule(cycleId, {
         morningStart: localCycle.entrada,
-        endTime,
+        endTime: localCycle.salida,
         afternoonStart: null,
       });
       const currentSchool = this.school();
@@ -204,9 +233,10 @@ export class CiclosSectionComponent {
   cycleLabel(id: number): string { return CYCLE_LABELS[id]?.name ?? `Ciclo ${id}`; }
   cycleCourses(id: number): string { return CYCLE_LABELS[id]?.courses ?? ''; }
 
-  computeSalida(cycle: LocalCycleConfig, school: School): string {
-    let mins = parseTime(cycle.entrada);
-    const recreoMap = new Map(cycle.recreos.map(r => [r.after, r.min]));
+  /** Calcula la salida a partir de parámetros directos (usado en initCycles y en la sugerencia). */
+  private computeSalidaRaw(entrada: string, recreos: CycleRecreo[], school: School): string {
+    let mins = parseTime(entrada);
+    const recreoMap = new Map(recreos.map(r => [r.after, r.min]));
     for (let i = 1; i <= school.slotsPerDay; i++) {
       mins += school.slotMinutes;
       if (recreoMap.has(i)) mins += recreoMap.get(i)!;
@@ -214,11 +244,30 @@ export class CiclosSectionComponent {
     return formatTime(mins);
   }
 
-  getSalidaForCycle(cycleId: number): string {
+  /** Calcula la salida teórica a partir del ciclo local (entrada + sesiones + recreos). Solo como sugerencia. */
+  computeSalida(cycle: LocalCycleConfig, school: School): string {
+    return this.computeSalidaRaw(cycle.entrada, cycle.recreos, school);
+  }
+
+  /** Devuelve la salida sugerida (calculada) para mostrar como referencia. */
+  getSalidaSugerida(cycleId: number): string {
     const school = this.school();
     const cycle = this.cycles().find(c => c.id === cycleId);
     if (!school || !cycle) return '';
     return this.computeSalida(cycle, school);
+  }
+
+  /** True si la salida oficial difiere de la salida calculada (sugerida). */
+  salidaDifiereDeCalculo(cycleId: number): boolean {
+    const cycle = this.cycles().find(c => c.id === cycleId);
+    if (!cycle) return false;
+    return cycle.salida !== this.getSalidaSugerida(cycleId);
+  }
+
+  /** Aplica la salida calculada como salida oficial del ciclo. */
+  usarSalidaSugerida(cycleId: number): void {
+    const sugerida = this.getSalidaSugerida(cycleId);
+    if (sugerida) this.setCycleSalida(cycleId, sugerida);
   }
 
   getDayPlan(cycle: LocalCycleConfig, school: School): DayBlock[] {
