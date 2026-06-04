@@ -2,7 +2,9 @@ import {
   Component, OnInit, inject, signal, computed, ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ApiService } from '../../core/api/api.service';
+import { TeachersApiService } from '../../core/api/teachers-api.service';
+import { ConstraintsApiService } from '../../core/api/constraints-api.service';
+import { SchoolsApiService } from '../../core/api/schools-api.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { Teacher, TeacherConstraint, TimeSlot, School, DAYS, DAYS_SHORT, SUBJECT_COLORS } from '../../core/models';
 import { MessageService } from 'primeng/api';
@@ -138,14 +140,14 @@ const SUBJECT_NAMES: Record<string, string> = {
             <!-- Rejilla -->
             <div class="availability-grid">
               <div></div>
-              @for (day of days; track $index) {
+              @for (day of days; track day) {
                 <div class="avail-header">{{ daysShort[$index] }}</div>
               }
               @for (slot of gridSlots(); track slot.index) {
                 <div class="slot-label">
                   <span class="slot-time">{{ slot.startTime }}</span>
                 </div>
-                @for (day of days; track $index) {
+                @for (day of days; track day) {
                   <button class="avail-cell"
                     [class.avail-unavailable]="hasConstraint($index + 1, slot.index)"
                     (click)="toggleConstraint($index + 1, slot.index)">
@@ -229,7 +231,9 @@ const SUBJECT_NAMES: Record<string, string> = {
   `],
 })
 export class TeacherProfileComponent implements OnInit {
-  private readonly api   = inject(ApiService);
+  private readonly teachersApi = inject(TeachersApiService);
+  private readonly constraintsApi = inject(ConstraintsApiService);
+  private readonly schoolsApi = inject(SchoolsApiService);
   private readonly auth  = inject(AuthService);
   private readonly toast = inject(MessageService);
 
@@ -291,9 +295,9 @@ export class TeacherProfileComponent implements OnInit {
 
     try {
       const [teachers, constraints, school] = await Promise.all([
-        this.api.getTeachers(),
-        this.api.getTeacherConstraints(user.teacher.id),
-        this.api.getMySchool().catch(() => null),
+        this.teachersApi.getTeachers(),
+        this.constraintsApi.getTeacherConstraints(user.teacher.id),
+        this.schoolsApi.getMySchool().catch(() => null),
       ]);
       this.teacher.set(teachers.find(t => t.id === user.teacher!.id) ?? null);
       this.constraints.set(constraints);
@@ -313,7 +317,7 @@ export class TeacherProfileComponent implements OnInit {
     const existing = this.constraints().find(c => c.dayOfWeek === day && c.slotIndex === slot);
     if (existing) {
       try {
-        await this.api.deleteConstraint(existing.id);
+        await this.constraintsApi.deleteConstraint(existing.id);
         this.constraints.update(cs => cs.filter(c => c.id !== existing.id));
         this.toast.add({ severity: 'success', summary: 'Disponibilidad guardada', detail: 'Franja horaria liberada.' });
       } catch {
@@ -323,7 +327,7 @@ export class TeacherProfileComponent implements OnInit {
       const teacherId = this.teacher()?.id;
       if (!teacherId) return;
       try {
-        const newC = await this.api.createConstraint({
+        const newC = await this.constraintsApi.createConstraint({
           teacherId, constraintType: 'unavailable',
           dayOfWeek: day, slotIndex: slot, weight: 10,
         });

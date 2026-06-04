@@ -2,7 +2,7 @@ import {
   Component, OnInit, inject, signal, computed, ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ApiService } from '../../core/api/api.service';
+import { SchedulesApiService } from '../../core/api/schedules-api.service';
 import { MySchedule, ScheduleGridEntry, TimeSlot, DAYS, DAYS_SHORT } from '../../core/models';
 import { DeviceService } from '../../core/device.service';
 import { MessageService } from 'primeng/api';
@@ -162,7 +162,7 @@ import { SubjectLegendComponent } from '../../shared/ui/subject-legend.component
   `],
 })
 export class MyScheduleComponent implements OnInit {
-  private readonly api    = inject(ApiService);
+  private readonly api    = inject(SchedulesApiService);
   protected readonly device = inject(DeviceService);
   private readonly toast  = inject(MessageService);
 

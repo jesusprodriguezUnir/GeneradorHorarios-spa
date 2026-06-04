@@ -1,15 +1,21 @@
 import {
-  Component, OnInit, OnDestroy, inject, signal, computed, ChangeDetectionStrategy,
+  Component, OnInit, inject, signal, computed, ChangeDetectionStrategy, DestroyRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import * as signalR from '@microsoft/signalr';
-import { ApiService } from '../../core/api/api.service';
+import { TeachersApiService } from '../../core/api/teachers-api.service';
+import { GroupsApiService } from '../../core/api/groups-api.service';
+import { SubjectsApiService } from '../../core/api/subjects-api.service';
+import { ClassroomsApiService } from '../../core/api/classrooms-api.service';
+import { SchoolsApiService } from '../../core/api/schools-api.service';
+import { AssignmentsApiService } from '../../core/api/assignments-api.service';
+import { ConstraintsApiService } from '../../core/api/constraints-api.service';
+import { SchedulesApiService } from '../../core/api/schedules-api.service';
+import { GenerationHubService } from '../../core/realtime/generation-hub.service';
 import {
   TeacherConstraint, Teacher, CourseGroup, School, SubjectAllocation, Classroom, TimeSlot,
 } from '../../core/models';
-import { environment } from '../../../environments/environment';
 import { MessageService } from 'primeng/api';
 import { AuthService } from '../../core/auth/auth.service';
 import { GenerationStateService } from '../../core/generation-state.service';
@@ -19,7 +25,6 @@ import { StepAssignmentsComponent, AssignmentMap, asgKey } from './step-assignme
 import { StepConstraintsComponent } from './step-constraints.component';
 import { StepGenerationComponent } from './step-generation.component';
 
-interface ProgressMessage { assigned: number; total: number; percentage: number; currentAction: string; }
 
 /**
  * Generador de horarios — stepper de 4 pasos potenciado (diseño Lectivo "pro"):
@@ -48,7 +53,7 @@ interface ProgressMessage { assigned: number; total: number; percentage: number;
 
       <!-- Stepper -->
       <div class="stepper" role="list" aria-label="Pasos del generador">
-        @for (s of steps; track $index) {
+        @for (s of steps; track s.t) {
           <div class="step" role="listitem"
             [class.step--active]="currentStep() === $index"
             [class.step--done]="currentStep() > $index"
@@ -203,17 +208,26 @@ interface ProgressMessage { assigned: number; total: number; percentage: number;
     .hub-dot--error { background: var(--destructive); }
   `],
 })
-export class GeneratorComponent implements OnInit, OnDestroy {
-  private readonly api = inject(ApiService);
+export class GeneratorComponent implements OnInit {
+  private readonly teachersApi = inject(TeachersApiService);
+  private readonly groupsApi = inject(GroupsApiService);
+  private readonly subjectsApi = inject(SubjectsApiService);
+  private readonly classroomsApi = inject(ClassroomsApiService);
+  private readonly schoolsApi = inject(SchoolsApiService);
+  private readonly assignmentsApi = inject(AssignmentsApiService);
+  private readonly constraintsApi = inject(ConstraintsApiService);
+  private readonly schedulesApi = inject(SchedulesApiService);
+
   private readonly router = inject(Router);
   private readonly toast = inject(MessageService);
   private readonly auth = inject(AuthService);
   private readonly genState = inject(GenerationStateService);
-  private hubConnection?: signalR.HubConnection;
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly hubService = inject(GenerationHubService);
 
   readonly currentStep = signal(0);
   readonly loading = signal(true);
-  readonly hubState = signal<'disconnected' | 'connecting' | 'connected'>('disconnected');
+  readonly hubState = this.hubService.state;
   readonly teachers = signal<Teacher[]>([]);
   readonly groups = signal<CourseGroup[]>([]);
   readonly subjects = signal<SubjectAllocation[]>([]);
@@ -253,13 +267,13 @@ export class GeneratorComponent implements OnInit, OnDestroy {
   async ngOnInit(): Promise<void> {
     try {
       const [teachers, groups, subjects, classrooms, school, summaries, constraints] = await Promise.all([
-        this.api.getTeachers().catch(() => []),
-        this.api.getGroups().catch(() => []),
-        this.api.getSubjects().catch(() => []),
-        this.api.getClassrooms().catch(() => []),
-        this.api.getMySchool().catch(() => null),
-        this.api.getAssignments().catch(() => []),
-        this.api.getConstraints().catch(() => []),
+        this.teachersApi.getTeachers().catch(() => []),
+        this.groupsApi.getGroups().catch(() => []),
+        this.subjectsApi.getSubjects().catch(() => []),
+        this.classroomsApi.getClassrooms().catch(() => []),
+        this.schoolsApi.getMySchool().catch(() => null),
+        this.assignmentsApi.getAssignments().catch(() => []),
+        this.constraintsApi.getConstraints().catch(() => []),
       ]);
       this.teachers.set(teachers);
       this.groups.set(groups);
@@ -276,15 +290,21 @@ export class GeneratorComponent implements OnInit, OnDestroy {
       }
       this.assignments.set(this.buildAssignmentMap(subjects, groups, summaries));
       this.seedConstraints(constraints);
-      this.setupSignalR();
+
+      // Setup SignalR via GenerationHubService and cleanup automatically on destroy
+      this.destroyRef.onDestroy(() => {
+        this.hubService.stop().catch(() => {});
+      });
+      const user = this.auth.currentUser();
+      if (user?.schoolId) {
+        this.hubService.start(user.schoolId).catch(() => {});
+      }
     } catch {
       this.toast.add({ severity: 'error', summary: 'Error de carga', detail: 'No se pudieron cargar los datos del generador.' });
     } finally {
       this.loading.set(false);
     }
   }
-
-  ngOnDestroy(): void { this.hubConnection?.stop(); }
 
   private buildAssignmentMap(subjects: SubjectAllocation[], groups: CourseGroup[], summaries: { assignments: { allocationId: string; groupId: string; teacherId: string }[] }[]): AssignmentMap {
     const map: AssignmentMap = {};
@@ -309,27 +329,6 @@ export class GeneratorComponent implements OnInit, OnDestroy {
     this.proConstraints.set(seeded);
   }
 
-  private setupSignalR(): void {
-    this.hubState.set('connecting');
-    this.hubConnection = new signalR.HubConnectionBuilder()
-      .withUrl(environment.signalrUrl)
-      .withAutomaticReconnect()
-      .build();
-    this.hubConnection.onreconnecting(() => this.hubState.set('connecting'));
-    this.hubConnection.onreconnected(() => this.hubState.set('connected'));
-    this.hubConnection.onclose(() => this.hubState.set('disconnected'));
-    this.hubConnection.on('Progress', (_msg: ProgressMessage) => { /* el motor en vivo es visual; el progreso real se ignora aquí */ });
-    this.hubConnection.start()
-      .then(async () => {
-        this.hubState.set('connected');
-        const user = this.auth.currentUser();
-        if (user?.schoolId) {
-          await this.hubConnection?.invoke('JoinSchoolGroup', user.schoolId).catch(() => {});
-        }
-      })
-      .catch(() => this.hubState.set('disconnected'));
-  }
-
   jumpTo(i: number): void { if (i < this.currentStep()) this.currentStep.set(i); }
   nextStep(): void { if (this.currentStep() < 3) this.currentStep.update(s => s + 1); }
   prevStep(): void { if (this.currentStep() > 0) this.currentStep.update(s => s - 1); }
@@ -344,8 +343,8 @@ export class GeneratorComponent implements OnInit, OnDestroy {
         breakAfterSlot: Number(this.breakAfterSlot),
         breakMinutes: Number(this.breakMinutes),
       };
-      await this.api.updateMySchool(schoolConfig);
-      const result = await this.api.generateSchedule(this.academicYear, 30);
+      await this.schoolsApi.updateMySchool(schoolConfig);
+      const result = await this.schedulesApi.generateSchedule(this.academicYear, 30);
       this.lastScheduleId = result.scheduleId;
     } catch {
       this.toast.add({ severity: 'error', summary: 'Error de generación', detail: 'No se pudo completar el horario. Revisa especialistas o aulas.' });

@@ -1,0 +1,266 @@
+<div data-testid="config-subjects-section">
+  <div class="section-header">
+    <h3 class="section-title">Asignaturas y horas semanales</h3>
+    @if (isOfficialTemplate()) {
+      <span class="official-badge">Plantilla oficial Madrid</span>
+    } @else {
+      <button class="btn-primary btn-primary--sm" (click)="openAddModal()">
+        + Añadir asignatura
+      </button>
+    }
+  </div>
+
+  @if (isOfficialTemplate()) {
+    <div class="lomloe-banner">
+      <div class="lomloe-banner__body">
+        <h4 class="lomloe-banner__title">Plantilla LOMLOE Oficial Activa</h4>
+        <p class="lomloe-banner__desc">
+          Estás visualizando la configuración de asignaturas oficial del Decreto 61/2022 de Madrid. Para poder añadir asignaturas propias, cambiar nombres o modificar especialidades, debes personalizar el currículo de tu centro.
+        </p>
+      </div>
+      <button (click)="cloneOfficialTemplate()" class="btn-primary btn-primary--sm">
+        Personalizar Asignaturas
+      </button>
+    </div>
+  }
+
+  <p-table #dtSubjects [value]="subjects()" [paginator]="true" [rows]="10"
+           [rowsPerPageOptions]="[5,10,25]" dataKey="id"
+           [globalFilterFields]="['subjectName','subjectShort','subjectKey']"
+           currentPageReportTemplate="{first}–{last} de {totalRecords}"
+           [showCurrentPageReport]="true">
+    <ng-template pTemplate="caption">
+      <div class="table-caption">
+        <input pInputText type="text"
+               (input)="dtSubjects.filterGlobal($any($event.target).value,'contains')"
+               placeholder="Buscar asignaturas…" class="table-filter-input" />
+      </div>
+    </ng-template>
+    <ng-template pTemplate="header">
+      <tr>
+        <th pSortableColumn="subjectName">Asignatura <p-sortIcon field="subjectName"/></th>
+        <th pSortableColumn="subjectShort">Clave <p-sortIcon field="subjectShort"/></th>
+        <th>Horas (mín–máx)</th>
+        <th>Horas actuales</th>
+        <th>Especialista</th>
+        @if (!isOfficialTemplate()) {
+          <th class="th-actions">Acciones</th>
+        }
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="body" let-s>
+      <tr>
+        <td>
+          <div class="subj-name-cell">
+            <span class="subj-dot" [style.background]="'var(--subj-' + s.subjectKey + ')'"
+              [style.color]="'var(--subj-' + s.subjectKey + '-fg)'"></span>
+            {{ s.subjectName }}
+            @if (s.isOfficial) {
+              <span class="official-mini">LOMLOE</span>
+            }
+          </div>
+        </td>
+        <td class="td-muted">{{ s.subjectShort }}</td>
+        <td class="td-muted">{{ s.weeklyHoursMin }}–{{ s.weeklyHoursMax }}h</td>
+        <td>
+          <input type="number" [value]="s.weeklyHoursDefault"
+            [min]="s.weeklyHoursMin" [max]="s.weeklyHoursMax"
+            class="hours-input"
+            (change)="updateSubjectHours(s.id, $event, s.weeklyHoursMin, s.weeklyHoursMax)" />
+        </td>
+        <td>{{ s.requiresSpecialist ? 'Sí' : '—' }}</td>
+        @if (!isOfficialTemplate()) {
+          <td class="td-actions">
+            <div class="row-actions">
+              <button (click)="editSubject(s)" class="btn-edit" title="Editar asignatura">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+              <button (click)="deleteSubject(s.id)" class="btn-del" title="Eliminar asignatura">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                </svg>
+              </button>
+            </div>
+          </td>
+        }
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="emptymessage">
+      <tr><td [attr.colspan]="isOfficialTemplate() ? 5 : 6" class="td-empty">No hay asignaturas registradas.</td></tr>
+    </ng-template>
+  </p-table>
+</div>
+
+<!-- Modal para Añadir / Editar Asignatura -->
+<p-dialog
+  [visible]="isSubjectModalOpen()"
+  (visibleChange)="isSubjectModalOpen.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [closeOnEscape]="true"
+  [style]="{ width: '600px', maxWidth: '95vw' }"
+  [contentStyle]="{ 'overflow-y': 'auto', 'max-height': '62vh' }">
+
+  <ng-template pTemplate="header">
+    <div>
+      <span class="premium-badge">{{ editingSubject() ? 'MODIFICACIÓN' : 'NUEVO REGISTRO' }}</span>
+      <h3 class="premium-title">{{ editingSubject() ? 'Editar Asignatura' : 'Crear Nueva Asignatura' }}</h3>
+    </div>
+  </ng-template>
+
+  <div class="modal-body-premium">
+        
+        <!-- Tarjeta de Vista Previa -->
+        <div class="preview-card-premium">
+          <div class="preview-badge-label">VISTA PREVIA DE ASIGNATURA</div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span class="subj-dot" [style.background]="'var(--subj-' + subjectForm().subjectKey + ')'" style="width:36px;height:36px;border-radius:50%"></span>
+              <div>
+                <div style="font-weight:700;font-size:var(--text-md);color:var(--foreground)">
+                  {{ subjectForm().subjectName || 'Nueva Asignatura' }} ({{ subjectForm().subjectShort || '?' }})
+                </div>
+                <div style="font-size:var(--text-xs);color:var(--muted-foreground)">
+                  Horas semanales: {{ subjectForm().weeklyHoursDefault }}h (Rango: {{ subjectForm().weeklyHoursMin }}–{{ subjectForm().weeklyHoursMax }}h)
+                </div>
+              </div>
+            </div>
+            <div class="preview-meta-pill" [class.preview-meta-pill--active]="subjectForm().requiresSpecialist">
+              {{ subjectForm().requiresSpecialist ? 'Requiere Especialista' : 'Tutor / Generalista' }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Fila con Nombre y Nombre Corto -->
+        <div class="form-row-premium">
+          <div class="form-field-premium" style="flex:2">
+            <label class="field-label-premium">Nombre Completo</label>
+            <div class="input-with-icon-premium">
+              <span class="input-icon-premium" style="font-size:15px">📚</span>
+              <input [(ngModel)]="subjectForm().subjectName" 
+                class="field-input-premium" 
+                placeholder="Ej: Lengua Castellana, Matemáticas..." 
+                type="text" 
+                maxlength="100" />
+            </div>
+          </div>
+          <div class="form-field-premium" style="flex:1">
+            <label class="field-label-premium">Siglas / Corto</label>
+            <input [(ngModel)]="subjectForm().subjectShort" 
+              class="field-input-premium" 
+              placeholder="Mates, Lengua..." 
+              type="text" 
+              maxlength="15"
+              style="padding-left:14px" />
+          </div>
+        </div>
+
+        <!-- Fila con Clave de Asignatura y Aula Requerida -->
+        <div class="form-row-premium">
+          <div class="form-field-premium" style="flex:1">
+            <label class="field-label-premium">Clave Única (SubjectKey)</label>
+            <input [(ngModel)]="subjectForm().subjectKey" 
+              class="field-input-premium" 
+              placeholder="Ej: len, mat, rob..." 
+              type="text" 
+              maxlength="5"
+              style="padding-left:14px"
+              [disabled]="editingSubject() !== null" />
+          </div>
+          <div class="form-field-premium" style="flex:1">
+            <label class="field-label-premium">Aula Requerida</label>
+            <div class="input-with-icon-premium">
+              <span class="input-icon-premium" style="font-size:15px">🚪</span>
+              <select [(ngModel)]="subjectForm().requiredClassroomType" class="field-select-premium">
+                <option value="">Cualquier Aula Ordinaria</option>
+                <option value="gym">Gimnasio</option>
+                <option value="music">Aula de Música</option>
+                <option value="lab">Laboratorio</option>
+                <option value="it">Aula de Informática</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fila con Horas Mínimas, Máximas y Default -->
+        <div class="form-row-premium">
+          <div class="form-field-premium" style="flex:1">
+            <label class="field-label-premium">Horas Mínimas</label>
+            <input [(ngModel)]="subjectForm().weeklyHoursMin" class="field-input-premium" type="number" min="0" max="10" style="padding-left:14px" />
+          </div>
+          <div class="form-field-premium" style="flex:1">
+            <label class="field-label-premium">Horas Máximas</label>
+            <input [(ngModel)]="subjectForm().weeklyHoursMax" class="field-input-premium" type="number" min="1" max="15" style="padding-left:14px" />
+          </div>
+          <div class="form-field-premium" style="flex:1">
+            <label class="field-label-premium">Horas Recomendadas</label>
+            <input [(ngModel)]="subjectForm().weeklyHoursDefault" class="field-input-premium" type="number" min="0" max="15" style="padding-left:14px" />
+          </div>
+        </div>
+
+        <!-- Especialista e Integridad (Toggles) -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <!-- Requiere Especialista -->
+          <div class="toggle-card-premium" 
+               [class.toggle-card-premium--active]="subjectForm().requiresSpecialist"
+               (click)="subjectForm().requiresSpecialist = !subjectForm().requiresSpecialist">
+            <div style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:var(--secondary);font-size:16px">
+              🏅
+            </div>
+            <div style="flex:1">
+              <div style="font-weight:700;font-size:var(--text-sm)">¿Requiere un profesor especialista?</div>
+              <div style="font-size:11px;opacity:0.8">Habilita esta opción si debe ser impartida por docentes con titulación específica (Inglés, Educación Física, etc.).</div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:2px solid var(--border);position:relative">
+              @if (subjectForm().requiresSpecialist) {
+                <div style="width:10px;height:10px;border-radius:50%;background:var(--primary)"></div>
+              }
+            </div>
+          </div>
+
+          <!-- Splittable -->
+          <div class="toggle-card-premium" 
+               [class.toggle-card-premium--active]="subjectForm().splittableAcrossDays"
+               (click)="subjectForm().splittableAcrossDays = !subjectForm().splittableAcrossDays">
+            <div style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:var(--secondary);font-size:16px">
+              📅
+            </div>
+            <div style="flex:1">
+              <div style="font-weight:700;font-size:var(--text-sm)">¿Divisible en varios días?</div>
+              <div style="font-size:11px;opacity:0.8">Permite que las sesiones semanales se repartan en días distintos. Si se desactiva, se impartirán todas juntas.</div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:2px solid var(--border);position:relative">
+              @if (subjectForm().splittableAcrossDays) {
+                <div style="width:10px;height:10px;border-radius:50%;background:var(--primary)"></div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Max Consecutive Slots -->
+        <div class="form-field-premium">
+          <label class="field-label-premium">Máximo de horas consecutivas al día</label>
+          <div class="student-counter-premium" style="width:180px">
+            <button class="counter-btn-premium" (click)="adjustMaxConsecutive(-1)">−</button>
+            <input [(ngModel)]="subjectForm().maxConsecutiveSlots" class="counter-input-premium" type="number" min="1" max="4" />
+            <button class="counter-btn-premium" (click)="adjustMaxConsecutive(1)">+</button>
+          </div>
+        </div>
+
+      </div>
+      
+  <ng-template pTemplate="footer">
+    <button class="btn-cancel-premium" (click)="isSubjectModalOpen.set(false)">Cancelar</button>
+    <button class="btn-save-premium" (click)="saveSubject()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;vertical-align:middle;display:inline-block">
+        <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/>
+        <polyline points="7 3 7 8 15 8"/>
+      </svg>
+      Guardar Cambios
+    </button>
+  </ng-template>
+</p-dialog>

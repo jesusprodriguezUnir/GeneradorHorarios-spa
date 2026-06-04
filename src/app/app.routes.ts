@@ -26,6 +26,7 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/my-schedule/my-schedule.component').then(m => m.MyScheduleComponent),
         title: 'Lectivo — Mi horario',
+        data: { preload: true },
       },
       {
         path: 'perfil',
@@ -40,6 +41,7 @@ export const routes: Routes = [
           import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent),
         canActivate: [adminGuard],
         title: 'Lectivo — Panel',
+        data: { preload: true },
       },
       {
         path: 'generador',

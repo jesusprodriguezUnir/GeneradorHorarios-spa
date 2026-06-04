@@ -1,0 +1,214 @@
+<div data-testid="config-teachers-section">
+  <div class="section-header">
+    <h3 class="section-title">Profesores</h3>
+    <button class="btn-primary btn-primary--sm" (click)="openAddModal()">
+      + Añadir profesor
+    </button>
+  </div>
+
+  <p-table #dtTeachers [value]="teachers()" [paginator]="true" [rows]="10"
+           [rowsPerPageOptions]="[5,10,25]" dataKey="id"
+           [globalFilterFields]="['fullName','email','teacherType']"
+           currentPageReportTemplate="{first}–{last} de {totalRecords}"
+           [showCurrentPageReport]="true">
+    <ng-template pTemplate="caption">
+      <div class="table-caption">
+        <input pInputText type="text"
+               (input)="dtTeachers.filterGlobal($any($event.target).value,'contains')"
+               placeholder="Buscar profesores…" class="table-filter-input" />
+      </div>
+    </ng-template>
+    <ng-template pTemplate="header">
+      <tr>
+        <th pSortableColumn="fullName">Nombre <p-sortIcon field="fullName"/></th>
+        <th pSortableColumn="email">Email <p-sortIcon field="email"/></th>
+        <th pSortableColumn="teacherType">Tipo <p-sortIcon field="teacherType"/></th>
+        <th pSortableColumn="maxWeeklyHours">H. máx/semana <p-sortIcon field="maxWeeklyHours"/></th>
+        <th>Especialidades</th>
+        <th>H. asignadas</th>
+        <th class="th-actions">Acciones</th>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="body" let-t>
+      <tr>
+        <td>
+          <span class="avatar-sm" [style.background]="'var(--subj-' + t.colorKey + ')'">
+            {{ initials(t.fullName) }}
+          </span> 
+          {{ t.fullName }}
+        </td>
+        <td class="td-muted">{{ t.email }}</td>
+        <td>{{ teacherTypeLabel(t.teacherType) }}</td>
+        <td>{{ t.maxWeeklyHours }}h</td>
+        <td>{{ t.specialties.join(', ') }}</td>
+        <td>
+          <div class="mini-bar-wrap">
+            <div class="mini-bar" [style.width]="((t.assignedHours / t.maxWeeklyHours) * 100) + '%'"
+              [style.background]="t.assignedHours > t.maxWeeklyHours ? 'var(--destructive)' : 'var(--primary)'"></div>
+          </div>
+          <span class="text-xs-dim">{{ t.assignedHours }}/{{ t.maxWeeklyHours }}</span>
+        </td>
+        <td class="td-actions">
+          <div class="row-actions">
+            <button (click)="editTeacher(t)" class="btn-edit" title="Editar profesor">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button (click)="deleteTeacher(t.id)" class="btn-del" title="Eliminar profesor">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+              </svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="emptymessage">
+      <tr><td colspan="7" class="td-empty">No hay profesores registrados.</td></tr>
+    </ng-template>
+  </p-table>
+</div>
+
+<!-- Modal para Añadir / Editar Profesor -->
+<p-dialog
+  [visible]="isTeacherModalOpen()"
+  (visibleChange)="isTeacherModalOpen.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [closeOnEscape]="true"
+  [style]="{ width: '560px', maxWidth: '95vw' }"
+  [contentStyle]="{ 'overflow-y': 'auto', 'max-height': '62vh' }">
+
+  <ng-template pTemplate="header">
+    <div>
+      <span class="premium-badge">{{ editingTeacher() ? 'MODIFICACIÓN' : 'NUEVO REGISTRO' }}</span>
+      <h3 class="premium-title">{{ editingTeacher() ? 'Editar Profesor' : 'Crear Nuevo Profesor' }}</h3>
+    </div>
+  </ng-template>
+
+  <div class="modal-body-premium">
+        
+        <!-- Tarjeta de Vista Previa -->
+        <div class="preview-card-premium">
+          <div class="preview-badge-label">VISTA PREVIA DE PROFESOR</div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span class="preview-group-dot" [style.background]="'var(--subj-' + teacherForm().colorKey + ')'">
+                {{ teacherForm().fullName ? initials(teacherForm().fullName) : 'PR' }}
+              </span>
+              <div>
+                <div style="font-weight:700;font-size:var(--text-md);color:var(--foreground)">
+                  {{ teacherForm().fullName || 'Nuevo Profesor/a' }}
+                </div>
+                <div style="font-size:var(--text-xs);color:var(--muted-foreground)">
+                  {{ teacherForm().email || 'sin-email@centro.es' }}
+                </div>
+              </div>
+            </div>
+            <div class="preview-meta-pill" [class.preview-meta-pill--active]="teacherForm().teacherType === 'definitivo'">
+              {{ teacherForm().teacherType === 'definitivo' ? 'Definitivo' : 'Especialista' }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Nombre del Profesor -->
+        <div class="form-field-premium">
+          <label class="field-label-premium">Nombre Completo</label>
+          <div class="input-with-icon-premium">
+            <span class="input-icon-premium" style="font-size:15px">👤</span>
+            <input [(ngModel)]="teacherForm().fullName" 
+              class="field-input-premium" 
+              placeholder="Ej: Laura Fernández, Carlos Martínez..." 
+              type="text" 
+              maxlength="100" />
+          </div>
+        </div>
+
+        <!-- Email -->
+        <div class="form-field-premium">
+          <label class="field-label-premium">Correo Electrónico</label>
+          <div class="input-with-icon-premium">
+            <span class="input-icon-premium" style="font-size:15px">✉️</span>
+            <input [(ngModel)]="teacherForm().email" 
+              class="field-input-premium" 
+              placeholder="Ej: laura.fernandez@centro.es" 
+              type="email" 
+              maxlength="100" />
+          </div>
+        </div>
+
+        <!-- Fila con Tipo y Horas Máximas -->
+        <div class="form-row-premium">
+          
+          <!-- Tipo de Profesor -->
+          <div class="form-field-premium" style="flex:1">
+            <label class="field-label-premium">Tipo de Docente</label>
+            <div class="input-with-icon-premium">
+              <span class="input-icon-premium" style="font-size:15px">💼</span>
+              <select [(ngModel)]="teacherForm().teacherType" class="field-select-premium">
+                <option value="definitivo">Definitivo / Generalista</option>
+                <option value="especialista">Especialista / Interino</option>
+              </select>
+            </div>
+           </div>
+
+           <!-- Horas Máximas Semanales -->
+           <div class="form-field-premium" style="flex:1">
+             <label class="field-label-premium">Horas Máximas Semanales</label>
+             <div class="student-counter-premium">
+               <button class="counter-btn-premium" (click)="adjustTeacherHours(-1)">−</button>
+               <input [(ngModel)]="teacherForm().maxWeeklyHours" 
+                 class="counter-input-premium" 
+                 type="number" min="1" max="40" />
+               <button class="counter-btn-premium" (click)="adjustTeacherHours(1)">+</button>
+             </div>
+           </div>
+
+        </div>
+
+        <!-- Especialidades (Comma Separated) -->
+        <div class="form-field-premium">
+          <label class="field-label-premium">Especialidades (separadas por comas)</label>
+          <div class="input-with-icon-premium">
+            <span class="input-icon-premium" style="font-size:15px">🏅</span>
+            <input [(ngModel)]="teacherForm().specialtiesRaw" 
+              class="field-input-premium" 
+              placeholder="Ej: Generalista, Inglés, Educación Física..." 
+              type="text" />
+          </div>
+        </div>
+
+        <!-- Selector de Color Key -->
+        <div class="form-field-premium">
+          <label class="field-label-premium">Color Representativo</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+            @for (color of ['len', 'mat', 'cie', 'ing', 'ef', 'mus', 'art', 'rel', 'tut']; track color) {
+              <button class="color-select-btn" 
+                [style.background]="'var(--subj-' + color + ')'"
+                [class.color-select-btn--active]="teacherForm().colorKey === color"
+                (click)="teacherForm().colorKey = color"
+                style="width:36px;height:36px;border-radius:50%;border:3px solid transparent;cursor:pointer;transition:all 0.15s;box-shadow:0 2px 4px rgba(0,0,0,0.1)">
+                @if (teacherForm().colorKey === color) {
+                  <span style="color:#fff;font-weight:900;text-shadow:0 1px 2px rgba(0,0,0,0.5);font-size:12px">✓</span>
+                }
+              </button>
+            }
+          </div>
+        </div>
+
+      </div>
+      
+  <ng-template pTemplate="footer">
+    <button class="btn-cancel-premium" (click)="isTeacherModalOpen.set(false)">Cancelar</button>
+    <button class="btn-save-premium" (click)="saveTeacher()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;vertical-align:middle;display:inline-block">
+        <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/>
+        <polyline points="7 3 7 8 15 8"/>
+      </svg>
+      Guardar Cambios
+    </button>
+  </ng-template>
+</p-dialog>

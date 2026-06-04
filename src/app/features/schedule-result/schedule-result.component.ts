@@ -4,7 +4,10 @@ import {
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { ApiService } from '../../core/api/api.service';
+import { SchedulesApiService } from '../../core/api/schedules-api.service';
+import { TeachersApiService } from '../../core/api/teachers-api.service';
+import { GroupsApiService } from '../../core/api/groups-api.service';
+import { ClassroomsApiService } from '../../core/api/classrooms-api.service';
 import { ScheduleGrid, ScheduleGridEntry, ScheduleList, Teacher, CourseGroup, Classroom, TimeSlot, cycleFromLevel } from '../../core/models';
 import { ScheduleGridComponent, CellClickEvent } from '../../shared/schedule-grid/schedule-grid.component';
 import { SubjectLegendComponent } from '../../shared/ui/subject-legend.component';
@@ -246,7 +249,10 @@ type ViewMode = 'group' | 'teacher' | 'room';
   `],
 })
 export class ScheduleResultComponent implements OnInit {
-  protected readonly api = inject(ApiService);
+  protected readonly schedulesApi = inject(SchedulesApiService);
+  protected readonly teachersApi   = inject(TeachersApiService);
+  protected readonly groupsApi     = inject(GroupsApiService);
+  protected readonly classroomsApi = inject(ClassroomsApiService);
   protected readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(MessageService);
@@ -310,10 +316,10 @@ export class ScheduleResultComponent implements OnInit {
     const id = this.route.snapshot.paramMap.get('id');
     try {
       const [schedules, teachers, groups, classrooms] = await Promise.all([
-        this.api.getSchedules(),
-        this.api.getTeachers(),
-        this.api.getGroups(),
-        this.api.getClassrooms(),
+        this.schedulesApi.getSchedules(),
+        this.teachersApi.getTeachers(),
+        this.groupsApi.getGroups(),
+        this.classroomsApi.getClassrooms(),
       ]);
       this.schedules.set(schedules);
       this.teachers.set(teachers);
@@ -335,7 +341,7 @@ export class ScheduleResultComponent implements OnInit {
   async loadGrid(id: string): Promise<void> {
     this.loading.set(true);
     try {
-      const grid = await this.api.getSchedule(id);
+      const grid = await this.schedulesApi.getSchedule(id);
       this.grid.set(grid);
     } catch {
       this.toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo obtener el grid del horario.' });
@@ -366,7 +372,7 @@ export class ScheduleResultComponent implements OnInit {
     const id = this.selectedId();
     if (!entry || !id) return;
     try {
-      await this.api.updateScheduleEntry(id, entry.id, this.editTeacherId, this.editClassroomId);
+      await this.schedulesApi.updateScheduleEntry(id, entry.id, this.editTeacherId, this.editClassroomId);
       await this.loadGrid(id);
       this.editModal.set(null);
       this.toast.add({ severity: 'success', summary: 'Sesión editada', detail: 'Se ha actualizado la sesión correctamente.' });
@@ -386,8 +392,8 @@ export class ScheduleResultComponent implements OnInit {
       rejectLabel: 'Cancelar',
       accept: async () => {
         try {
-          await this.api.publishSchedule(id);
-          const schedules = await this.api.getSchedules();
+          await this.schedulesApi.publishSchedule(id);
+          const schedules = await this.schedulesApi.getSchedules();
           this.schedules.set(schedules);
           await this.loadGrid(id);
           this.toast.add({ severity: 'success', summary: 'Horario publicado', detail: 'El horario está ahora activo y visible para los profesores.' });

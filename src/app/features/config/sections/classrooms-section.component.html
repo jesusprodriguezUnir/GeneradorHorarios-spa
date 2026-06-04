@@ -1,0 +1,185 @@
+<div data-testid="config-classrooms-section">
+  <div class="section-header">
+    <h3 class="section-title">Aulas</h3>
+    <button class="btn-primary btn-primary--sm" (click)="openAddModal()">
+      + Añadir aula
+    </button>
+  </div>
+  
+  <p-table #dtClassrooms [value]="classrooms()" [paginator]="true" [rows]="10"
+           [rowsPerPageOptions]="[5,10,25]" dataKey="id"
+           [globalFilterFields]="['name','classroomType']"
+           currentPageReportTemplate="{first}–{last} de {totalRecords}"
+           [showCurrentPageReport]="true">
+    <ng-template pTemplate="caption">
+      <div class="table-caption">
+        <input pInputText type="text"
+               (input)="dtClassrooms.filterGlobal($any($event.target).value,'contains')"
+               placeholder="Buscar aulas…" class="table-filter-input" />
+      </div>
+    </ng-template>
+    <ng-template pTemplate="header">
+      <tr>
+        <th pSortableColumn="name">Nombre <p-sortIcon field="name"/></th>
+        <th pSortableColumn="classroomType">Tipo <p-sortIcon field="classroomType"/></th>
+        <th pSortableColumn="capacity">Capacidad <p-sortIcon field="capacity"/></th>
+        <th>Uso</th>
+        <th class="th-actions">Acciones</th>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="body" let-r>
+      <tr>
+        <td><strong>{{ r.name }}</strong></td>
+        <td>{{ classroomTypeLabel(r.classroomType) }}</td>
+        <td>{{ r.capacity }} alumnos</td>
+        <td>
+          <span [class]="r.isShared ? 'tag tag--shared' : 'tag tag--exclusive'">
+            {{ r.isShared ? 'Compartida' : 'Exclusiva' }}
+          </span>
+        </td>
+        <td class="td-actions">
+          <div class="row-actions">
+            <button (click)="editClassroom(r)" class="btn-edit" title="Editar aula">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button (click)="deleteClassroom(r.id)" class="btn-del" title="Eliminar aula">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+              </svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="emptymessage">
+      <tr><td colspan="5" class="td-empty">No hay aulas registradas.</td></tr>
+    </ng-template>
+  </p-table>
+</div>
+
+<!-- Modal para Añadir / Editar Aula -->
+<p-dialog
+  [visible]="isClassroomModalOpen()"
+  (visibleChange)="isClassroomModalOpen.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [closeOnEscape]="true"
+  [style]="{ width: '520px', maxWidth: '95vw' }"
+  [contentStyle]="{ 'overflow-y': 'auto', 'max-height': '62vh' }">
+
+  <ng-template pTemplate="header">
+    <div>
+      <span class="premium-badge">{{ editingClassroom() ? 'MODIFICACIÓN' : 'NUEVO REGISTRO' }}</span>
+      <h3 class="premium-title">{{ editingClassroom() ? 'Editar Aula' : 'Crear Nueva Aula' }}</h3>
+    </div>
+  </ng-template>
+
+  <div class="modal-body-premium">
+        
+        <!-- Tarjeta de Vista Previa -->
+        <div class="preview-card-premium">
+          <div class="preview-badge-label">VISTA PREVIA DE AULA</div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span class="preview-group-dot" style="background: linear-gradient(135deg, var(--primary) 0%, oklch(0.5 0.2 240) 100%);">
+                {{ classroomForm().name ? classroomForm().name.substring(0, 3).toUpperCase() : 'AUL' }}
+              </span>
+              <div>
+                <div style="font-weight:700;font-size:var(--text-md);color:var(--foreground)">
+                  {{ classroomForm().name || 'Nueva Aula' }}
+                </div>
+                <div style="font-size:var(--text-xs);color:var(--muted-foreground)">
+                  Tipo: {{ classroomTypeLabel(classroomForm().classroomType) }}
+                </div>
+              </div>
+            </div>
+            <div class="preview-meta-pill" [class.preview-meta-pill--active]="classroomForm().isShared">
+              {{ classroomForm().isShared ? 'Uso Compartido' : 'Uso Exclusivo' }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Nombre del Aula -->
+        <div class="form-field-premium">
+          <label class="field-label-premium">Nombre del Aula</label>
+          <div class="input-with-icon-premium">
+            <span class="input-icon-premium" style="font-size:15px">🚪</span>
+            <input [(ngModel)]="classroomForm().name" 
+              class="field-input-premium" 
+              placeholder="Ej: Aula 101, Laboratorio de Física..." 
+              type="text" 
+              maxlength="50" />
+          </div>
+        </div>
+
+        <!-- Fila con Tipo y Capacidad -->
+        <div class="form-row-premium">
+          
+          <!-- Tipo de Aula -->
+          <div class="form-field-premium" style="flex:1">
+            <label class="field-label-premium">Tipo de Aula</label>
+            <div class="input-with-icon-premium">
+              <span class="input-icon-premium" style="font-size:15px">🔧</span>
+              <select [(ngModel)]="classroomForm().classroomType" class="field-select-premium">
+                <option value="regular">Ordinaria</option>
+                <option value="gym">Gimnasio</option>
+                <option value="music">Aula de Música</option>
+                <option value="lab">Laboratorio</option>
+                <option value="it">Aula de Informática</option>
+                <option value="support">Apoyo</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Capacidad (Alumnos) -->
+          <div class="form-field-premium" style="flex:1">
+            <label class="field-label-premium">Capacidad (Alumnos)</label>
+            <div class="student-counter-premium">
+              <button class="counter-btn-premium" (click)="adjustClassroomCapacity(-1)">−</button>
+              <input [(ngModel)]="classroomForm().capacity" 
+                class="counter-input-premium" 
+                type="number" min="1" max="100" />
+              <button class="counter-btn-premium" (click)="adjustClassroomCapacity(1)">+</button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Uso Compartido Toggle Card -->
+        <div class="form-field-premium">
+          <label class="field-label-premium">Configuración de Uso</label>
+          <div class="toggle-card-premium" 
+               [class.toggle-card-premium--active]="classroomForm().isShared"
+               (click)="classroomForm().isShared = !classroomForm().isShared">
+            <div style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:var(--secondary);font-size:16px">
+              🤝
+            </div>
+            <div style="flex:1">
+              <div style="font-weight:700;font-size:var(--text-sm)">¿Es un aula de uso compartido?</div>
+              <div style="font-size:11px;opacity:0.8">Permite que el aula sea asignada a varias asignaturas a la vez.</div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:2px solid var(--border);position:relative">
+              @if (classroomForm().isShared) {
+                <div style="width:10px;height:10px;border-radius:50%;background:var(--primary)"></div>
+              }
+            </div>
+          </div>
+        </div>
+
+      </div>
+      
+  <ng-template pTemplate="footer">
+    <button class="btn-cancel-premium" (click)="isClassroomModalOpen.set(false)">Cancelar</button>
+    <button class="btn-save-premium" (click)="saveClassroom()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;vertical-align:middle;display:inline-block">
+        <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/>
+        <polyline points="7 3 7 8 15 8"/>
+      </svg>
+      Guardar Cambios
+    </button>
+  </ng-template>
+</p-dialog>

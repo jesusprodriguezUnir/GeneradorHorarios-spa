@@ -3,7 +3,8 @@ import {
   provideZonelessChangeDetection,
   isDevMode
 } from '@angular/core';
-import { provideRouter, withPreloading, PreloadAllModules } from '@angular/router';
+import { provideRouter, withPreloading } from '@angular/router';
+import { SelectivePreloadingStrategy } from './core/selective-preloading-strategy';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideServiceWorker } from '@angular/service-worker';
@@ -19,8 +20,8 @@ export const appConfig: ApplicationConfig = {
     // Zoneless — Angular 20 (constitución art. 3.2)
     provideZonelessChangeDetection(),
 
-    // Router con lazy loading
-    provideRouter(routes, withPreloading(PreloadAllModules)),
+    // Router con lazy loading selectivo
+    provideRouter(routes, withPreloading(SelectivePreloadingStrategy)),
 
     // HTTP con interceptor de auth
     provideHttpClient(withInterceptors([authInterceptor])),

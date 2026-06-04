@@ -8,7 +8,8 @@ import { GenCandidate } from './generation.model';
  */
 @Injectable({ providedIn: 'root' })
 export class GenerationStateService {
-  readonly chosenSolution = signal<GenCandidate | null>(null);
+  private readonly _chosenSolution = signal<GenCandidate | null>(null);
+  readonly chosenSolution = this._chosenSolution.asReadonly();
 
-  setChosen(c: GenCandidate): void { this.chosenSolution.set(c); }
+  setChosen(c: GenCandidate): void { this._chosenSolution.set(c); }
 }

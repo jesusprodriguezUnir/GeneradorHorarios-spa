@@ -1,0 +1,48 @@
+@use './config-shared-styles' as *;
+
+.avatar-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 11px;
+  margin-right: 8px;
+  color: #fff;
+}
+
+.mini-bar-wrap {
+  height: 4px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+  width: 60px;
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.mini-bar {
+  height: 100%;
+  border-radius: 99px;
+  transition: width .3s;
+}
+
+.text-xs-dim {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+
+.color-select-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.color-select-btn--active {
+  border-color: var(--foreground) !important;
+  transform: scale(1.1);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2) !important;
+}

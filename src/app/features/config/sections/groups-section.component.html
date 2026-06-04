@@ -1,0 +1,231 @@
+<div data-testid="config-groups-section">
+  <div class="section-header">
+    <h3 class="section-title">Grupos y cursos</h3>
+    <button class="btn-primary btn-primary--sm" (click)="openAddModal()">
+      + Añadir grupo
+    </button>
+  </div>
+
+  <p-table #dtGroups [value]="groups()" [paginator]="true" [rows]="10"
+           [rowsPerPageOptions]="[5,10,25]" dataKey="id"
+           [globalFilterFields]="['displayName','tutorName']"
+           currentPageReportTemplate="{first}–{last} de {totalRecords}"
+           [showCurrentPageReport]="true">
+    <ng-template pTemplate="caption">
+      <div class="table-caption">
+        <input pInputText type="text"
+               (input)="dtGroups.filterGlobal($any($event.target).value,'contains')"
+               placeholder="Buscar grupos…" class="table-filter-input" />
+      </div>
+    </ng-template>
+    <ng-template pTemplate="header">
+      <tr>
+        <th pSortableColumn="displayName">Grupo <p-sortIcon field="displayName"/></th>
+        <th pSortableColumn="studentCount">Alumnos <p-sortIcon field="studentCount"/></th>
+        <th pSortableColumn="tutorName">Tutor/a <p-sortIcon field="tutorName"/></th>
+        <th>Aula de referencia</th>
+        <th>Carga Lectiva</th>
+        <th class="th-actions">Acciones</th>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="body" let-g>
+      <tr>
+        <td><strong>{{ g.displayName }}</strong></td>
+        <td>{{ g.studentCount }} alumnos</td>
+        <td>{{ g.tutorName ?? '—' }}</td>
+        <td>{{ getClassroomName(g.homeClassroomId) }}</td>
+        <td>
+          <div class="pills-wrap">
+            @for (sh of getSubjectHoursList(g); track sh.key) {
+              <span class="subj-pill"
+                [style.background]="'var(--subj-' + sh.key + ')'"
+                [style.color]="'var(--subj-' + sh.key + '-fg)'">
+                {{ sh.short }}: {{ sh.hours }}h
+              </span>
+            } @empty {
+              <span class="text-empty-italic">— Sin configurar —</span>
+            }
+          </div>
+        </td>
+        <td class="td-actions">
+          <div class="row-actions">
+            <button (click)="editGroup(g)" class="btn-edit" title="Editar grupo">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button (click)="deleteGroup(g.id)" class="btn-del" title="Eliminar grupo">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+              </svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="emptymessage">
+      <tr><td colspan="6" class="td-empty">No hay grupos registrados.</td></tr>
+    </ng-template>
+  </p-table>
+</div>
+
+<!-- Modal para Añadir / Editar Grupo -->
+<p-dialog
+  [visible]="isGroupModalOpen()"
+  (visibleChange)="isGroupModalOpen.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [closeOnEscape]="true"
+  [style]="{ width: '560px', maxWidth: '95vw' }"
+  [contentStyle]="{ 'overflow-y': 'auto', 'max-height': '62vh' }">
+
+  <ng-template pTemplate="header">
+    <div>
+      <span class="premium-badge">{{ editingGroup() ? 'MODIFICACIÓN' : 'NUEVO REGISTRO' }}</span>
+      <h3 class="premium-title">{{ editingGroup() ? 'Editar Grupo' : 'Crear Nuevo Grupo' }}</h3>
+    </div>
+  </ng-template>
+
+  <div class="modal-body-premium">
+        
+        <!-- Tarjeta de Vista Previa -->
+        <div class="preview-card-premium">
+          <div class="preview-badge-label">VISTA PREVIA DEL GRUPO</div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span class="preview-group-dot">
+                {{ groupForm().courseLevel }}º{{ groupForm().groupLabel ? groupForm().groupLabel.toUpperCase() : '?' }}
+              </span>
+              <div>
+                <div style="font-weight:700;font-size:var(--text-md);color:var(--foreground)">
+                  Curso {{ groupForm().courseLevel }}º — Grupo {{ groupForm().groupLabel ? groupForm().groupLabel.toUpperCase() : 'Sin definir' }}
+                </div>
+                <div style="font-size:var(--text-xs);color:var(--muted-foreground)">
+                  {{ groupForm().studentCount }} alumnos registrados
+                </div>
+              </div>
+            </div>
+            <div class="preview-meta-pill" [class.preview-meta-pill--active]="groupForm().tutorId">
+              {{ getTutorInitialsOrText() }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Selector de Nivel de Curso (Tarjetas Interactivas) -->
+        <div class="form-field-premium">
+          <label class="field-label-premium">Nivel del Curso</label>
+          <div class="course-levels-grid">
+            @for (level of getSchoolCourseLevels(); track level) {
+              <button class="course-level-card" 
+                [class.course-level-card--active]="groupForm().courseLevel === level"
+                (click)="groupForm().courseLevel = level">
+                <span class="course-level-card-num">{{ level }}º</span>
+                <span class="course-level-card-sub">Primaria</span>
+              </button>
+            }
+          </div>
+        </div>
+        
+        <!-- Fila con Letra de Grupo y Número de Alumnos -->
+        <div class="form-row-premium">
+          
+          <!-- Letra del Grupo -->
+          <div class="form-field-premium" style="flex:1">
+            <label class="field-label-premium">Letra / Etiqueta</label>
+            <div class="input-with-icon-premium">
+              <span class="input-icon-premium" style="font-size:16px;font-weight:800;color:var(--muted-foreground)">A</span>
+              <input [ngModel]="groupForm().groupLabel" 
+                class="field-input-premium" 
+                placeholder="Ej: A, B..." 
+                type="text" 
+                maxlength="5" 
+                (input)="onGroupLabelInput($event)" />
+            </div>
+          </div>
+
+          <!-- Cantidad de Alumnos -->
+          <div class="form-field-premium" style="flex:1">
+            <label class="field-label-premium">Nº de Alumnos</label>
+            <div class="student-counter-premium">
+              <button class="counter-btn-premium" (click)="adjustStudentCount(-1)">−</button>
+              <input [(ngModel)]="groupForm().studentCount" 
+                class="counter-input-premium" 
+                type="number" min="1" max="100" />
+              <button class="counter-btn-premium" (click)="adjustStudentCount(1)">+</button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Asignación de Tutor/a -->
+        <div class="form-field-premium">
+          <label class="field-label-premium">Profesor/a Tutor/a</label>
+          <div class="input-with-icon-premium">
+            <span class="input-icon-premium" style="font-size:15px">👤</span>
+            <select [(ngModel)]="groupForm().tutorId" class="field-select-premium">
+              <option value="">Sin tutor asignado</option>
+              @for (t of teachers(); track t.id) {
+                <option [value]="t.id">{{ t.fullName }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <!-- Aula de Referencia -->
+        <div class="form-field-premium">
+          <label class="field-label-premium">Aula de Referencia</label>
+          <div class="input-with-icon-premium">
+            <span class="input-icon-premium" style="font-size:15px">🚪</span>
+            <select [(ngModel)]="groupForm().homeClassroomId" class="field-select-premium">
+              <option value="">Sin aula de referencia</option>
+              @for (c of classrooms(); track c.id) {
+                <option [value]="c.id">{{ c.name }} ({{ classroomTypeLabel(c.classroomType) }})</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <!-- Sección de Horas por Asignatura -->
+        <div class="form-field-premium" style="border-top:1px solid var(--border);padding-top:18px">
+          <label class="field-label-premium" style="margin-bottom:12px;display:flex;align-items:center;gap:6px">
+            <span>⏱️</span> Horas Requeridas por Asignatura
+          </label>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:12px">
+            @for (s of subjects(); track s.id) {
+              <div style="display:flex;align-items:center;justify-content:space-between;background:var(--secondary);border-radius:8px;padding:8px 12px;border:1px solid var(--border)">
+                <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1">
+                  <span class="subj-dot" [style.background]="'var(--subj-' + s.subjectKey + ')'" style="width:8px;height:8px;border-radius:50%"></span>
+                  <span style="font-size:var(--text-xs);font-weight:700;color:var(--foreground);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" [title]="s.subjectName">
+                    {{ s.subjectShort }}
+                  </span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <input type="number" 
+                    [ngModel]="groupForm().subjectHours[s.subjectKey]" 
+                    (ngModelChange)="onGroupSubjectHourChange(s.subjectKey, $event)"
+                    [min]="s.weeklyHoursMin" 
+                    [max]="s.weeklyHoursMax" 
+                    class="hours-input" 
+                    style="width:50px;padding:4px 6px;font-size:var(--text-xs);font-weight:700" />
+                  <span style="font-size:10px;color:var(--muted-foreground)">h</span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+      </div>
+      
+  <ng-template pTemplate="footer">
+    <button class="btn-cancel-premium" (click)="isGroupModalOpen.set(false)">Cancelar</button>
+    <button class="btn-save-premium" (click)="saveGroup()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;vertical-align:middle;display:inline-block">
+        <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/>
+        <polyline points="7 3 7 8 15 8"/>
+      </svg>
+      Guardar Cambios
+    </button>
+  </ng-template>
+</p-dialog>

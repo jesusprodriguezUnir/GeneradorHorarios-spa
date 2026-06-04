@@ -3,7 +3,10 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { ApiService } from '../../core/api/api.service';
+import { TeachersApiService } from '../../core/api/teachers-api.service';
+import { GroupsApiService } from '../../core/api/groups-api.service';
+import { SchedulesApiService } from '../../core/api/schedules-api.service';
+import { ClassroomsApiService } from '../../core/api/classrooms-api.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { Teacher, CourseGroup, Classroom, ScheduleList, SUBJECT_COLORS } from '../../core/models';
 
@@ -116,9 +119,9 @@ const PREVIEW_SUBJECTS = ['mat','ing','len','cie','ef','len','mat','art','mus','
 
               <!-- Mini-preview de la rejilla (colores por asignatura) -->
               <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:18px">
-                @for (key of previewSubjects; track $index; let i = $index) {
+                @for (item of previewSubjects; track item.id) {
                   <div style="height:28px;border-radius:5px"
-                    [style.background]="previewBg(key, i)"></div>
+                    [style.background]="previewBg(item.key, item.id)"></div>
                 }
               </div>
 
@@ -265,7 +268,10 @@ const PREVIEW_SUBJECTS = ['mat','ing','len','cie','ef','len','mat','art','mus','
   `],
 })
 export class DashboardComponent implements OnInit {
-  protected readonly api    = inject(ApiService);
+  protected readonly teachersApi   = inject(TeachersApiService);
+  protected readonly groupsApi     = inject(GroupsApiService);
+  protected readonly schedulesApi  = inject(SchedulesApiService);
+  protected readonly classroomsApi = inject(ClassroomsApiService);
   protected readonly auth   = inject(AuthService);
   protected readonly router = inject(Router);
 
@@ -274,7 +280,7 @@ export class DashboardComponent implements OnInit {
   readonly classrooms  = signal<Classroom[]>([]);
   readonly schedules   = signal<ScheduleList[]>([]);
 
-  readonly previewSubjects = PREVIEW_SUBJECTS;
+  readonly previewSubjects = PREVIEW_SUBJECTS.map((key, id) => ({ key, id }));
 
   readonly quickActions = [
     {
@@ -363,10 +369,10 @@ export class DashboardComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     const [teachers, groups, schedules, classrooms] = await Promise.all([
-      this.api.getTeachers().catch(() => []),
-      this.api.getGroups().catch(() => []),
-      this.api.getSchedules().catch(() => []),
-      this.api.getClassrooms().catch(() => []),
+      this.teachersApi.getTeachers().catch(() => []),
+      this.groupsApi.getGroups().catch(() => []),
+      this.schedulesApi.getSchedules().catch(() => []),
+      this.classroomsApi.getClassrooms().catch(() => []),
     ]);
     this.teachers.set(teachers);
     this.groups.set(groups);
