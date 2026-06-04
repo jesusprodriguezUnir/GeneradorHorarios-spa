@@ -87,7 +87,7 @@ export interface CellClickEvent {
       left: 0;
       top: 0;
       bottom: 0;
-      width: 5px;
+      width: 4px;
       opacity: 0.9;
     }
     .cell-subject {
@@ -137,7 +137,7 @@ export interface CellClickEvent {
       background: var(--primary-tint);
       color: var(--primary);
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
+      box-shadow: 0 4px 12px oklch(0.45 0.135 272 / 0.10);
     }
     .cell-plus-icon {
       opacity: 0.4;
@@ -280,7 +280,7 @@ export class ScheduleCellComponent {
       align-items: center;
       justify-content: center;
       gap: 10px;
-      background: linear-gradient(90deg, rgba(99, 102, 241, 0.04) 0%, rgba(99, 102, 241, 0.01) 50%, rgba(99, 102, 241, 0.04) 100%);
+      background: linear-gradient(90deg, oklch(0.45 0.135 272 / 0.04) 0%, oklch(0.45 0.135 272 / 0.01) 50%, oklch(0.45 0.135 272 / 0.04) 100%);
       border: 1.5px dashed var(--border-strong);
       border-radius: 12px;
       color: var(--muted-foreground);

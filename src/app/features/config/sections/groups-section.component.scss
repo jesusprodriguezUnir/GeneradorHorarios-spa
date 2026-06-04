@@ -33,10 +33,10 @@
 }
 
 .course-level-card--active {
-  background: linear-gradient(135deg, var(--primary) 0%, oklch(0.55 0.16 260) 100%) !important;
+  background: linear-gradient(135deg, var(--primary) 0%, oklch(0.55 0.16 272) 100%) !important;
   border-color: transparent !important;
   color: #fff !important;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 4px 12px oklch(0.45 0.135 272 / 0.25);
 }
 
 .course-level-card-num {

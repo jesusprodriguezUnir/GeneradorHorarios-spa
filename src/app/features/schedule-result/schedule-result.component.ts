@@ -220,7 +220,7 @@ type ViewMode = 'group' | 'teacher' | 'room';
     .page-title { font-size: var(--text-2xl); font-weight: 800; letter-spacing: -0.02em; }
     .status-badge { font-size: var(--text-xs); font-weight: 700; padding: 3px 10px; border-radius: var(--radius-full); background: var(--secondary); color: var(--secondary-foreground); }
     .badge--published { background: var(--success-tint); color: var(--success); }
-    .badge--generated { background: var(--warning-tint); color: oklch(0.45 0.11 65); }
+    .badge--generated { background: var(--warning-tint); color: var(--warning-foreground); }
     .conflict-badge { font-size: var(--text-xs); font-weight: 700; padding: 3px 10px; border-radius: var(--radius-full); background: var(--destructive-tint); color: var(--destructive); }
     .btn-primary { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--primary); color: #fff; border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm); cursor: pointer; }
     .btn-primary:hover { background: var(--primary-strong); }
@@ -234,7 +234,7 @@ type ViewMode = 'group' | 'teacher' | 'room';
     
     .conflict-row { padding: 12px 14px; border-radius: var(--radius-md); font-size: var(--text-sm); }
     .conflict-error { background: var(--destructive-tint); color: var(--destructive); }
-    .conflict-warn { background: var(--warning-tint); color: oklch(0.45 0.11 65); }
+    .conflict-warn { background: var(--warning-tint); color: var(--warning-foreground); }
     
     .empty-state { text-align: center; padding: 48px 16px; color: var(--muted-foreground); }
     .empty-state h3 { font-size: var(--text-xl); font-weight: 700; color: var(--foreground); margin-bottom: 8px; }

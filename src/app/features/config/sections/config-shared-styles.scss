@@ -213,7 +213,7 @@
   font-weight: 800;
   font-size: 18px;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 4px 12px oklch(0.45 0.135 272 / 0.20);
 }
 
 .preview-meta-pill {
@@ -371,14 +371,14 @@
 
 .btn-save-premium {
   padding: 11px 24px;
-  background: linear-gradient(135deg, var(--primary) 0%, oklch(0.55 0.16 260) 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, oklch(0.55 0.16 272) 100%);
   color: #fff;
   border: none;
   border-radius: 10px;
   font-size: var(--text-sm);
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 4px 14px oklch(0.45 0.135 272 / 0.30);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
@@ -386,7 +386,7 @@
 }
 
 .btn-save-premium:hover {
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
+  box-shadow: 0 6px 20px oklch(0.45 0.135 272 / 0.45);
   transform: translateY(-1px);
 }
 
@@ -416,7 +416,7 @@
   background: var(--primary-tint) !important;
   border-color: var(--primary) !important;
   color: var(--primary-strong) !important;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+  box-shadow: 0 4px 12px oklch(0.45 0.135 272 / 0.08);
 }
 
 .tag {

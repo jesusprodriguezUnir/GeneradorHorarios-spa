@@ -1,11 +1,11 @@
 import { Component, input, computed, ChangeDetectionStrategy } from '@angular/core';
 
 /**
- * LogoMark — símbolo de marca Lectivo: mini-rejilla 2×2 con celda ámbar.
+ * LogoMark — símbolo de marca Lectivo: mini-rejilla 2×2 con celda coral.
  *
  * - `size`:  tamaño en px del contenedor cuadrado (default 32).
- * - `mono`:  variante monochrome para fondo oscuro (cabecera/sidebar teal).
- *            En modo mono la celda ámbar se convierte en blanca al 55%.
+ * - `mono`:  variante monochrome para fondo oscuro (cabecera/sidebar índigo).
+ *            En modo mono la celda coral se convierte en blanca al 55%.
  */
 @Component({
   selector: 'app-logo-mark',

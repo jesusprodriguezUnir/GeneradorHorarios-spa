@@ -1,7 +1,7 @@
 /**
  * Lectivo — Design tokens + global styles
  * Adaptados del prototipo Lectivo (bundle Anthropic Design) sobre PrimeNG Aura
- * Paleta: teal profundo + ámbar cálido, Geist, OKLCH
+ * Paleta: índigo profundo + coral cálido, Geist, OKLCH
  */
 
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap');
@@ -15,17 +15,17 @@
   --card:                 oklch(1 0 0);
   --card-foreground:      oklch(0.165 0.012 255);
 
-  /* Primario: teal profundo */
-  --primary:              oklch(0.46 0.10 200);
-  --primary-strong:       oklch(0.40 0.105 205);
+  /* Primario: índigo profundo */
+  --primary:              oklch(0.45 0.135 272);
+  --primary-strong:       oklch(0.39 0.14 275);
   --primary-foreground:   oklch(0.99 0 0);
-  --primary-tint:         oklch(0.95 0.03 200);
-  --primary-tint-2:       oklch(0.90 0.045 200);
+  --primary-tint:         oklch(0.95 0.035 272);
+  --primary-tint-2:       oklch(0.90 0.055 272);
 
-  /* Acento: ámbar cálido */
-  --accent:               oklch(0.80 0.135 70);
-  --accent-foreground:    oklch(0.28 0.06 70);
-  --accent-tint:          oklch(0.96 0.05 75);
+  /* Acento: coral cálido */
+  --accent:               oklch(0.76 0.15 38);
+  --accent-foreground:    oklch(0.32 0.10 38);
+  --accent-tint:          oklch(0.96 0.05 40);
 
   /* Carmesí de la Comunidad de Madrid (acento institucional del motor) */
   --madrid:               oklch(0.47 0.18 16);
@@ -55,7 +55,7 @@
   --border:               oklch(0.91 0.009 80);
   --border-strong:        oklch(0.85 0.012 80);
   --input:                oklch(0.91 0.009 80);
-  --ring:                 oklch(0.46 0.10 200);
+  --ring:                 oklch(0.45 0.135 272);
 
   /* Colores por asignatura (schedule grid) */
   --subj-mat:     oklch(0.93 0.055 255); --subj-mat-fg:  oklch(0.36 0.11 262);  /* Matemáticas — índigo */
@@ -87,7 +87,7 @@
   --shadow-sm: 0 1px 3px oklch(0.2 0.02 255 / 0.07), 0 1px 2px oklch(0.2 0.02 255 / 0.04);
   --shadow-md: 0 4px 12px oklch(0.2 0.02 255 / 0.08), 0 2px 4px oklch(0.2 0.02 255 / 0.04);
   --shadow-lg: 0 12px 32px oklch(0.2 0.02 255 / 0.12), 0 4px 8px oklch(0.2 0.02 255 / 0.05);
-  --shadow-primary: 0 6px 20px oklch(0.46 0.10 200 / 0.28);
+  --shadow-primary: 0 6px 20px oklch(0.45 0.135 272 / 0.30);
 
   /* Tipografía */
   --font-sans: 'Geist', system-ui, -apple-system, sans-serif;
@@ -201,17 +201,17 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin
   --card:                 oklch(0.16 0.015 250);
   --card-foreground:      oklch(0.95 0.005 250);
 
-  /* Primario: teal profundo ajustado para modo oscuro */
-  --primary:              oklch(0.62 0.12 200);
-  --primary-strong:       oklch(0.68 0.12 200);
+  /* Primario: índigo profundo (modo oscuro) */
+  --primary:              oklch(0.62 0.12 272);
+  --primary-strong:       oklch(0.70 0.12 272);
   --primary-foreground:   oklch(0.12 0.015 250);
-  --primary-tint:         oklch(0.20 0.05 200);
-  --primary-tint-2:       oklch(0.25 0.06 200);
+  --primary-tint:         oklch(0.22 0.05 272);
+  --primary-tint-2:       oklch(0.27 0.06 272);
 
-  /* Acento: ámbar cálido ajustado */
-  --accent:               oklch(0.82 0.11 70);
-  --accent-foreground:    oklch(0.18 0.04 70);
-  --accent-tint:          oklch(0.22 0.04 70);
+  /* Acento: coral cálido (modo oscuro) */
+  --accent:               oklch(0.78 0.13 38);
+  --accent-foreground:    oklch(0.22 0.06 38);
+  --accent-tint:          oklch(0.24 0.05 38);
 
   /* Carmesí de Madrid ajustado para modo oscuro */
   --madrid:               oklch(0.62 0.18 18);
@@ -241,7 +241,7 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin
   --border:               oklch(0.22 0.015 250);
   --border-strong:        oklch(0.28 0.015 250);
   --input:                oklch(0.22 0.015 250);
-  --ring:                 oklch(0.62 0.12 200);
+  --ring:                 oklch(0.62 0.12 272);
 
   /* Colores por asignatura — variantes dark (fondo oscuro, fg claro) */
   --subj-mat:     oklch(0.27 0.07 255); --subj-mat-fg:  oklch(0.82 0.09 255);  /* Matemáticas */

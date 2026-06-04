@@ -138,7 +138,7 @@ import { LecIconComponent } from '../../shared/ui/lec-icon.component';
 
     /* Showcase de marca */
     .showcase { display: none; position: relative; overflow: hidden; color: #fff;
-      background: linear-gradient(150deg, var(--primary-strong), var(--primary) 60%, oklch(0.52 0.10 200));
+      background: linear-gradient(150deg, var(--primary-strong), var(--primary) 60%, oklch(0.52 0.135 272));
       flex-direction: column; justify-content: center; padding: 48px 56px; }
     @media (min-width: 900px) { .showcase { display: flex; } }
     .orb { position: absolute; border-radius: 50%; }

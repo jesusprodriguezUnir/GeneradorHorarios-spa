@@ -48,7 +48,7 @@ import { GenCandidate, GEN_CANDIDATES, GEN_METRIC_LABELS, genMetricTone } from '
           <lec-icon name="star" [size]="14" style="color:var(--accent-foreground)"></lec-icon> Preferencias: {{ sol().str['prefs'] }}% satisfechas
         </span>
         @if (state === 'conflicts') {
-          <span style="display:flex;align-items:center;gap:6px;color:oklch(0.45 0.11 65);font-weight:600">
+          <span style="display:flex;align-items:center;gap:6px;color:var(--warning-foreground);font-weight:600">
             <lec-icon name="alert" [size]="14"></lec-icon> {{ conflicts }} ajustes manuales sugeridos
           </span>
         }
