@@ -6,6 +6,8 @@ import { CommonModule } from '@angular/common';
 import { AuthService } from '../core/auth/auth.service';
 import { DeviceService } from '../core/device.service';
 import { LogoMarkComponent } from '../shared/ui/logo-mark.component';
+import { PeriodSelectorComponent } from '../shared/ui/period-selector.component';
+import { PeriodStateService } from '../core/period-state.service';
 
 interface NavItem {
   id: string;
@@ -35,7 +37,7 @@ const TEACHER_NAV: NavItem[] = [
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, LogoMarkComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, LogoMarkComponent, PeriodSelectorComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (isMobile()) {
@@ -165,7 +167,16 @@ const TEACHER_NAV: NavItem[] = [
             <div style="display:flex;align-items:center;gap:10px;font-size:var(--text-sm);font-weight:600">
               {{ schoolName() }}
             </div>
-            <div style="font-size:var(--text-xs);opacity:0.75">{{ roleLabel() }}</div>
+            <div style="display:flex;align-items:center;gap:12px">
+              @if (isAdmin()) {
+                <app-period-selector
+                  [period]="periodState.activePeriod()"
+                  [schedByPeriod]="periodState.schedByPeriod()"
+                  variant="onPrimary"
+                  (periodChange)="periodState.setActivePeriod($event)" />
+              }
+              <div style="font-size:var(--text-xs);opacity:0.75">{{ roleLabel() }}</div>
+            </div>
           </header>
 
           <main style="flex:1;padding:28px 32px;max-width:1280px;width:100%;margin:0 auto">
@@ -187,6 +198,7 @@ const TEACHER_NAV: NavItem[] = [
 export class AppShellComponent implements OnInit {
   protected readonly auth = inject(AuthService);
   protected readonly device = inject(DeviceService);
+  protected readonly periodState = inject(PeriodStateService);
 
   readonly isMobile = this.device.isMobile;
   readonly isAdmin = this.auth.isAdmin;

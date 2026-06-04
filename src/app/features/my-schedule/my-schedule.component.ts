@@ -8,11 +8,14 @@ import { DeviceService } from '../../core/device.service';
 import { MessageService } from 'primeng/api';
 import { ScheduleGridComponent } from '../../shared/schedule-grid/schedule-grid.component';
 import { SubjectLegendComponent } from '../../shared/ui/subject-legend.component';
+import { PeriodSelectorComponent } from '../../shared/ui/period-selector.component';
+import { PeriodStateService } from '../../core/period-state.service';
+import { COURSE_PERIODS, PeriodId } from '../../core/periods.model';
 
 @Component({
   selector: 'app-my-schedule',
   standalone: true,
-  imports: [CommonModule, ScheduleGridComponent, SubjectLegendComponent],
+  imports: [CommonModule, ScheduleGridComponent, SubjectLegendComponent, PeriodSelectorComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="lec-fade-up">
@@ -21,16 +24,44 @@ import { SubjectLegendComponent } from '../../shared/ui/subject-legend.component
         <div>
           <h1 class="page-title">Mi horario</h1>
           @if (schedule()) {
-            <p class="page-sub">{{ schedule()!.schoolName }} · {{ schedule()!.academicYear }}</p>
+            <p class="page-sub">
+              {{ activePeriodObj().name }} · {{ activePeriodObj().months }} · {{ schedule()!.academicYear }}
+            </p>
           }
         </div>
-        @if (schedule()) {
-          <button class="btn-pdf" (click)="downloadPdf()">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-            </svg>
-            Descargar PDF
-          </button>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <app-period-selector
+            [period]="activePeriod()"
+            [schedByPeriod]="{}"
+            variant="light"
+            (periodChange)="onPeriodChange($event)" />
+          @if (schedule()) {
+            <button class="btn-pdf" (click)="downloadPdf()">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+              </svg>
+              Descargar PDF
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Aviso de cambio de jornada entre periodos -->
+      <div style="display:flex;align-items:flex-start;gap:9px;
+        background:var(--primary-tint);color:var(--primary-strong);
+        padding:10px 14px;border-radius:var(--radius-md);
+        font-size:var(--text-sm);font-weight:600;margin-bottom:16px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @if (activePeriodObj().tarde) {
+          <span>En junio y septiembre la jornada es continua (solo mañana): tu horario cambia.
+            Selecciona <b>Jornada reducida</b> arriba para verlo.</span>
+        } @else {
+          <span>Estás viendo la jornada reducida (jun + sep). El resto del curso
+            tu horario incluye sesiones de tarde.</span>
         }
       </div>
 
@@ -165,6 +196,16 @@ export class MyScheduleComponent implements OnInit {
   private readonly api    = inject(SchedulesApiService);
   protected readonly device = inject(DeviceService);
   private readonly toast  = inject(MessageService);
+  private readonly periodState = inject(PeriodStateService);
+
+  readonly activePeriod = this.periodState.activePeriod;
+  readonly activePeriodObj = computed(() =>
+    COURSE_PERIODS.find(p => p.id === this.activePeriod()) ?? COURSE_PERIODS[0],
+  );
+
+  onPeriodChange(id: PeriodId): void {
+    this.periodState.setActivePeriod(id);
+  }
 
   readonly schedule    = signal<MySchedule | null>(null);
   readonly loading     = signal(true);

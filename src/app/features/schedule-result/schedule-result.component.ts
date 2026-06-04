@@ -4,6 +4,8 @@ import {
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { PeriodStateService } from '../../core/period-state.service';
+import { COURSE_PERIODS, CoursePeriod, PeriodId } from '../../core/periods.model';
 import { SchedulesApiService } from '../../core/api/schedules-api.service';
 import { TeachersApiService } from '../../core/api/teachers-api.service';
 import { GroupsApiService } from '../../core/api/groups-api.service';
@@ -90,6 +92,25 @@ type ViewMode = 'group' | 'teacher' | 'room';
         <app-quality-scorecard [solution]="chosenSolution()"
           [state]="grid()!.conflicts.length > 0 ? 'conflicts' : 'clean'"
           [conflicts]="grid()!.conflicts.length" />
+
+        <!-- Selector de periodo -->
+        <div style="display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap">
+          @for (p of periods; track p.id) {
+            <button (click)="switchPeriod(p.id)"
+              style="padding:8px 16px;border-radius:var(--radius-full);
+                font-weight:600;font-size:var(--text-sm);white-space:nowrap;
+                transition:all .15s;cursor:pointer;"
+              [style.background]="p.id === activePeriod() ? 'var(--primary)' : 'var(--card)'"
+              [style.color]="p.id === activePeriod() ? '#fff' : 'var(--foreground)'"
+              [style.border]="'1px solid ' + (p.id === activePeriod() ? 'var(--primary)' : 'var(--border-strong)')">
+              {{ p.name }}
+              <span style="font-size:10px;opacity:0.7;margin-left:4px">{{ p.months }}</span>
+            </button>
+          }
+          <span class="lec-badge" style="background:var(--primary-tint);color:var(--primary-strong)">
+            {{ activePeriodObj().lec }} ses/día · {{ activePeriodObj().jornada }}
+          </span>
+        </div>
 
         <!-- Tabs de vista -->
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;margin-top:16px;flex-wrap:wrap">
@@ -258,6 +279,18 @@ export class ScheduleResultComponent implements OnInit {
   private readonly toast = inject(MessageService);
   private readonly confirmation = inject(ConfirmationService);
   private readonly genState = inject(GenerationStateService);
+  private readonly periodState = inject(PeriodStateService);
+
+  // ── Periodos del curso ────────────────────────────────────────────────────
+  readonly periods: CoursePeriod[] = COURSE_PERIODS;
+  readonly activePeriod = this.periodState.activePeriod;
+  readonly activePeriodObj = computed(() =>
+    COURSE_PERIODS.find(p => p.id === this.activePeriod()) ?? COURSE_PERIODS[0],
+  );
+
+  switchPeriod(id: PeriodId): void {
+    this.periodState.setActivePeriod(id);
+  }
 
   /** Candidata elegida en el generador (para el Cuadro de calidad). */
   readonly chosenSolution = this.genState.chosenSolution;

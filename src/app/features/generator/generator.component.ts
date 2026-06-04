@@ -4,6 +4,9 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { PeriodStateService } from '../../core/period-state.service';
+import { COURSE_PERIODS, CoursePeriod, PeriodId } from '../../core/periods.model';
+import { PeriodSelectorComponent } from '../../shared/ui/period-selector.component';
 import { TeachersApiService } from '../../core/api/teachers-api.service';
 import { GroupsApiService } from '../../core/api/groups-api.service';
 import { SubjectsApiService } from '../../core/api/subjects-api.service';
@@ -39,6 +42,7 @@ import { StepGenerationComponent } from './step-generation.component';
   imports: [
     CommonModule, FormsModule, LecIconComponent,
     StepAssignmentsComponent, StepConstraintsComponent, StepGenerationComponent,
+    PeriodSelectorComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -86,6 +90,29 @@ import { StepGenerationComponent } from './step-generation.component';
             <div class="step-content lec-card">
               <h2 class="step-title">Configuración de la jornada</h2>
               <p class="step-desc">Define el tipo de jornada, horario de entrada y duración de las sesiones.</p>
+
+              <!-- Banner del periodo activo -->
+              <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;
+                background:var(--primary-tint);border-radius:var(--radius-md);
+                color:var(--primary-strong);font-size:var(--text-sm);font-weight:600;
+                margin-bottom:20px;flex-wrap:wrap">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <span>
+                  Generando para: <b>{{ activePeriodObj().name }}</b>
+                  <span style="font-weight:400;opacity:0.75"> · {{ activePeriodObj().months }} · {{ activePeriodObj().jornada }}</span>
+                </span>
+                <app-period-selector
+                  style="margin-left:auto"
+                  [period]="activePeriod()"
+                  [schedByPeriod]="periodState.schedByPeriod()"
+                  variant="light"
+                  (periodChange)="onPeriodChange($event)" />
+              </div>
               <div class="form-grid">
                 <label class="form-field">
                   <span class="field-label">Tipo de jornada</span>
@@ -224,6 +251,27 @@ export class GeneratorComponent implements OnInit {
   private readonly genState = inject(GenerationStateService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly hubService = inject(GenerationHubService);
+  protected readonly periodState = inject(PeriodStateService);
+
+  // ── Periodos del curso ────────────────────────────────────────────────────
+  readonly activePeriod = this.periodState.activePeriod;
+  readonly activePeriodObj = computed(() =>
+    COURSE_PERIODS.find(p => p.id === this.activePeriod()) ?? COURSE_PERIODS[0],
+  );
+
+  onPeriodChange(id: PeriodId): void {
+    this.periodState.setActivePeriod(id);
+    const p = COURSE_PERIODS.find(x => x.id === id);
+    if (!p) return;
+    this.scheduleType = p.jornada;
+    if (id === 'reducida') {
+      this.slotMinutes = 55;
+      this.breakAfterSlot = 2;
+    } else {
+      this.slotMinutes = 60;
+      this.breakAfterSlot = 2;
+    }
+  }
 
   readonly currentStep = signal(0);
   readonly loading = signal(true);
