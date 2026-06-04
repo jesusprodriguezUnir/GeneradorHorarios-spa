@@ -65,6 +65,13 @@ export const routes: Routes = [
         title: 'Lectivo — Ver horario',
       },
       {
+        path: 'estructura',
+        loadComponent: () =>
+          import('./features/estructura/estructura.component').then(m => m.EstructuraComponent),
+        canActivate: [adminGuard],
+        title: 'Lectivo — Estructura del centro',
+      },
+      {
         path: 'config',
         loadComponent: () =>
           import('./features/config/config.component').then(m => m.ConfigComponent),

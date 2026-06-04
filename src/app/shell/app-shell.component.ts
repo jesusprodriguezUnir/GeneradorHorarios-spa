@@ -7,7 +7,9 @@ import { AuthService } from '../core/auth/auth.service';
 import { DeviceService } from '../core/device.service';
 import { LogoMarkComponent } from '../shared/ui/logo-mark.component';
 import { PeriodSelectorComponent } from '../shared/ui/period-selector.component';
+import { BloqueSwitcherComponent } from '../shared/ui/bloque-switcher.component';
 import { PeriodStateService } from '../core/period-state.service';
+import { BlockStateService } from '../core/block-state.service';
 
 interface NavItem {
   id: string;
@@ -19,6 +21,8 @@ interface NavItem {
 const ADMIN_NAV: NavItem[] = [
   { id: 'dashboard', path: '/dashboard', label: 'Panel',
     icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+  { id: 'estructura', path: '/estructura', label: 'Estructura',
+    icon: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5' },
   { id: 'generador', path: '/generador', label: 'Generador',
     icon: 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z' },
   { id: 'horarios', path: '/horarios', label: 'Horarios',
@@ -37,7 +41,7 @@ const TEACHER_NAV: NavItem[] = [
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, LogoMarkComponent, PeriodSelectorComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, LogoMarkComponent, PeriodSelectorComponent, BloqueSwitcherComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (isMobile()) {
@@ -169,6 +173,11 @@ const TEACHER_NAV: NavItem[] = [
             </div>
             <div style="display:flex;align-items:center;gap:12px">
               @if (isAdmin()) {
+                <app-bloque-switcher
+                  [activeBlock]="blockState.activeBlock()"
+                  [period]="periodState.activePeriod()"
+                  variant="onPrimary"
+                  (blockChange)="blockState.setActiveBlock($event)" />
                 <app-period-selector
                   [period]="periodState.activePeriod()"
                   [schedByPeriod]="periodState.schedByPeriod()"
@@ -199,6 +208,7 @@ export class AppShellComponent implements OnInit {
   protected readonly auth = inject(AuthService);
   protected readonly device = inject(DeviceService);
   protected readonly periodState = inject(PeriodStateService);
+  protected readonly blockState = inject(BlockStateService);
 
   readonly isMobile = this.device.isMobile;
   readonly isAdmin = this.auth.isAdmin;
