@@ -7,12 +7,13 @@ import { SubjectsApiService } from '../../core/api/subjects-api.service';
 import { ClassroomsApiService } from '../../core/api/classrooms-api.service';
 import { School, Teacher, CourseGroup, Classroom, SubjectAllocation } from '../../core/models';
 import { SchoolSectionComponent } from './sections/school-section.component';
+import { CiclosSectionComponent } from './sections/ciclos-section.component';
 import { ClassroomsSectionComponent } from './sections/classrooms-section.component';
 import { GroupsSectionComponent } from './sections/groups-section.component';
 import { TeachersSectionComponent } from './sections/teachers-section.component';
 import { SubjectsSectionComponent } from './sections/subjects-section.component';
 
-type Tab = 'school' | 'classrooms' | 'groups' | 'teachers' | 'subjects';
+type Tab = 'school' | 'ciclos' | 'classrooms' | 'groups' | 'teachers' | 'subjects';
 
 @Component({
   selector: 'app-config',
@@ -20,6 +21,7 @@ type Tab = 'school' | 'classrooms' | 'groups' | 'teachers' | 'subjects';
   imports: [
     CommonModule,
     SchoolSectionComponent,
+    CiclosSectionComponent,
     ClassroomsSectionComponent,
     GroupsSectionComponent,
     TeachersSectionComponent,
@@ -37,19 +39,20 @@ export class ConfigComponent implements OnInit {
   private readonly classroomsApi = inject(ClassroomsApiService);
 
   readonly activeTab = signal<Tab>('school');
-  
+
   readonly school = signal<School | null>(null);
   readonly teachers = signal<Teacher[]>([]);
   readonly groups = signal<CourseGroup[]>([]);
   readonly subjects = signal<SubjectAllocation[]>([]);
   readonly classrooms = signal<Classroom[]>([]);
 
-  readonly tabs = [
-    { id: 'school' as Tab, label: 'Centro' },
-    { id: 'classrooms' as Tab, label: 'Aulas' },
-    { id: 'groups' as Tab, label: 'Grupos' },
-    { id: 'teachers' as Tab, label: 'Profesores' },
-    { id: 'subjects' as Tab, label: 'Asignaturas' },
+  readonly tabs: { id: Tab; label: string; icon: string }[] = [
+    { id: 'school',     label: 'Centro',       icon: '🏛' },
+    { id: 'ciclos',     label: 'Ciclos',        icon: '🕐' },
+    { id: 'teachers',   label: 'Profesores',    icon: '👥' },
+    { id: 'groups',     label: 'Grupos',        icon: '📚' },
+    { id: 'subjects',   label: 'Asignaturas',   icon: '📖' },
+    { id: 'classrooms', label: 'Aulas',         icon: '🚪' },
   ];
 
   async ngOnInit(): Promise<void> {
@@ -70,11 +73,15 @@ export class ConfigComponent implements OnInit {
 
   count(tab: Tab): number {
     switch (tab) {
-      case 'teachers': return this.teachers().length;
-      case 'groups': return this.groups().length;
-      case 'subjects': return this.subjects().length;
+      case 'teachers':   return this.teachers().length;
+      case 'groups':     return this.groups().length;
+      case 'subjects':   return this.subjects().length;
       case 'classrooms': return this.classrooms().length;
       default: return 0;
     }
+  }
+
+  goToCiclos(): void {
+    this.activeTab.set('ciclos');
   }
 }

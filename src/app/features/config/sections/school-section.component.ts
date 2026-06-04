@@ -1,14 +1,15 @@
-import { Component, inject, signal, input, output, effect, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, input, output, computed, effect, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SchoolsApiService } from '../../../core/api/schools-api.service';
-import { School, CycleSchedule } from '../../../core/models';
+import { School } from '../../../core/models';
 import { COMMUNITIES, STAGES } from '../config.constants';
+import { LecIconComponent } from '../../../shared/ui/lec-icon.component';
 
 @Component({
   selector: 'app-school-section',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LecIconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './school-section.component.html',
   styleUrls: ['./school-section.component.scss']
@@ -18,6 +19,7 @@ export class SchoolSectionComponent {
 
   readonly school = input.required<School | null>();
   readonly schoolChange = output<School>();
+  readonly goCiclos = output<void>();
 
   readonly savingSchool = signal(false);
   readonly savedSchool = signal(false);
@@ -54,30 +56,43 @@ export class SchoolSectionComponent {
     workingDays: [1, 2, 3, 4, 5],
   };
 
-  cycleForms: {
-    cycle: number;
-    morningStart: string;
-    endTime: string;
-    afternoonStart: string;
-    saving: boolean;
-    saved: boolean;
-    error: string | null;
-  }[] = [1, 2, 3].map(c => ({
-    cycle: c,
-    morningStart: '09:00',
-    endTime: '14:30',
-    afternoonStart: '15:00',
-    saving: false,
-    saved: false,
-    error: null,
-  }));
+  readonly schoolInitials = computed(() => {
+    const name = this.school()?.name || this.schoolForm.name || '';
+    return name.split(/\s+/)
+      .filter(w => w.length > 1)
+      .slice(0, 3)
+      .map(w => w[0].toUpperCase())
+      .join('') || '?';
+  });
+
+  readonly communityLabel = computed(() => {
+    const val = this.schoolForm.community;
+    return this.communities.find(c => c.value === val)?.label ?? val;
+  });
+
+  readonly stageLabel = computed(() => {
+    const val = this.schoolForm.stage;
+    return this.stages.find(s => s.value === val)?.label ?? val;
+  });
+
+  readonly hoursPerWeek = computed(() => {
+    const mins = this.schoolForm.slotsPerDay * this.schoolForm.slotMinutes * this.schoolForm.workingDays.length;
+    const h = mins / 60;
+    return Number.isInteger(h) ? `${h} h` : `${h.toFixed(1)} h`;
+  });
+
+  readonly journeyLabel = computed(() =>
+    this.schoolForm.scheduleType === 'continua' ? 'Continua' : 'Partida'
+  );
+
+  readonly courseRange = computed(() =>
+    `${this.schoolForm.minCourseLevel}º – ${this.schoolForm.maxCourseLevel}º`
+  );
 
   constructor() {
     effect(() => {
       const s = this.school();
-      if (s) {
-        this.syncFormFromSchool(s);
-      }
+      if (s) this.syncFormFromSchool(s);
     });
   }
 
@@ -101,19 +116,6 @@ export class SchoolSectionComponent {
       afternoonSlots: s.afternoonSlots,
       workingDays: [...s.workingDays],
     };
-
-    for (const cf of this.cycleForms) {
-      const serverCycle = s.cycles?.find((c: CycleSchedule) => c.cycle === cf.cycle);
-      if (serverCycle) {
-        cf.morningStart = serverCycle.morningStart;
-        cf.endTime = serverCycle.endTime;
-        cf.afternoonStart = serverCycle.afternoonStart ?? '15:00';
-      } else {
-        cf.morningStart = s.morningStart;
-        cf.endTime = this.computedEndTime(s.morningStart);
-        cf.afternoonStart = s.afternoonStart ?? '15:00';
-      }
-    }
   }
 
   toggleDay(day: number, event: Event): void {
@@ -125,95 +127,13 @@ export class SchoolSectionComponent {
     }
   }
 
-  computedMorningEndTime(morningStart: string): string {
-    const s = this.school();
-    if (!s || !morningStart) return '';
-    const [h, m] = morningStart.split(':').map(Number);
-    if (isNaN(h) || isNaN(m)) return '';
-    let totalMinutes = h * 60 + m;
-    const isPartida = this.schoolForm.scheduleType === 'partida';
-    const morningSlots = isPartida ? s.slotsPerDay - s.afternoonSlots : s.slotsPerDay;
-
-    for (let i = 0; i < morningSlots; i++) {
-      if (i === s.breakAfterSlot) totalMinutes += s.breakMinutes;
-      totalMinutes += s.slotMinutes;
-    }
-
-    const endH = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
-    const endM = String(totalMinutes % 60).padStart(2, '0');
-    return `${endH}:${endM}`;
+  adjustSlotsPerDay(delta: number): void {
+    const v = Math.max(3, Math.min(9, this.schoolForm.slotsPerDay + delta));
+    this.schoolForm.slotsPerDay = v;
   }
 
-  computedAfternoonEndTime(afternoonStart: string): string {
-    const s = this.school();
-    if (!s || !afternoonStart) return '';
-    const [h, m] = afternoonStart.split(':').map(Number);
-    if (isNaN(h) || isNaN(m)) return '';
-    let totalMinutes = h * 60 + m;
-    const isPartida = this.schoolForm.scheduleType === 'partida';
-    if (!isPartida) return '';
-
-    for (let i = 0; i < s.afternoonSlots; i++) {
-      totalMinutes += s.slotMinutes;
-    }
-
-    const endH = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
-    const endM = String(totalMinutes % 60).padStart(2, '0');
-    return `${endH}:${endM}`;
-  }
-
-  computedEndTime(morningStart: string): string {
-    return this.computedMorningEndTime(morningStart);
-  }
-
-  cycleLabel(cycle: number): string {
-    const labels: Record<number, string> = {
-      1: '1er ciclo · 1º y 2º',
-      2: '2.º ciclo · 3º y 4º',
-      3: '3er ciclo · 5º y 6º',
-    };
-    return labels[cycle] ?? `Ciclo ${cycle}`;
-  }
-
-  async saveCycle(cycle: number): Promise<void> {
-    const form = this.cycleForms.find(c => c.cycle === cycle);
-    if (!form || form.saving) return;
-    form.saving = true;
-    form.saved = false;
-    form.error = null;
-
-    const isPartida = this.schoolForm.scheduleType === 'partida';
-    form.endTime = isPartida
-      ? this.computedAfternoonEndTime(form.afternoonStart)
-      : this.computedMorningEndTime(form.morningStart);
-
-    try {
-      const updated = await this.api.updateCycleSchedule(cycle, {
-        morningStart: form.morningStart,
-        endTime: form.endTime,
-        afternoonStart: isPartida ? form.afternoonStart : null,
-      });
-      form.morningStart = updated.morningStart;
-      form.endTime = updated.endTime;
-      form.saved = true;
-      
-      // Update parent school
-      const currentSchool = this.school();
-      if (currentSchool) {
-        const updatedCycles = currentSchool.cycles.map(c => c.cycle === cycle ? updated : c);
-        this.schoolChange.emit({
-          ...currentSchool,
-          cycles: updatedCycles
-        });
-      }
-      
-      setTimeout(() => { form.saved = false; }, 3000);
-    } catch (err: unknown) {
-      const e = err as { error?: { message?: string } };
-      form.error = e?.error?.message ?? 'Error al guardar el ciclo.';
-    } finally {
-      form.saving = false;
-    }
+  selectSlotMinutes(min: number): void {
+    this.schoolForm.slotMinutes = min;
   }
 
   async saveSchool(): Promise<void> {

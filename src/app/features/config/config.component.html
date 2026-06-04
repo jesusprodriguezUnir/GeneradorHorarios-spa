@@ -2,16 +2,16 @@
   <div style="margin-bottom:24px">
     <h1 style="font-size:var(--text-2xl);font-weight:800;letter-spacing:-0.02em">Configuración del colegio</h1>
     <p style="color:var(--muted-foreground);margin-top:4px;font-size:var(--text-sm)">
-      Gestiona los datos que usa el generador de horarios
+      Datos del centro, jornada y recursos del generador de horarios
     </p>
   </div>
 
   <!-- Tabs -->
-  <div class="tabs-bar">
+  <div class="tabs-bar thin-scroll">
     @for (t of tabs; track t.id) {
       <button class="tab-btn" [class.tab-btn--active]="activeTab() === t.id" (click)="activeTab.set(t.id)">
         {{ t.label }}
-        @if (t.id !== 'school') {
+        @if (count(t.id) > 0) {
           <span class="tab-count">{{ count(t.id) }}</span>
         }
       </button>
@@ -19,38 +19,51 @@
   </div>
 
   <!-- Contenido -->
-  <div class="lec-card" style="padding:0;overflow:hidden;margin-top:16px">
+  <div style="margin-top:16px">
     @switch (activeTab()) {
+
       @case ('school') {
-        @defer (prefetch on idle) {
-          <app-school-section [school]="school()" (schoolChange)="school.set($event)" />
-        }
+        <app-school-section
+          [school]="school()"
+          (schoolChange)="school.set($event)"
+          (goCiclos)="goToCiclos()" />
       }
-      @case ('classrooms') {
-        @defer (prefetch on idle) {
-          <app-classrooms-section [classrooms]="classrooms()" (classroomsChange)="classrooms.set($event)" />
-        }
+
+      @case ('ciclos') {
+        <app-ciclos-section
+          [school]="school()"
+          (schoolChange)="school.set($event)" />
       }
+
+      @case ('teachers') {
+        <div class="lec-card" style="padding:0;overflow:hidden">
+          <app-teachers-section [teachers]="teachers()" (teachersChange)="teachers.set($event)" />
+        </div>
+      }
+
       @case ('groups') {
-        @defer (prefetch on idle) {
-          <app-groups-section 
+        <div class="lec-card" style="padding:0;overflow:hidden">
+          <app-groups-section
             [groups]="groups()" (groupsChange)="groups.set($event)"
             [teachers]="teachers()"
             [classrooms]="classrooms()"
             [subjects]="subjects()"
             [school]="school()" />
-        }
+        </div>
       }
-      @case ('teachers') {
-        @defer (prefetch on idle) {
-          <app-teachers-section [teachers]="teachers()" (teachersChange)="teachers.set($event)" />
-        }
-      }
+
       @case ('subjects') {
-        @defer (prefetch on idle) {
+        <div class="lec-card" style="padding:0;overflow:hidden">
           <app-subjects-section [subjects]="subjects()" (subjectsChange)="subjects.set($event)" />
-        }
+        </div>
       }
+
+      @case ('classrooms') {
+        <div class="lec-card" style="padding:0;overflow:hidden">
+          <app-classrooms-section [classrooms]="classrooms()" (classroomsChange)="classrooms.set($event)" />
+        </div>
+      }
+
     }
   </div>
 </div>

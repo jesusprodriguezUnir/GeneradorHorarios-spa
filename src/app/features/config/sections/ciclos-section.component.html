@@ -1,0 +1,164 @@
+<div class="lec-fade-up">
+
+  <!-- Info banner -->
+  <div class="info-banner">
+    <lec-icon name="info" [size]="18" />
+    <span>
+      Cada ciclo elige su <strong>hora de entrada</strong> y sus <strong>recreos</strong>.
+      La duración de las sesiones y los días lectivos son comunes al centro.
+      Esta configuración se usa al generar los horarios.
+    </span>
+  </div>
+
+  @if (!school()) {
+    <div class="loading-state">Cargando…</div>
+  } @else {
+    @for (cycle of cycles(); track cycle.id) {
+      <div class="cycle-card">
+
+        <!-- Cabecera del ciclo -->
+        <div class="cycle-header">
+          <div class="cycle-header-left">
+            <span class="cycle-num">{{ cycle.id }}</span>
+            <div>
+              <div class="cycle-name">{{ cycleLabel(cycle.id) }}</div>
+              <div class="cycle-courses">{{ cycleCourses(cycle.id) }} de Primaria</div>
+            </div>
+          </div>
+          <div class="cycle-header-right">
+            <span class="lec-badge" style="background:var(--secondary);color:var(--secondary-foreground)">
+              <lec-icon name="clock" [size]="13" />
+              {{ getSalidaForCycle(cycle.id) }} salida
+            </span>
+            <button class="btn-cycle-save"
+              [disabled]="savingCycleId() === cycle.id"
+              (click)="saveCycle(cycle.id)">
+              @if (savingCycleId() === cycle.id) {
+                Guardando…
+              } @else if (savedCycleId() === cycle.id) {
+                <lec-icon name="check" [size]="15" /> Guardado
+              } @else {
+                Guardar ciclo
+              }
+            </button>
+          </div>
+        </div>
+
+        <!-- Cuerpo: controles + timeline -->
+        <div class="cycle-body">
+
+          <!-- Controles izquierda -->
+          <div class="cycle-controls">
+
+            <!-- Hora de entrada -->
+            <div class="ctrl-section">
+              <div class="ctrl-label">Hora de entrada</div>
+              <div class="chip-group">
+                @for (opt of entradaOptions; track opt) {
+                  <button class="chip" [class.chip--active]="cycle.entrada === opt"
+                    (click)="setCycleEntrada(cycle.id, opt)">{{ opt }}</button>
+                }
+              </div>
+            </div>
+
+            <!-- Recreos -->
+            <div class="ctrl-section">
+              <div class="ctrl-label-row">
+                <div class="ctrl-label">Recreos · {{ cycle.recreos.length }}</div>
+                @if (canAddRecreo(cycle)) {
+                  <button class="add-recreo-btn" (click)="addRecreo(cycle.id)">
+                    <lec-icon name="plus" [size]="14" /> Añadir
+                  </button>
+                }
+              </div>
+
+              @if (cycle.recreos.length === 0) {
+                <div class="no-recreos">Sin recreos. La jornada es continua sin pausas.</div>
+              }
+
+              @for (r of cycle.recreos; track $index; let idx = $index) {
+                <div class="recreo-row">
+                  <span class="recreo-icon-wrap">
+                    <lec-icon name="coffee" [size]="15" />
+                  </span>
+                  <div class="recreo-config">
+                    <div class="recreo-after">
+                      tras la
+                      <select class="mini-select"
+                        [value]="r.after"
+                        (change)="setRecreoAfter(cycle.id, idx, +($any($event.target).value))">
+                        @for (n of slotAfterOptions(); track n) {
+                          <option [value]="n">{{ n }}.ª</option>
+                        }
+                      </select>
+                      sesión
+                    </div>
+                    <div class="recreo-chips">
+                      @for (m of recreoOptions; track m) {
+                        <button class="chip chip--sm" [class.chip--active]="r.min === m"
+                          (click)="setRecreoMin(cycle.id, idx, m)">{{ m }}'</button>
+                      }
+                    </div>
+                  </div>
+                  <button class="del-btn" (click)="delRecreo(cycle.id, idx)" title="Quitar recreo">
+                    <lec-icon name="trash" [size]="15" />
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Timeline derecha -->
+          <div class="cycle-timeline">
+            <div class="timeline-label">Cómo queda el día</div>
+            <div class="timeline-row">
+              <div class="time-end">
+                <div class="time-end-label">Entra</div>
+                <div class="time-end-val">{{ cycle.entrada }}</div>
+              </div>
+              <div class="timeline-blocks thin-scroll">
+                @for (block of getDayPlan(cycle, school()!); track $index) {
+                  @if (block.type === 'lectiva') {
+                    <div class="block-lectiva" [style.flex]="school()!.slotMinutes">
+                      <div class="block-n">{{ block.n }}.ª</div>
+                      <div class="block-time">{{ formatTime(block.start) }}</div>
+                    </div>
+                  } @else {
+                    <div class="block-recreo" [style.flex]="block.min">
+                      <lec-icon name="coffee" [size]="14" />
+                      <div class="block-n">{{ block.min }}'</div>
+                    </div>
+                  }
+                }
+              </div>
+              <div class="time-end">
+                <div class="time-end-label">Sale</div>
+                <div class="time-end-val">{{ getSalidaForCycle(cycle.id) }}</div>
+              </div>
+            </div>
+            <div class="timeline-summary">
+              {{ school()!.slotsPerDay }} sesiones ·
+              {{ lecHrs(totalLectiveMin(school()!)) }} lectivas
+              @if (totalRecreoMin(cycle) > 0) {
+                + {{ totalRecreoMin(cycle) }} min de recreo
+              }
+              · sale a las <strong>{{ getSalidaForCycle(cycle.id) }}</strong>
+            </div>
+          </div>
+        </div>
+
+        @if (errorCycleId() === cycle.id) {
+          <div class="cycle-error">
+            <lec-icon name="alert" [size]="15" /> Error al guardar. Inténtalo de nuevo.
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Footer informativo -->
+    <div class="success-banner">
+      <lec-icon name="checkCircle" [size]="18" />
+      Las salidas se calculan solas. El generador de horarios respetará la entrada y los recreos de cada ciclo.
+    </div>
+  }
+</div>

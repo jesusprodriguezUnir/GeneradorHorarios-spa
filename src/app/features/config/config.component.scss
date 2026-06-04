@@ -4,7 +4,12 @@
   background: var(--secondary);
   border-radius: var(--radius-md);
   padding: 4px;
-  flex-wrap: wrap;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar { display: none; }
 }
 
 .tab-btn {
