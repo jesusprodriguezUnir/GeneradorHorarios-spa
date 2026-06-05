@@ -52,6 +52,22 @@ export interface AppUser {
   teacher: { id: string; fullName: string; colorKey: string } | null;
 }
 
+export interface StageAssignment {
+  stageId: string;
+  stageName?: string;
+  stageType?: string;
+  cycle: number | null;
+}
+
+export interface SchoolStage {
+  id: string;
+  stageType: string;
+  name: string;
+  minLevel: number;
+  maxLevel: number;
+  sortOrder: number;
+}
+
 export interface Teacher {
   id: string;
   fullName: string;
@@ -61,6 +77,7 @@ export interface Teacher {
   specialties: string[];
   colorKey: string;
   assignedHours: number;
+  stageAssignments?: StageAssignment[];
 }
 
 export interface CourseGroup {

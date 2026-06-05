@@ -37,7 +37,10 @@
 
       @case ('teachers') {
         <div class="lec-card" style="padding:0;overflow:hidden">
-          <app-teachers-section [teachers]="teachers()" (teachersChange)="teachers.set($event)" />
+          <app-teachers-section
+            [teachers]="teachers()"
+            [stages]="stages()"
+            (teachersChange)="teachers.set($event)" />
         </div>
       }
 

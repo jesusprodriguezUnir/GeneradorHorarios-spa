@@ -1,73 +1,192 @@
-<div data-testid="config-teachers-section">
-  <div class="section-header">
+<div data-testid="config-teachers-section" class="lec-fade-up">
+  <div class="section-header" style="margin-bottom: 12px;">
     <h3 class="section-title">Profesores</h3>
     <button class="btn-primary btn-primary--sm" (click)="openAddModal()">
       + Añadir profesor
     </button>
   </div>
 
-  <p-table #dtTeachers [value]="teachers()" [paginator]="true" [rows]="10"
-           [rowsPerPageOptions]="[5,10,25]" dataKey="id"
-           [globalFilterFields]="['fullName','email','teacherType']"
-           currentPageReportTemplate="{first}–{last} de {totalRecords}"
-           [showCurrentPageReport]="true">
-    <ng-template pTemplate="caption">
-      <div class="table-caption">
-        <input pInputText type="text"
-               (input)="dtTeachers.filterGlobal($any($event.target).value,'contains')"
-               placeholder="Buscar profesores…" class="table-filter-input" />
-      </div>
-    </ng-template>
-    <ng-template pTemplate="header">
-      <tr>
-        <th pSortableColumn="fullName">Nombre <p-sortIcon field="fullName"/></th>
-        <th pSortableColumn="email">Email <p-sortIcon field="email"/></th>
-        <th pSortableColumn="teacherType">Tipo <p-sortIcon field="teacherType"/></th>
-        <th pSortableColumn="maxWeeklyHours">H. máx/semana <p-sortIcon field="maxWeeklyHours"/></th>
-        <th>Especialidades</th>
-        <th>H. asignadas</th>
-        <th class="th-actions">Acciones</th>
-      </tr>
-    </ng-template>
-    <ng-template pTemplate="body" let-t>
-      <tr>
-        <td>
-          <span class="avatar-sm" [style.background]="'var(--subj-' + t.colorKey + ')'">
-            {{ initials(t.fullName) }}
-          </span> 
-          {{ t.fullName }}
-        </td>
-        <td class="td-muted">{{ t.email }}</td>
-        <td>{{ teacherTypeLabel(t.teacherType) }}</td>
-        <td>{{ t.maxWeeklyHours }}h</td>
-        <td>{{ t.specialties.join(', ') }}</td>
-        <td>
-          <div class="mini-bar-wrap">
-            <div class="mini-bar" [style.width]="((t.assignedHours / t.maxWeeklyHours) * 100) + '%'"
-              [style.background]="t.assignedHours > t.maxWeeklyHours ? 'var(--destructive)' : 'var(--primary)'"></div>
+  <!-- Acordeones por etapa -->
+  @for (stage of stages(); track stage.id) {
+    <div class="etapa-accordion" [class.etapa-accordion--open]="isStageExpanded(stage.id)" style="margin-bottom: 16px;">
+      
+      <!-- Cabecera de etapa (clickable) -->
+      <button class="etapa-header" type="button" (click)="toggleStage(stage.id)">
+        <div class="etapa-header-left">
+          <span class="etapa-dot" [style.background]="getEtapaBlock(stage.stageType)?.color ?? 'var(--muted-foreground)'"></span>
+          <div>
+            <div class="etapa-name">{{ stage.name }}</div>
+            <div class="etapa-meta">
+              {{ getEtapaBlock(stage.stageType)?.ages ?? '' }} · {{ teachersForStage(stage.id).length }} profesor{{ teachersForStage(stage.id).length !== 1 ? 'es' : '' }}
+            </div>
           </div>
-          <span class="text-xs-dim">{{ t.assignedHours }}/{{ t.maxWeeklyHours }}</span>
-        </td>
-        <td class="td-actions">
-          <div class="row-actions">
-            <button (click)="editTeacher(t)" class="btn-edit" title="Editar profesor">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
-              </svg>
-            </button>
-            <button (click)="deleteTeacher(t.id)" class="btn-del" title="Eliminar profesor">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-              </svg>
-            </button>
+        </div>
+        <div class="etapa-header-right">
+          <span class="accordion-chevron" [class.accordion-chevron--open]="isStageExpanded(stage.id)">
+            <lec-icon name="chevronDown" [size]="18" />
+          </span>
+        </div>
+      </button>
+
+      <!-- Cuerpo del acordeón (expandible) -->
+      @if (isStageExpanded(stage.id)) {
+        <div class="etapa-body">
+          <p-table #dtTeachers [value]="teachersForStage(stage.id)" [paginator]="true" [rows]="10"
+                   [rowsPerPageOptions]="[5,10,25]" dataKey="id"
+                   [globalFilterFields]="['fullName','email','teacherType']"
+                   currentPageReportTemplate="{first}–{last} de {totalRecords}"
+                   [showCurrentPageReport]="true">
+            <ng-template pTemplate="caption">
+              <div class="table-caption" style="padding: 12px 16px;">
+                <input pInputText type="text"
+                       (input)="dtTeachers.filterGlobal($any($event.target).value,'contains')"
+                       placeholder="Buscar profesores de {{ stage.name }}…" class="table-filter-input" />
+              </div>
+            </ng-template>
+            <ng-template pTemplate="header">
+              <tr>
+                <th pSortableColumn="fullName">Nombre <p-sortIcon field="fullName"/></th>
+                <th pSortableColumn="email">Email <p-sortIcon field="email"/></th>
+                <th pSortableColumn="teacherType">Tipo <p-sortIcon field="teacherType"/></th>
+                <th pSortableColumn="maxWeeklyHours">H. máx/semana <p-sortIcon field="maxWeeklyHours"/></th>
+                <th>Especialidades</th>
+                <th>H. asignadas</th>
+                <th class="th-actions">Acciones</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-t>
+              <tr>
+                <td>
+                   <span class="avatar-sm" [style.background]="'var(--subj-' + t.colorKey + ')'">
+                     {{ initials(t.fullName) }}
+                   </span> 
+                  {{ t.fullName }}
+                </td>
+                <td class="td-muted">{{ t.email }}</td>
+                <td>{{ teacherTypeLabel(t.teacherType) }}</td>
+                <td>{{ t.maxWeeklyHours }}h</td>
+                <td>{{ t.specialties.join(', ') }}</td>
+                <td>
+                  <div class="mini-bar-wrap">
+                    <div class="mini-bar" [style.width]="((t.assignedHours / t.maxWeeklyHours) * 100) + '%'"
+                      [style.background]="t.assignedHours > t.maxWeeklyHours ? 'var(--destructive)' : 'var(--primary)'"></div>
+                  </div>
+                  <span class="text-xs-dim">{{ t.assignedHours }}/{{ t.maxWeeklyHours }}</span>
+                </td>
+                <td class="td-actions">
+                  <div class="row-actions">
+                    <button (click)="editTeacher(t)" class="btn-edit" title="Editar profesor">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </button>
+                    <button (click)="deleteTeacher(t.id)" class="btn-del" title="Eliminar profesor">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr><td colspan="7" class="td-empty">No hay profesores registrados en esta etapa.</td></tr>
+            </ng-template>
+          </p-table>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Acordeón para profesores sin etapa asignada -->
+  @if (teachersWithoutStage().length > 0) {
+    <div class="etapa-accordion" [class.etapa-accordion--open]="isStageExpanded('unassigned')" style="margin-bottom: 16px;">
+      
+      <button class="etapa-header" type="button" (click)="toggleStage('unassigned')">
+        <div class="etapa-header-left">
+          <span class="etapa-dot" style="background: var(--muted-foreground)"></span>
+          <div>
+            <div class="etapa-name">Sin etapa asignada</div>
+            <div class="etapa-meta">
+              {{ teachersWithoutStage().length }} profesor{{ teachersWithoutStage().length !== 1 ? 'es' : '' }}
+            </div>
           </div>
-        </td>
-      </tr>
-    </ng-template>
-    <ng-template pTemplate="emptymessage">
-      <tr><td colspan="7" class="td-empty">No hay profesores registrados.</td></tr>
-    </ng-template>
-  </p-table>
+        </div>
+        <div class="etapa-header-right">
+          <span class="accordion-chevron" [class.accordion-chevron--open]="isStageExpanded('unassigned')">
+            <lec-icon name="chevronDown" [size]="18" />
+          </span>
+        </div>
+      </button>
+
+      @if (isStageExpanded('unassigned')) {
+        <div class="etapa-body">
+          <p-table #dtUnassigned [value]="teachersWithoutStage()" [paginator]="true" [rows]="10"
+                   [rowsPerPageOptions]="[5,10,25]" dataKey="id"
+                   [globalFilterFields]="['fullName','email','teacherType']"
+                   currentPageReportTemplate="{first}–{last} de {totalRecords}"
+                   [showCurrentPageReport]="true">
+            <ng-template pTemplate="caption">
+              <div class="table-caption" style="padding: 12px 16px;">
+                <input pInputText type="text"
+                       (input)="dtUnassigned.filterGlobal($any($event.target).value,'contains')"
+                       placeholder="Buscar profesores sin etapa…" class="table-filter-input" />
+              </div>
+            </ng-template>
+            <ng-template pTemplate="header">
+              <tr>
+                <th pSortableColumn="fullName">Nombre <p-sortIcon field="fullName"/></th>
+                <th pSortableColumn="email">Email <p-sortIcon field="email"/></th>
+                <th pSortableColumn="teacherType">Tipo <p-sortIcon field="teacherType"/></th>
+                <th pSortableColumn="maxWeeklyHours">H. máx/semana <p-sortIcon field="maxWeeklyHours"/></th>
+                <th>Especialidades</th>
+                <th>H. asignadas</th>
+                <th class="th-actions">Acciones</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-t>
+              <tr>
+                <td>
+                   <span class="avatar-sm" [style.background]="'var(--subj-' + t.colorKey + ')'">
+                     {{ initials(t.fullName) }}
+                   </span> 
+                  {{ t.fullName }}
+                </td>
+                <td class="td-muted">{{ t.email }}</td>
+                <td>{{ teacherTypeLabel(t.teacherType) }}</td>
+                <td>{{ t.maxWeeklyHours }}h</td>
+                <td>{{ t.specialties.join(', ') }}</td>
+                <td>
+                  <div class="mini-bar-wrap">
+                    <div class="mini-bar" [style.width]="((t.assignedHours / t.maxWeeklyHours) * 100) + '%'"
+                      [style.background]="t.assignedHours > t.maxWeeklyHours ? 'var(--destructive)' : 'var(--primary)'"></div>
+                  </div>
+                  <span class="text-xs-dim">{{ t.assignedHours }}/{{ t.maxWeeklyHours }}</span>
+                </td>
+                <td class="td-actions">
+                  <div class="row-actions">
+                    <button (click)="editTeacher(t)" class="btn-edit" title="Editar profesor">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </button>
+                    <button (click)="deleteTeacher(t.id)" class="btn-del" title="Eliminar profesor">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr><td colspan="7" class="td-empty">No hay profesores sin etapa.</td></tr>
+            </ng-template>
+          </p-table>
+        </div>
+      }
+    </div>
+  }
 </div>
 
 <!-- Modal para Añadir / Editar Profesor -->
@@ -180,6 +299,22 @@
           </div>
         </div>
 
+        <!-- Etapas Educativas -->
+        <div class="form-field-premium">
+          <label class="field-label-premium">Etapas en las que imparte clase</label>
+          <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:8px;padding:4px 0">
+            @for (stage of stages(); track stage.id) {
+              <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font-weight:600;font-size:var(--text-sm);color:var(--foreground)">
+                <input type="checkbox"
+                  [checked]="isStageSelected(stage.id)"
+                  (change)="toggleStageSelection(stage.id)"
+                  style="width:16px;height:16px;border-radius:4px;border:1.5px solid var(--border-strong);cursor:pointer;accent-color:var(--primary)" />
+                {{ stage.name }}
+              </label>
+            }
+          </div>
+        </div>
+
         <!-- Selector de Color Key -->
         <div class="form-field-premium">
           <label class="field-label-premium">Color Representativo</label>
@@ -212,3 +347,4 @@
     </button>
   </ng-template>
 </p-dialog>
+

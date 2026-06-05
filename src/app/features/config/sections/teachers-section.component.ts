@@ -6,13 +6,16 @@ import { Dialog } from 'primeng/dialog';
 import { TableModule } from 'primeng/table';
 import { InputText } from 'primeng/inputtext';
 import { TeachersApiService } from '../../../core/api/teachers-api.service';
-import { Teacher } from '../../../core/models';
+import { Teacher, SchoolStage } from '../../../core/models';
 import { TEACHER_TYPES } from '../config.constants';
+import { BLOCKS, EtapaBlock } from '../../../core/blocks.model';
+import { BlockStateService } from '../../../core/block-state.service';
+import { LecIconComponent } from '../../../shared/ui/lec-icon.component';
 
 @Component({
   selector: 'app-teachers-section',
   standalone: true,
-  imports: [CommonModule, FormsModule, Dialog, TableModule, InputText],
+  imports: [CommonModule, FormsModule, Dialog, TableModule, InputText, LecIconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './teachers-section.component.html',
   styleUrls: ['./teachers-section.component.scss']
@@ -21,12 +24,16 @@ export class TeachersSectionComponent {
   private readonly api = inject(TeachersApiService);
   private readonly msg = inject(MessageService);
   private readonly confirmation = inject(ConfirmationService);
+  private readonly blockState = inject(BlockStateService);
 
   readonly teachers = input.required<Teacher[]>();
+  readonly stages = input.required<SchoolStage[]>();
   readonly teachersChange = output<Teacher[]>();
   
   readonly isTeacherModalOpen = signal(false);
   readonly editingTeacher = signal<Teacher | null>(null);
+
+  readonly expandedStages = signal<Set<string>>(new Set<string>());
 
   teacherForm = signal({
     fullName: '',
@@ -35,7 +42,59 @@ export class TeachersSectionComponent {
     maxWeeklyHours: 25,
     specialtiesRaw: '',
     colorKey: 'mat',
+    selectedStageIds: [] as string[],
   });
+
+  constructor() {
+    const initial = this.blockState.activeBlock();
+    if (initial !== 'all') {
+      this.expandedStages.set(new Set([initial]));
+    } else {
+      this.expandedStages.set(new Set(['inf', 'pri', 'sec']));
+    }
+  }
+
+  // ── Accordion Helpers ────────────────────────────────────────────────────────
+  toggleStage(stageId: string): void {
+    this.expandedStages.update(prev => {
+      const next = new Set(prev);
+      if (next.has(stageId)) {
+        next.delete(stageId);
+      } else {
+        next.add(stageId);
+      }
+      return next;
+    });
+  }
+
+  isStageExpanded(stageId: string): boolean {
+    return this.expandedStages().has(stageId);
+  }
+
+  getEtapaId(stageType: string): string {
+    const type = stageType.toLowerCase();
+    if (type.includes('inf')) return 'inf';
+    if (type.includes('pri')) return 'pri';
+    if (type.includes('sec') || type.includes('eso')) return 'sec';
+    return type;
+  }
+
+  getEtapaBlock(stageType: string): EtapaBlock | undefined {
+    const id = this.getEtapaId(stageType);
+    return BLOCKS.find(b => b.id === id);
+  }
+
+  teachersForStage(stageId: string): Teacher[] {
+    return this.teachers().filter(t =>
+      t.stageAssignments?.some(sa => sa.stageId === stageId)
+    );
+  }
+
+  teachersWithoutStage(): Teacher[] {
+    return this.teachers().filter(t =>
+      !t.stageAssignments || t.stageAssignments.length === 0
+    );
+  }
 
   teacherTypeLabel(type: string): string {
     const found = TEACHER_TYPES.find(t => t.value === type);
@@ -48,6 +107,16 @@ export class TeachersSectionComponent {
 
   openAddModal(): void {
     this.editingTeacher.set(null);
+    
+    let defaultStages: string[] = [];
+    const active = this.blockState.activeBlock();
+    if (active !== 'all') {
+      const activeStage = this.stages().find(s => this.getEtapaId(s.stageType) === active);
+      if (activeStage) {
+        defaultStages = [activeStage.id];
+      }
+    }
+
     this.teacherForm.set({
       fullName: '',
       email: '',
@@ -55,12 +124,14 @@ export class TeachersSectionComponent {
       maxWeeklyHours: 25,
       specialtiesRaw: 'Generalista',
       colorKey: 'mat',
+      selectedStageIds: defaultStages,
     });
     this.isTeacherModalOpen.set(true);
   }
 
   editTeacher(t: Teacher): void {
     this.editingTeacher.set(t);
+    const selectedStageIds = t.stageAssignments?.map(sa => sa.stageId) ?? [];
     this.teacherForm.set({
       fullName: t.fullName,
       email: t.email,
@@ -68,8 +139,22 @@ export class TeachersSectionComponent {
       maxWeeklyHours: t.maxWeeklyHours,
       specialtiesRaw: t.specialties.join(', '),
       colorKey: t.colorKey,
+      selectedStageIds,
     });
     this.isTeacherModalOpen.set(true);
+  }
+
+  isStageSelected(stageId: string): boolean {
+    return this.teacherForm().selectedStageIds.includes(stageId);
+  }
+
+  toggleStageSelection(stageId: string): void {
+    this.teacherForm.update(f => {
+      const ids = f.selectedStageIds.includes(stageId)
+        ? f.selectedStageIds.filter(id => id !== stageId)
+        : [...f.selectedStageIds, stageId];
+      return { ...f, selectedStageIds: ids };
+    });
   }
 
   async saveTeacher(): Promise<void> {
@@ -90,6 +175,11 @@ export class TeachersSectionComponent {
       .map(s => s.trim())
       .filter(s => s.length > 0);
 
+    const stageAssignments = form.selectedStageIds.map(stageId => ({
+      stageId,
+      cycle: null as number | null
+    }));
+
     const payload = {
       fullName: form.fullName.trim(),
       email: form.email.trim(),
@@ -97,6 +187,7 @@ export class TeachersSectionComponent {
       maxWeeklyHours: Number(form.maxWeeklyHours),
       specialties,
       colorKey: form.colorKey,
+      stageAssignments,
     };
 
     try {

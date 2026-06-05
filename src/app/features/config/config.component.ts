@@ -5,7 +5,7 @@ import { TeachersApiService } from '../../core/api/teachers-api.service';
 import { GroupsApiService } from '../../core/api/groups-api.service';
 import { SubjectsApiService } from '../../core/api/subjects-api.service';
 import { ClassroomsApiService } from '../../core/api/classrooms-api.service';
-import { School, Teacher, CourseGroup, Classroom, SubjectAllocation } from '../../core/models';
+import { School, Teacher, CourseGroup, Classroom, SubjectAllocation, SchoolStage } from '../../core/models';
 import { SchoolSectionComponent } from './sections/school-section.component';
 import { CiclosSectionComponent } from './sections/ciclos-section.component';
 import { ClassroomsSectionComponent } from './sections/classrooms-section.component';
@@ -45,6 +45,7 @@ export class ConfigComponent implements OnInit {
   readonly groups = signal<CourseGroup[]>([]);
   readonly subjects = signal<SubjectAllocation[]>([]);
   readonly classrooms = signal<Classroom[]>([]);
+  readonly stages = signal<SchoolStage[]>([]);
 
   readonly tabs: { id: Tab; label: string; icon: string }[] = [
     { id: 'school',     label: 'Centro',       icon: '🏛' },
@@ -56,12 +57,13 @@ export class ConfigComponent implements OnInit {
   ];
 
   async ngOnInit(): Promise<void> {
-    const [school, teachers, groups, subjects, classrooms] = await Promise.all([
+    const [school, teachers, groups, subjects, classrooms, stages] = await Promise.all([
       this.schoolsApi.getMySchool().catch(() => null),
       this.teachersApi.getTeachers().catch(() => []),
       this.groupsApi.getGroups().catch(() => []),
       this.subjectsApi.getSubjects().catch(() => []),
       this.classroomsApi.getClassrooms().catch(() => []),
+      this.schoolsApi.getStages().catch(() => []),
     ]);
 
     this.school.set(school);
@@ -69,6 +71,7 @@ export class ConfigComponent implements OnInit {
     this.groups.set(groups);
     this.subjects.set(subjects);
     this.classrooms.set(classrooms);
+    this.stages.set(stages);
   }
 
   count(tab: Tab): number {
