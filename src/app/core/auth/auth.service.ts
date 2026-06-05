@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AppUser } from '../models';
+import { BlockStateService } from '../block-state.service';
 import { environment } from '../../../environments/environment';
 
 export interface DemoUser {
@@ -16,6 +17,7 @@ export interface DemoUser {
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  private readonly blockState = inject(BlockStateService);
 
   // ── Estado reactivo con signals ───────────────────────────────────────────
   private readonly _currentUser = signal<AppUser | null>(null);
@@ -55,6 +57,9 @@ export class AuthService {
         this.http.get<AppUser>(`${environment.apiUrl}/auth/me`)
       );
       this._currentUser.set(user);
+      if (user) {
+        this.blockState.initializeForUser(user.role, user.teacher?.assignedStageTypes);
+      }
     } catch {
       this._currentUser.set(null);
     }

@@ -121,7 +121,7 @@
                 [class.course-level-card--active]="groupForm().courseLevel === level"
                 (click)="groupForm().courseLevel = level">
                 <span class="course-level-card-num">{{ level }}º</span>
-                <span class="course-level-card-sub">Primaria</span>
+                <span class="course-level-card-sub">{{ getStageLabelForLevel(level) }}</span>
               </button>
             }
           </div>

@@ -39,8 +39,8 @@
       @case ('teachers') {
         <div class="lec-card" style="padding:0;overflow:hidden">
           <app-teachers-section
-            [teachers]="teachers()"
-            [stages]="stages()"
+            [teachers]="filteredTeachers()"
+            [stages]="filteredStages()"
             (teachersChange)="teachers.set($event)" />
         </div>
       }
@@ -48,8 +48,8 @@
       @case ('groups') {
         <div class="lec-card" style="padding:0;overflow:hidden">
           <app-groups-section
-            [groups]="groups()" (groupsChange)="groups.set($event)"
-            [teachers]="teachers()"
+            [groups]="filteredGroups()" (groupsChange)="groups.set($event)"
+            [teachers]="filteredTeachers()"
             [classrooms]="classrooms()"
             [subjects]="subjects()"
             [school]="school()" />

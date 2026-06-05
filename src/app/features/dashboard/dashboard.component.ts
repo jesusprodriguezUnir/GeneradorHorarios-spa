@@ -7,8 +7,10 @@ import { TeachersApiService } from '../../core/api/teachers-api.service';
 import { GroupsApiService } from '../../core/api/groups-api.service';
 import { SchedulesApiService } from '../../core/api/schedules-api.service';
 import { ClassroomsApiService } from '../../core/api/classrooms-api.service';
+import { SchoolsApiService } from '../../core/api/schools-api.service';
+import { BlockStateService } from '../../core/block-state.service';
 import { AuthService } from '../../core/auth/auth.service';
-import { Teacher, CourseGroup, Classroom, ScheduleList, SUBJECT_COLORS } from '../../core/models';
+import { Teacher, CourseGroup, Classroom, ScheduleList, SchoolStage, SUBJECT_COLORS } from '../../core/models';
 import { PeriodStateService } from '../../core/period-state.service';
 import {
   CoursePeriod, PeriodId, PeriodScheduleState, COURSE_PERIODS,
@@ -53,7 +55,7 @@ const PREVIEW_SUBJECTS = ['mat','ing','len','cie','ef','len','mat','art','mus','
           </div>
           <div>
             <div class="kpi-label">Profesores</div>
-            <div class="kpi-value">{{ teachers().length }}</div>
+            <div class="kpi-value">{{ filteredTeachers().length }}</div>
             <div class="kpi-sub">{{ teachersWithLoad() }} con carga asignada</div>
           </div>
         </div>
@@ -66,7 +68,7 @@ const PREVIEW_SUBJECTS = ['mat','ing','len','cie','ef','len','mat','art','mus','
           </div>
           <div>
             <div class="kpi-label">Grupos</div>
-            <div class="kpi-value">{{ groups().length }}</div>
+            <div class="kpi-value">{{ filteredGroups().length }}</div>
             <div class="kpi-sub">{{ groupLevels() }}</div>
           </div>
         </div>
@@ -339,6 +341,8 @@ export class DashboardComponent implements OnInit {
   protected readonly groupsApi     = inject(GroupsApiService);
   protected readonly schedulesApi  = inject(SchedulesApiService);
   protected readonly classroomsApi = inject(ClassroomsApiService);
+  private readonly schoolsApi      = inject(SchoolsApiService);
+  private readonly blockState      = inject(BlockStateService);
   protected readonly auth   = inject(AuthService);
   protected readonly router = inject(Router);
   private readonly periodState = inject(PeriodStateService);
@@ -347,6 +351,54 @@ export class DashboardComponent implements OnInit {
   readonly groups      = signal<CourseGroup[]>([]);
   readonly classrooms  = signal<Classroom[]>([]);
   readonly schedules   = signal<ScheduleList[]>([]);
+  readonly stages      = signal<SchoolStage[]>([]);
+
+  readonly activeBlock = this.blockState.activeBlock;
+
+  readonly filteredStages = computed(() => {
+    const ab = this.activeBlock();
+    if (ab === 'all') return this.stages();
+    return this.stages().filter(s => {
+      const type = s.stageType.toLowerCase();
+      if (ab === 'inf') return type.includes('inf');
+      if (ab === 'pri') return type.includes('pri');
+      if (ab === 'sec') return type.includes('sec') || type.includes('eso');
+      return false;
+    });
+  });
+
+  readonly filteredGroups = computed(() => {
+    const ab = this.activeBlock();
+    if (ab === 'all') return this.groups();
+    const stagesForBlock = this.stages().filter(s => {
+      const type = s.stageType.toLowerCase();
+      if (ab === 'inf') return type.includes('inf');
+      if (ab === 'pri') return type.includes('pri');
+      if (ab === 'sec') return type.includes('sec') || type.includes('eso');
+      return false;
+    });
+    if (stagesForBlock.length === 0) return [];
+    return this.groups().filter(g =>
+      stagesForBlock.some(s => g.courseLevel >= s.minLevel && g.courseLevel <= s.maxLevel)
+    );
+  });
+
+  readonly filteredTeachers = computed(() => {
+    const ab = this.activeBlock();
+    if (ab === 'all') return this.teachers();
+    const stagesForBlock = this.stages().filter(s => {
+      const type = s.stageType.toLowerCase();
+      if (ab === 'inf') return type.includes('inf');
+      if (ab === 'pri') return type.includes('pri');
+      if (ab === 'sec') return type.includes('sec') || type.includes('eso');
+      return false;
+    });
+    if (stagesForBlock.length === 0) return [];
+    const stageIds = new Set(stagesForBlock.map(s => s.id));
+    return this.teachers().filter(t =>
+      t.stageAssignments?.some(sa => stageIds.has(sa.stageId))
+    );
+  });
 
   readonly previewSubjects = PREVIEW_SUBJECTS.map((key, id) => ({ key, id }));
 
@@ -439,11 +491,11 @@ export class DashboardComponent implements OnInit {
   });
 
   readonly teachersWithLoad = computed(() =>
-    this.teachers().filter(t => t.assignedHours > 0).length
+    this.filteredTeachers().filter(t => t.assignedHours > 0).length
   );
 
   readonly groupLevels = computed(() => {
-    const levels = [...new Set(this.groups().map(g => g.courseLevel))].sort();
+    const levels = [...new Set(this.filteredGroups().map(g => g.courseLevel))].sort();
     if (levels.length === 0) return 'Sin grupos';
     return levels.map(l => l + 'º').join(', ');
   });
@@ -455,7 +507,7 @@ export class DashboardComponent implements OnInit {
   readonly scheduleStatusText = computed(() => {
     const s = this.latestSchedule();
     if (!s) return '';
-    if (s.status === 'published') return `Publicado · visible para ${this.teachers().length} docentes.`;
+    if (s.status === 'published') return `Publicado · visible para ${this.filteredTeachers().length} docentes.`;
     if (s.status === 'generated' && s.totalConflicts > 0)
       return `Generado · ${s.totalConflicts} conflicto${s.totalConflicts !== 1 ? 's' : ''} por resolver.`;
     if (s.status === 'generated') return 'Generado sin conflictos · listo para publicar.';
@@ -488,15 +540,17 @@ export class DashboardComponent implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
-    const [teachers, groups, schedules, classrooms] = await Promise.all([
+    const [teachers, groups, schedules, classrooms, stages] = await Promise.all([
       this.teachersApi.getTeachers().catch(() => []),
       this.groupsApi.getGroups().catch(() => []),
       this.schedulesApi.getSchedules().catch(() => []),
       this.classroomsApi.getClassrooms().catch(() => []),
+      this.schoolsApi.getStages().catch(() => []),
     ]);
     this.teachers.set(teachers);
     this.groups.set(groups);
     this.schedules.set(schedules);
     this.classrooms.set(classrooms);
+    this.stages.set(stages);
   }
 }

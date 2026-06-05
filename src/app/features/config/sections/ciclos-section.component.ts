@@ -70,7 +70,11 @@ export class CiclosSectionComponent {
   readonly school = input.required<School | null>();
   readonly schoolChange = output<School>();
 
-  readonly etapas = BLOCKS;
+  readonly etapas = computed(() => {
+    const active = this.blockState.activeBlock();
+    if (active === 'all') return BLOCKS;
+    return BLOCKS.filter(b => b.id === active);
+  });
   readonly recreoOptions = RECREO_OPTIONS;
 
   readonly expandedEtapas = signal<Set<EtapaBlockId>>(new Set<EtapaBlockId>());
@@ -88,10 +92,14 @@ export class CiclosSectionComponent {
   });
 
   constructor() {
-    const initial = this.blockState.activeBlock();
-    this.expandedEtapas.set(
-      new Set(initial !== 'all' ? [initial as EtapaBlockId] : ['pri'])
-    );
+    effect(() => {
+      const active = this.blockState.activeBlock();
+      if (active !== 'all') {
+        this.expandedEtapas.set(new Set([active as EtapaBlockId]));
+      } else {
+        this.expandedEtapas.set(new Set(['inf', 'pri', 'sec']));
+      }
+    });
 
     effect(() => {
       const s = this.school();

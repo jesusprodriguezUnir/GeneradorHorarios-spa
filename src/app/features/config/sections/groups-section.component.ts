@@ -6,7 +6,8 @@ import { Dialog } from 'primeng/dialog';
 import { TableModule } from 'primeng/table';
 import { InputText } from 'primeng/inputtext';
 import { GroupsApiService } from '../../../core/api/groups-api.service';
-import { CourseGroup, Teacher, Classroom, SubjectAllocation, School } from '../../../core/models';
+import { CourseGroup, Teacher, Classroom, SubjectAllocation, School, SchoolStage } from '../../../core/models';
+import { BlockStateService } from '../../../core/block-state.service';
 
 @Component({
   selector: 'app-groups-section',
@@ -20,6 +21,7 @@ export class GroupsSectionComponent {
   private readonly api = inject(GroupsApiService);
   private readonly msg = inject(MessageService);
   private readonly confirmation = inject(ConfirmationService);
+  private readonly blockState = inject(BlockStateService);
 
   readonly school = input.required<School | null>();
   readonly groups = input.required<CourseGroup[]>();
@@ -27,6 +29,7 @@ export class GroupsSectionComponent {
   readonly teachers = input.required<Teacher[]>();
   readonly classrooms = input.required<Classroom[]>();
   readonly subjects = input.required<SubjectAllocation[]>();
+  readonly stages = input<SchoolStage[]>([]);
 
   readonly isGroupModalOpen = signal(false);
   readonly editingGroup = signal<CourseGroup | null>(null);
@@ -70,11 +73,39 @@ export class GroupsSectionComponent {
   getSchoolCourseLevels(): number[] {
     const s = this.school();
     if (!s) return [1, 2, 3, 4, 5, 6];
+    
+    const ab = this.blockState.activeBlock();
+    let min = s.minCourseLevel;
+    let max = s.maxCourseLevel;
+    
+    if (ab !== 'all') {
+      const stagesForBlock = this.stages().filter(stage => {
+        const type = stage.stageType.toLowerCase();
+        if (ab === 'inf') return type.includes('inf');
+        if (ab === 'pri') return type.includes('pri');
+        if (ab === 'sec') return type.includes('sec') || type.includes('eso');
+        return false;
+      });
+      if (stagesForBlock.length > 0) {
+        min = Math.min(...stagesForBlock.map(st => st.minLevel));
+        max = Math.max(...stagesForBlock.map(st => st.maxLevel));
+      }
+    }
+
     const levels = [];
-    for (let i = s.minCourseLevel; i <= s.maxCourseLevel; i++) {
+    for (let i = min; i <= max; i++) {
       levels.push(i);
     }
     return levels;
+  }
+
+  getStageLabelForLevel(level: number): string {
+    const found = this.stages().find(s => level >= s.minLevel && level <= s.maxLevel);
+    if (!found) {
+      if (level <= 6) return 'Primaria';
+      return 'ESO';
+    }
+    return found.name;
   }
 
   openAddModal(): void {

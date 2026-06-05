@@ -15,7 +15,7 @@
   } @else {
 
     <!-- Acordeón por etapa -->
-    @for (etapa of etapas; track etapa.id) {
+    @for (etapa of etapas(); track etapa.id) {
       <div class="etapa-accordion" [class.etapa-accordion--open]="isExpanded(etapa.id)">
 
         <!-- Cabecera de etapa (clickable) -->

@@ -49,7 +49,7 @@ export interface AppUser {
   schoolId: string;
   role: 'school_admin' | 'teacher';
   school: { id: string; name: string; slug: string } | null;
-  teacher: { id: string; fullName: string; colorKey: string } | null;
+  teacher: { id: string; fullName: string; colorKey: string; assignedStageTypes?: string[] } | null;
 }
 
 export interface StageAssignment {

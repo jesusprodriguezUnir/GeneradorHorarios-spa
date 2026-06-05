@@ -1,4 +1,4 @@
-import { Component, inject, signal, input, output, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, input, output, effect, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MessageService, ConfirmationService } from 'primeng/api';
@@ -46,12 +46,14 @@ export class TeachersSectionComponent {
   });
 
   constructor() {
-    const initial = this.blockState.activeBlock();
-    if (initial !== 'all') {
-      this.expandedStages.set(new Set([initial]));
-    } else {
-      this.expandedStages.set(new Set(['inf', 'pri', 'sec']));
-    }
+    effect(() => {
+      const active = this.blockState.activeBlock();
+      if (active !== 'all') {
+        this.expandedStages.set(new Set([active]));
+      } else {
+        this.expandedStages.set(new Set(['inf', 'pri', 'sec']));
+      }
+    });
   }
 
   // ── Accordion Helpers ────────────────────────────────────────────────────────

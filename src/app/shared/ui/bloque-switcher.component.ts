@@ -1,5 +1,5 @@
 import {
-  Component, Input, Output, EventEmitter, signal, computed,
+  Component, input, output, signal, computed,
   ChangeDetectionStrategy,
 } from '@angular/core';
 import {
@@ -22,15 +22,15 @@ const ICON_PATHS: Record<string, string> = {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div [style.position]="'relative'" [style.width]="full ? '100%' : 'auto'">
+    <div [style.position]="'relative'" [style.width]="full() ? '100%' : 'auto'">
 
       <!-- Trigger -->
       <button (click)="_open.update(v => !v)" [style]="btnStyle()">
         <!-- Icono de etapa activa -->
         <span style="width:22px;height:22px;border-radius:7px;flex-shrink:0;
           display:flex;align-items:center;justify-content:center;"
-          [style.background]="isAll ? 'rgba(255,255,255,0.2)' : currentBlock()!.tint"
-          [style.color]="isAll ? '#fff' : currentBlock()!.fg">
+          [style.background]="isAll() ? 'rgba(255,255,255,0.2)' : currentBlock()!.tint"
+          [style.color]="isAll() ? '#fff' : currentBlock()!.fg">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path [attr.d]="currentIconPath()" />
@@ -38,12 +38,12 @@ const ICON_PATHS: Record<string, string> = {
         </span>
 
         <span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.12;"
-          [style.flex]="full ? '1' : 'none'">
+          [style.flex]="full() ? '1' : 'none'">
           <span style="font-weight:700;font-size:var(--text-sm)">
-            {{ isAll ? 'Todo el colegio' : currentBlock()!.short }}
+            {{ isAll() ? 'Todo el colegio' : currentBlock()!.short }}
           </span>
           <span style="font-size:10.5px;font-weight:600;opacity:0.72">
-            {{ isAll ? (blocks.length + ' etapas') : currentBlock()!.ages }}
+            {{ isAll() ? (blocks.length + ' etapas') : currentBlock()!.ages }}
           </span>
         </span>
 
@@ -65,8 +65,8 @@ const ICON_PATHS: Record<string, string> = {
           width:302px;background:var(--card);
           border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);
           border:1px solid var(--border);padding:7px;z-index:90;"
-          [style.right]="full ? 'auto' : '0'"
-          [style.left]="full ? '0' : 'auto'">
+          [style.right]="full() ? 'auto' : '0'"
+          [style.left]="full() ? '0' : 'auto'">
 
           <div style="font-size:10.5px;font-weight:700;color:var(--muted-foreground);
             text-transform:uppercase;letter-spacing:0.05em;padding:7px 9px 6px">
@@ -78,11 +78,11 @@ const ICON_PATHS: Record<string, string> = {
             display:flex;align-items:center;gap:11px;width:100%;
             padding:10px;border-radius:var(--radius-md);text-align:left;
             transition:background .12s;cursor:pointer;"
-            [style.background]="activeBlock === 'all' ? 'var(--primary-tint)' : 'transparent'">
+            [style.background]="activeBlock() === 'all' ? 'var(--primary-tint)' : 'transparent'">
             <div style="width:34px;height:34px;border-radius:var(--radius-md);flex-shrink:0;
               display:flex;align-items:center;justify-content:center;"
-              [style.background]="activeBlock === 'all' ? 'var(--primary)' : 'var(--secondary)'"
-              [style.color]="activeBlock === 'all' ? '#fff' : 'var(--muted-foreground)'">
+              [style.background]="activeBlock() === 'all' ? 'var(--primary)' : 'var(--secondary)'"
+              [style.color]="activeBlock() === 'all' ? '#fff' : 'var(--muted-foreground)'">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path [attr.d]="ICON_PATHS['building']"/>
@@ -90,14 +90,14 @@ const ICON_PATHS: Record<string, string> = {
             </div>
             <div style="flex:1;min-width:0">
               <div style="font-weight:700;font-size:var(--text-sm)"
-                [style.color]="activeBlock === 'all' ? 'var(--primary-strong)' : 'var(--foreground)'">
+                [style.color]="activeBlock() === 'all' ? 'var(--primary-strong)' : 'var(--foreground)'">
                 Todo el colegio
               </div>
               <div style="font-size:11px;color:var(--muted-foreground);margin-top:1px">
                 Vista agregada de las {{ blocks.length }} etapas
               </div>
             </div>
-            @if (activeBlock === 'all') {
+            @if (activeBlock() === 'all') {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                 stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
                 style="flex-shrink:0">
@@ -114,12 +114,12 @@ const ICON_PATHS: Record<string, string> = {
               display:flex;align-items:center;gap:11px;width:100%;
               padding:10px;border-radius:var(--radius-md);text-align:left;
               transition:background .12s;cursor:pointer;"
-              [style.background]="activeBlock === b.id ? b.tint : 'transparent'">
+              [style.background]="activeBlock() === b.id ? b.tint : 'transparent'">
 
               <div style="width:34px;height:34px;border-radius:var(--radius-md);flex-shrink:0;
                 display:flex;align-items:center;justify-content:center;"
-                [style.background]="activeBlock === b.id ? b.color : b.tint"
-                [style.color]="activeBlock === b.id ? '#fff' : b.fg">
+                [style.background]="activeBlock() === b.id ? b.color : b.tint"
+                [style.color]="activeBlock() === b.id ? '#fff' : b.fg">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path [attr.d]="ICON_PATHS[b.iconKey]"/>
@@ -128,7 +128,7 @@ const ICON_PATHS: Record<string, string> = {
 
               <div style="flex:1;min-width:0">
                 <div style="font-weight:700;font-size:var(--text-sm)"
-                  [style.color]="activeBlock === b.id ? b.strong : 'var(--foreground)'">
+                  [style.color]="activeBlock() === b.id ? b.strong : 'var(--foreground)'">
                   {{ b.short }}
                 </div>
                 <div style="font-size:11px;color:var(--muted-foreground);margin-top:1px">
@@ -143,7 +143,7 @@ const ICON_PATHS: Record<string, string> = {
                 </div>
               </div>
 
-              @if (activeBlock === b.id) {
+              @if (activeBlock() === b.id) {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                   [attr.stroke]="b.color" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
                   style="flex-shrink:0">
@@ -158,21 +158,22 @@ const ICON_PATHS: Record<string, string> = {
   `,
 })
 export class BloqueSwitcherComponent {
-  @Input() activeBlock: BlockId = 'all';
-  @Input() period: PeriodId = 'completa';
-  @Input() variant: 'onPrimary' | 'light' = 'onPrimary';
-  @Input() full = false;
-  @Output() blockChange = new EventEmitter<BlockId>();
+  readonly activeBlock = input<BlockId>('all');
+  readonly period = input<PeriodId>('completa');
+  readonly variant = input<'onPrimary' | 'light'>('onPrimary');
+  readonly full = input<boolean>(false);
+  readonly blockChange = output<BlockId>();
 
   protected readonly ICON_PATHS = ICON_PATHS;
   protected readonly blocks: EtapaBlock[] = BLOCKS;
   protected readonly _open = signal(false);
 
-  get isAll(): boolean { return this.activeBlock === 'all'; }
+  readonly isAll = computed(() => this.activeBlock() === 'all');
 
   readonly currentBlock = computed((): EtapaBlock | null => {
-    if (this.activeBlock === 'all') return null;
-    return BLOCKS.find(b => b.id === this.activeBlock) ?? null;
+    const active = this.activeBlock();
+    if (active === 'all') return null;
+    return BLOCKS.find(b => b.id === active) ?? null;
   });
 
   readonly currentIconPath = computed((): string => {
@@ -180,26 +181,26 @@ export class BloqueSwitcherComponent {
     return b ? ICON_PATHS[b.iconKey] : ICON_PATHS['building'];
   });
 
-  btnStyle(): string {
+  readonly btnStyle = computed(() => {
     const base = `display:flex;align-items:center;gap:9px;
       padding:6px 11px 6px 7px;border-radius:var(--radius-md);
       font-weight:700;font-size:var(--text-sm);transition:all .15s;cursor:pointer;
-      width:${this.full ? '100%' : 'auto'};`;
-    if (this.variant === 'onPrimary') {
+      width:${this.full() ? '100%' : 'auto'};`;
+    if (this.variant() === 'onPrimary') {
       return base + `background:rgba(255,255,255,0.14);color:#fff;
         border:1px solid rgba(255,255,255,0.18);`;
     }
     return base + `background:var(--card);color:var(--foreground);
       border:1px solid var(--border-strong);`;
-  }
+  });
 
   dotColor(b: EtapaBlock): string {
-    const state = (b.sched[this.period] ?? 'none') as PeriodScheduleState;
+    const state = (b.sched[this.period()] ?? 'none') as PeriodScheduleState;
     return BLOCK_STATE_COLORS[state];
   }
 
   stateLabel(b: EtapaBlock): string {
-    const state = (b.sched[this.period] ?? 'none') as PeriodScheduleState;
+    const state = (b.sched[this.period()] ?? 'none') as PeriodScheduleState;
     return BLOCK_STATE_LABELS[state];
   }
 

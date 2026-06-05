@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SchoolsApiService } from '../../core/api/schools-api.service';
 import { TeachersApiService } from '../../core/api/teachers-api.service';
@@ -12,6 +12,7 @@ import { ClassroomsSectionComponent } from './sections/classrooms-section.compon
 import { GroupsSectionComponent } from './sections/groups-section.component';
 import { TeachersSectionComponent } from './sections/teachers-section.component';
 import { SubjectsSectionComponent } from './sections/subjects-section.component';
+import { BlockStateService } from '../../core/block-state.service';
 
 type Tab = 'school' | 'ciclos' | 'classrooms' | 'groups' | 'teachers' | 'subjects';
 
@@ -46,6 +47,55 @@ export class ConfigComponent implements OnInit {
   readonly subjects = signal<SubjectAllocation[]>([]);
   readonly classrooms = signal<Classroom[]>([]);
   readonly stages = signal<SchoolStage[]>([]);
+
+  readonly activeBlock = inject(BlockStateService).activeBlock;
+
+  readonly filteredStages = computed(() => {
+    const ab = this.activeBlock();
+    if (ab === 'all') return this.stages();
+    return this.stages().filter(s => {
+      const type = s.stageType.toLowerCase();
+      if (ab === 'inf') return type.includes('inf');
+      if (ab === 'pri') return type.includes('pri');
+      if (ab === 'sec') return type.includes('sec') || type.includes('eso');
+      return false;
+    });
+  });
+
+  readonly filteredGroups = computed(() => {
+    const ab = this.activeBlock();
+    if (ab === 'all') return this.groups();
+    const stagesForBlock = this.stages().filter(s => {
+      const type = s.stageType.toLowerCase();
+      if (ab === 'inf') return type.includes('inf');
+      if (ab === 'pri') return type.includes('pri');
+      if (ab === 'sec') return type.includes('sec') || type.includes('eso');
+      return false;
+    });
+    if (stagesForBlock.length === 0) return [];
+    
+    return this.groups().filter(g => 
+      stagesForBlock.some(s => g.courseLevel >= s.minLevel && g.courseLevel <= s.maxLevel)
+    );
+  });
+
+  readonly filteredTeachers = computed(() => {
+    const ab = this.activeBlock();
+    if (ab === 'all') return this.teachers();
+    const stagesForBlock = this.stages().filter(s => {
+      const type = s.stageType.toLowerCase();
+      if (ab === 'inf') return type.includes('inf');
+      if (ab === 'pri') return type.includes('pri');
+      if (ab === 'sec') return type.includes('sec') || type.includes('eso');
+      return false;
+    });
+    if (stagesForBlock.length === 0) return [];
+    const stageIds = new Set(stagesForBlock.map(s => s.id));
+    
+    return this.teachers().filter(t =>
+      t.stageAssignments?.some(sa => stageIds.has(sa.stageId))
+    );
+  });
 
   readonly tabs: { id: Tab; label: string; icon: string }[] = [
     { id: 'school',     label: 'Centro',       icon: '🏛' },
@@ -86,8 +136,8 @@ export class ConfigComponent implements OnInit {
 
   count(tab: Tab): number {
     switch (tab) {
-      case 'teachers':   return this.teachers().length;
-      case 'groups':     return this.groups().length;
+      case 'teachers':   return this.filteredTeachers().length;
+      case 'groups':     return this.filteredGroups().length;
       case 'subjects':   return this.subjects().length;
       case 'classrooms': return this.classrooms().length;
       default: return 0;

@@ -1,5 +1,5 @@
 import {
-  Component, OnInit, inject, signal, computed, ChangeDetectionStrategy
+  Component, OnInit, inject, signal, computed, effect, ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -10,7 +10,9 @@ import { SchedulesApiService } from '../../core/api/schedules-api.service';
 import { TeachersApiService } from '../../core/api/teachers-api.service';
 import { GroupsApiService } from '../../core/api/groups-api.service';
 import { ClassroomsApiService } from '../../core/api/classrooms-api.service';
-import { ScheduleGrid, ScheduleGridEntry, ScheduleList, Teacher, CourseGroup, Classroom, TimeSlot, cycleFromLevel } from '../../core/models';
+import { SchoolsApiService } from '../../core/api/schools-api.service';
+import { BlockStateService } from '../../core/block-state.service';
+import { ScheduleGrid, ScheduleGridEntry, ScheduleList, Teacher, CourseGroup, Classroom, TimeSlot, SchoolStage, cycleFromLevel } from '../../core/models';
 import { ScheduleGridComponent, CellClickEvent } from '../../shared/schedule-grid/schedule-grid.component';
 import { SubjectLegendComponent } from '../../shared/ui/subject-legend.component';
 import { QualityScorecardComponent } from '../../shared/ui/quality-scorecard.component';
@@ -123,23 +125,23 @@ type ViewMode = 'group' | 'teacher' | 'room';
             }
           </div>
           @if (viewMode() === 'group') {
-            <select (change)="selectFilter($event)" class="field-select">
-              @for (g of groups(); track g.id) {
-                <option [value]="g.id">{{ g.displayName }}</option>
+            <select (change)="selectFilter($event)" class="field-select" [value]="selectedFilter()">
+              @for (g of filteredGroupsForSelect(); track g.id) {
+                <option [value]="g.id" [selected]="selectedFilter() === g.id">{{ g.displayName }}</option>
               }
             </select>
           }
           @if (viewMode() === 'teacher') {
-            <select (change)="selectFilter($event)" class="field-select">
-              @for (t of teachers(); track t.id) {
-                <option [value]="t.id">{{ t.fullName }}</option>
+            <select (change)="selectFilter($event)" class="field-select" [value]="selectedFilter()">
+              @for (t of filteredTeachersForSelect(); track t.id) {
+                <option [value]="t.id" [selected]="selectedFilter() === t.id">{{ t.fullName }}</option>
               }
             </select>
           }
           @if (viewMode() === 'room') {
-            <select (change)="selectFilter($event)" class="field-select">
+            <select (change)="selectFilter($event)" class="field-select" [value]="selectedFilter()">
               @for (r of classrooms(); track r.id) {
-                <option [value]="r.id">{{ r.name }}</option>
+                <option [value]="r.id" [selected]="selectedFilter() === r.id">{{ r.name }}</option>
               }
             </select>
           }
@@ -274,6 +276,8 @@ export class ScheduleResultComponent implements OnInit {
   protected readonly teachersApi   = inject(TeachersApiService);
   protected readonly groupsApi     = inject(GroupsApiService);
   protected readonly classroomsApi = inject(ClassroomsApiService);
+  private readonly schoolsApi     = inject(SchoolsApiService);
+  private readonly blockState     = inject(BlockStateService);
   protected readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(MessageService);
@@ -304,6 +308,7 @@ export class ScheduleResultComponent implements OnInit {
   readonly teachers = signal<Teacher[]>([]);
   readonly groups = signal<CourseGroup[]>([]);
   readonly classrooms = signal<Classroom[]>([]);
+  readonly stages = signal<SchoolStage[]>([]);
   readonly editModal = signal<ScheduleGridEntry | null>(null);
 
   editTeacherId = '';
@@ -312,6 +317,73 @@ export class ScheduleResultComponent implements OnInit {
   readonly currentSchedule = computed(() =>
     this.schedules().find(s => s.id === this.selectedId())
   );
+
+  readonly filteredGroupsForSelect = computed(() => {
+    const ab = this.blockState.activeBlock();
+    if (ab === 'all') return this.groups();
+    const stagesForBlock = this.stages().filter(s => {
+      const type = s.stageType.toLowerCase();
+      if (ab === 'inf') return type.includes('inf');
+      if (ab === 'pri') return type.includes('pri');
+      if (ab === 'sec') return type.includes('sec') || type.includes('eso');
+      return false;
+    });
+    if (stagesForBlock.length === 0) return [];
+    return this.groups().filter(g =>
+      stagesForBlock.some(s => g.courseLevel >= s.minLevel && g.courseLevel <= s.maxLevel)
+    );
+  });
+
+  readonly filteredTeachersForSelect = computed(() => {
+    const ab = this.blockState.activeBlock();
+    if (ab === 'all') return this.teachers();
+    const stagesForBlock = this.stages().filter(s => {
+      const type = s.stageType.toLowerCase();
+      if (ab === 'inf') return type.includes('inf');
+      if (ab === 'pri') return type.includes('pri');
+      if (ab === 'sec') return type.includes('sec') || type.includes('eso');
+      return false;
+    });
+    if (stagesForBlock.length === 0) return [];
+    const stageIds = new Set(stagesForBlock.map(s => s.id));
+    return this.teachers().filter(t =>
+      t.stageAssignments?.some(sa => stageIds.has(sa.stageId))
+    );
+  });
+
+  constructor() {
+    effect(() => {
+      const mode = this.viewMode();
+      if (mode === 'group') {
+        const list = this.filteredGroupsForSelect();
+        if (list.length > 0) {
+          if (!list.some(x => x.id === this.selectedFilter())) {
+            this.selectedFilter.set(list[0].id);
+          }
+        } else {
+          this.selectedFilter.set('');
+        }
+      } else if (mode === 'teacher') {
+        const list = this.filteredTeachersForSelect();
+        if (list.length > 0) {
+          if (!list.some(x => x.id === this.selectedFilter())) {
+            this.selectedFilter.set(list[0].id);
+          }
+        } else {
+          this.selectedFilter.set('');
+        }
+      } else if (mode === 'room') {
+        const list = this.classrooms();
+        if (list.length > 0) {
+          if (!list.some(x => x.id === this.selectedFilter())) {
+            this.selectedFilter.set(list[0].id);
+          }
+        } else {
+          this.selectedFilter.set('');
+        }
+      }
+    });
+  }
 
   readonly filteredEntries = computed(() => {
     const entries = this.grid()?.entries ?? [];
@@ -348,18 +420,18 @@ export class ScheduleResultComponent implements OnInit {
   async ngOnInit(): Promise<void> {
     const id = this.route.snapshot.paramMap.get('id');
     try {
-      const [schedules, teachers, groups, classrooms] = await Promise.all([
+      const [schedules, teachers, groups, classrooms, stages] = await Promise.all([
         this.schedulesApi.getSchedules(),
         this.teachersApi.getTeachers(),
         this.groupsApi.getGroups(),
         this.classroomsApi.getClassrooms(),
+        this.schoolsApi.getStages().catch(() => []),
       ]);
       this.schedules.set(schedules);
       this.teachers.set(teachers);
       this.groups.set(groups);
       this.classrooms.set(classrooms);
-
-      if (groups.length > 0) this.selectedFilter.set(groups[0].id);
+      this.stages.set(stages);
 
       const targetId = id ?? schedules.find(s => s.status === 'published')?.id ?? schedules[0]?.id;
       if (targetId) {
