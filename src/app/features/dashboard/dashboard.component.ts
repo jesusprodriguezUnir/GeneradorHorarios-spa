@@ -47,7 +47,7 @@ const PREVIEW_SUBJECTS = ['mat','ing','len','cie','ef','len','mat','art','mus','
 
       <!-- KPIs -->
       <div class="kpi-grid">
-        <div class="kpi-card" (click)="router.navigate(['/config'])">
+        <div class="kpi-card" (click)="goToConfig('teachers')">
           <div class="kpi-icon" style="background:var(--primary-tint);color:var(--primary)">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
@@ -60,7 +60,7 @@ const PREVIEW_SUBJECTS = ['mat','ing','len','cie','ef','len','mat','art','mus','
           </div>
         </div>
 
-        <div class="kpi-card" (click)="router.navigate(['/config'])">
+        <div class="kpi-card" (click)="goToConfig('groups')">
           <div class="kpi-icon" style="background:var(--accent-tint);color:var(--accent-foreground)">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM20 8v6M23 11h-6"/>
@@ -73,7 +73,7 @@ const PREVIEW_SUBJECTS = ['mat','ing','len','cie','ef','len','mat','art','mus','
           </div>
         </div>
 
-        <div class="kpi-card" (click)="router.navigate(['/config'])">
+        <div class="kpi-card" (click)="goToConfig('classrooms')">
           <div class="kpi-icon" style="background:var(--secondary);color:var(--secondary-foreground)">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
@@ -537,6 +537,10 @@ export class DashboardComponent implements OnInit {
       published: 'Publicado', archived: 'Archivado',
     };
     return map[status] ?? status;
+  }
+
+  goToConfig(tab: string): void {
+    this.router.navigate(['/config'], { queryParams: { tab } });
   }
 
   async ngOnInit(): Promise<void> {

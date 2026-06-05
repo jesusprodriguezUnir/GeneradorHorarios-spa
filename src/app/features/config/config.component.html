@@ -9,7 +9,7 @@
   <!-- Tabs -->
   <div class="tabs-bar thin-scroll">
     @for (t of tabs; track t.id) {
-      <button class="tab-btn" [class.tab-btn--active]="activeTab() === t.id" (click)="activeTab.set(t.id)" [attr.data-testid]="'config-tab-' + t.id">
+      <button class="tab-btn" [class.tab-btn--active]="activeTab() === t.id" (click)="selectTab(t.id)" [attr.data-testid]="'config-tab-' + t.id">
         {{ t.label }}
         @if (count(t.id) > 0) {
           <span class="tab-count">{{ count(t.id) }}</span>

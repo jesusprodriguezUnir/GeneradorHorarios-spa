@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
 import { SchoolsApiService } from '../../core/api/schools-api.service';
 import { TeachersApiService } from '../../core/api/teachers-api.service';
 import { GroupsApiService } from '../../core/api/groups-api.service';
@@ -38,6 +39,8 @@ export class ConfigComponent implements OnInit {
   private readonly groupsApi = inject(GroupsApiService);
   private readonly subjectsApi = inject(SubjectsApiService);
   private readonly classroomsApi = inject(ClassroomsApiService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   readonly activeTab = signal<Tab>('school');
 
@@ -107,6 +110,15 @@ export class ConfigComponent implements OnInit {
   ];
 
   async ngOnInit(): Promise<void> {
+    this.route.queryParams.subscribe(params => {
+      const tab = params['tab'];
+      if (this.isValidTab(tab)) {
+        this.activeTab.set(tab);
+      } else {
+        this.activeTab.set('school');
+      }
+    });
+
     const [school, teachers, groups, subjects, classrooms, stages] = await Promise.all([
       this.schoolsApi.getMySchool().catch(() => null),
       this.teachersApi.getTeachers().catch(() => []),
@@ -145,7 +157,21 @@ export class ConfigComponent implements OnInit {
   }
 
   goToCiclos(): void {
-    this.activeTab.set('ciclos');
+    this.selectTab('ciclos');
+  }
+
+  selectTab(tabId: Tab): void {
+    this.activeTab.set(tabId);
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { tab: tabId },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
+  }
+
+  private isValidTab(tab: string | null): tab is Tab {
+    return !!tab && ['school', 'ciclos', 'classrooms', 'groups', 'teachers', 'subjects'].includes(tab);
   }
 }
 
