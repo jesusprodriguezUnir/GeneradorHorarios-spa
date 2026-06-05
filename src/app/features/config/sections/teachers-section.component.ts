@@ -56,10 +56,14 @@ export class TeachersSectionComponent {
 
   // ── Accordion Helpers ────────────────────────────────────────────────────────
   toggleStage(stageId: string): void {
+    const stage = this.stages().find(s => s.id === stageId);
+    const blockId = stage ? this.getEtapaId(stage.stageType) : stageId;
+
     this.expandedStages.update(prev => {
       const next = new Set(prev);
-      if (next.has(stageId)) {
+      if (next.has(stageId) || next.has(blockId)) {
         next.delete(stageId);
+        next.delete(blockId);
       } else {
         next.add(stageId);
       }
@@ -68,7 +72,9 @@ export class TeachersSectionComponent {
   }
 
   isStageExpanded(stageId: string): boolean {
-    return this.expandedStages().has(stageId);
+    const stage = this.stages().find(s => s.id === stageId);
+    const blockId = stage ? this.getEtapaId(stage.stageType) : stageId;
+    return this.expandedStages().has(stageId) || this.expandedStages().has(blockId);
   }
 
   getEtapaId(stageType: string): string {

@@ -74,6 +74,16 @@ export class ConfigComponent implements OnInit {
     this.stages.set(stages);
   }
 
+  async onSchoolChange(updatedSchool: School): Promise<void> {
+    this.school.set(updatedSchool);
+    try {
+      const stages = await this.schoolsApi.getStages();
+      this.stages.set(stages);
+    } catch (err) {
+      console.error('Error updating stages after school change:', err);
+    }
+  }
+
   count(tab: Tab): number {
     switch (tab) {
       case 'teachers':   return this.teachers().length;
@@ -88,3 +98,4 @@ export class ConfigComponent implements OnInit {
     this.activeTab.set('ciclos');
   }
 }
+

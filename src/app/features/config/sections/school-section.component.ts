@@ -2,7 +2,7 @@ import { Component, inject, signal, input, output, computed, effect, ChangeDetec
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SchoolsApiService } from '../../../core/api/schools-api.service';
-import { School } from '../../../core/models';
+import { School, SchoolStage } from '../../../core/models';
 import { COMMUNITIES, STAGES } from '../config.constants';
 import { LecIconComponent } from '../../../shared/ui/lec-icon.component';
 
@@ -18,6 +18,7 @@ export class SchoolSectionComponent {
   private readonly api = inject(SchoolsApiService);
 
   readonly school = input.required<School | null>();
+  readonly schoolStages = input<SchoolStage[]>([]);
   readonly schoolChange = output<School>();
   readonly goCiclos = output<void>();
 
@@ -27,6 +28,8 @@ export class SchoolSectionComponent {
   readonly communities = COMMUNITIES;
   readonly stages = STAGES;
   readonly courseLevels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+  readonly selectedStages = signal<string[]>([]);
 
   readonly daysConfig = [
     { value: 1, label: 'Lunes' },
@@ -41,7 +44,6 @@ export class SchoolSectionComponent {
     centerCode: '',
     locality: '',
     community: 'madrid',
-    stage: 'primaria',
     minCourseLevel: 1,
     maxCourseLevel: 6,
     academicYear: '2025/2026',
@@ -71,8 +73,11 @@ export class SchoolSectionComponent {
   });
 
   readonly stageLabel = computed(() => {
-    const val = this.schoolForm.stage;
-    return this.stages.find(s => s.value === val)?.label ?? val;
+    const current = this.selectedStages();
+    if (!current || current.length === 0) return 'Sin etapas';
+    return current
+      .map(val => this.stages.find(s => s.value === val)?.label ?? val)
+      .join(' · ');
   });
 
   readonly hoursPerWeek = computed(() => {
@@ -85,24 +90,47 @@ export class SchoolSectionComponent {
     this.schoolForm.scheduleType === 'continua' ? 'Continua' : 'Partida'
   );
 
-  readonly courseRange = computed(() =>
-    `${this.schoolForm.minCourseLevel}º – ${this.schoolForm.maxCourseLevel}º`
-  );
+  readonly courseRange = computed(() => {
+    const current = this.selectedStages();
+    if (!current || current.length === 0) return '—';
+
+    const parts: string[] = [];
+    if (current.includes('infantil')) {
+      parts.push('Infantil (3-5 años)');
+    }
+    if (current.includes('primaria')) {
+      parts.push('1º – 6º Primaria');
+    }
+    if (current.includes('secundaria')) {
+      parts.push('1º – 4º ESO');
+    }
+    if (current.includes('bachillerato')) {
+      parts.push('1º – 2º Bachillerato');
+    }
+    return parts.join(' · ');
+  });
 
   constructor() {
     effect(() => {
       const s = this.school();
-      if (s) this.syncFormFromSchool(s);
+      const stages = this.schoolStages();
+      if (s) this.syncFormFromSchool(s, stages);
     });
   }
 
-  private syncFormFromSchool(s: School): void {
+  private syncFormFromSchool(s: School, stages: SchoolStage[]): void {
+    if (stages && stages.length > 0) {
+      this.selectedStages.set(stages.map(st => st.stageType.toLowerCase()));
+    } else if (s.stage) {
+      this.selectedStages.set(s.stage.split(',').map(t => t.trim().toLowerCase()));
+    } else {
+      this.selectedStages.set([]);
+    }
     this.schoolForm = {
       name: s.name,
       centerCode: s.centerCode ?? '',
       locality: s.locality ?? '',
       community: s.community,
-      stage: s.stage,
       minCourseLevel: s.minCourseLevel,
       maxCourseLevel: s.maxCourseLevel,
       academicYear: s.academicYear,
@@ -116,6 +144,12 @@ export class SchoolSectionComponent {
       afternoonSlots: s.afternoonSlots,
       workingDays: [...s.workingDays],
     };
+  }
+
+  toggleStageSelection(val: string): void {
+    this.selectedStages.update(prev =>
+      prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]
+    );
   }
 
   toggleDay(day: number, event: Event): void {
@@ -146,7 +180,7 @@ export class SchoolSectionComponent {
       centerCode: this.schoolForm.centerCode || null,
       locality: this.schoolForm.locality || null,
       community: this.schoolForm.community,
-      stage: this.schoolForm.stage,
+      stage: this.selectedStages().join(','),
       minCourseLevel: this.schoolForm.minCourseLevel,
       maxCourseLevel: this.schoolForm.maxCourseLevel,
       academicYear: this.schoolForm.academicYear,

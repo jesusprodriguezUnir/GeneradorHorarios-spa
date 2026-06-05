@@ -400,8 +400,34 @@ export class GeneratorComponent implements OnInit {
   }
 
   /** El usuario elige una candidata → guardamos su scorecard y abrimos el resultado real. */
-  onChoose(candidate: GenCandidate): void {
+  async onChoose(candidate: GenCandidate): Promise<void> {
     this.genState.setChosen(candidate);
+    
+    if (!this.lastScheduleId) {
+      this.toast.add({ severity: 'info', summary: 'Cargando', detail: 'Recuperando el horario generado...' });
+      
+      // Realizar sondeo (polling) por hasta 30 segundos (60 intentos, 500ms de intervalo)
+      for (let attempt = 0; attempt < 60; attempt++) {
+        try {
+          const schedules = await this.schedulesApi.getSchedules();
+          const currentYearScheds = schedules
+            .filter(s => s.academicYear === this.academicYear)
+            .sort((a, b) => {
+              const dateA = a.generatedAt ? new Date(a.generatedAt).getTime() : 0;
+              const dateB = b.generatedAt ? new Date(b.generatedAt).getTime() : 0;
+              return dateB - dateA;
+            });
+          if (currentYearScheds.length > 0) {
+            this.lastScheduleId = currentYearScheds[0].id;
+            break;
+          }
+        } catch {
+          // Ignorar fallos temporales de red y reintentar
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+
     if (this.lastScheduleId) {
       this.router.navigate(['/horarios', this.lastScheduleId]);
     } else {

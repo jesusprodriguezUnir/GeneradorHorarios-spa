@@ -12,9 +12,25 @@ test.describe('Schedule result', () => {
     for (let i = 0; i < 3; i++) {
       await page.getByTestId('wizard-next').click();
     }
+
+    // Iniciar la espera del request de backend en paralelo al click
+    const generatePromise = page.waitForResponse(response =>
+      response.url().includes('/api/schedules/generate') && response.ok()
+    );
+
     await page.getByTestId('generate-button').click();
-    await expect(page.getByTestId('result-box')).toBeVisible({ timeout: 60000 });
-    await page.getByTestId('view-schedule-button').click();
+
+    // El motor en vivo se anima mientras el backend genera en paralelo
+    await expect(page.getByTestId('live-engine')).toBeVisible();
+
+    // Esperar a que el backend termine de generar
+    await generatePromise;
+
+    // Aparecen las soluciones candidatas (hasta 60s incluyendo la animación)
+    await expect(page.getByTestId('candidate-card').first()).toBeVisible({ timeout: 60000 });
+
+    // Elegir una candidata → abre el horario real
+    await page.getByTestId('choose-candidate').first().click();
     await page.waitForURL(/\/horarios\/.+/);
 
     // Check tabs
@@ -26,6 +42,11 @@ test.describe('Schedule result', () => {
     // Publish
     await expect(page.getByTestId('publish-button')).toBeVisible();
     await page.getByTestId('publish-button').click();
+
+    // Esperar y aceptar el p-confirmDialog de confirmación de publicación
+    const confirmDialog = page.getByRole('alertdialog', { name: 'Confirmar publicación' });
+    await expect(confirmDialog).toBeVisible();
+    await confirmDialog.getByRole('button', { name: 'Publicar' }).click();
 
     // Verify status badge updated
     await expect(page.getByTestId('status-badge')).toContainText('Publicado');

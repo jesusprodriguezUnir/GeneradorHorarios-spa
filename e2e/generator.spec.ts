@@ -22,10 +22,19 @@ test.describe('Generator', () => {
 
     // Step 4: Generate — objetivos + motor en vivo + candidatas
     await expect(page.getByTestId('generate-button')).toBeVisible();
+
+    // Iniciar la espera del request de backend en paralelo al click
+    const generatePromise = page.waitForResponse(response =>
+      response.url().includes('/api/schedules/generate') && response.ok()
+    );
+
     await page.getByTestId('generate-button').click();
 
     // El motor en vivo se anima mientras el backend genera en paralelo
     await expect(page.getByTestId('live-engine')).toBeVisible();
+
+    // Esperar a que el backend termine de generar
+    await generatePromise;
 
     // Aparecen las soluciones candidatas (hasta 60s incluyendo la animación)
     await expect(page.getByTestId('candidate-card').first()).toBeVisible({ timeout: 60000 });
