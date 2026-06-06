@@ -44,10 +44,17 @@ export interface TimeSlot {
   isBreak: boolean;
 }
 
+export interface AppUserRole {
+  id: string;
+  code: string;
+  name: string;
+  kind: 'Admin' | 'Teacher' | 'Other';
+}
+
 export interface AppUser {
   userId: string;
   schoolId: string;
-  role: 'school_admin' | 'teacher';
+  role: AppUserRole;
   school: { id: string; name: string; slug: string } | null;
   teacher: { id: string; fullName: string; colorKey: string; assignedStageTypes?: string[] } | null;
 }

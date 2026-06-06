@@ -6,7 +6,7 @@ import { Router } from '@angular/router';
 import { AuthService, DemoUser } from '../../core/auth/auth.service';
 import { LogoMarkComponent } from '../../shared/ui/logo-mark.component';
 import { LecIconComponent } from '../../shared/ui/lec-icon.component';
-import { getRoleLabel, getRoleAvatarColors } from '../../core/utils/role.utils';
+import { getRoleAvatarColors } from '../../core/utils/role.utils';
 
 @Component({
   selector: 'app-login',
@@ -49,8 +49,8 @@ import { getRoleLabel, getRoleAvatarColors } from '../../core/utils/role.utils';
                   <div class="user-name">{{ user.fullName }}</div>
                   <div class="user-email">{{ user.email }}</div>
                 </div>
-                <span class="role-badge" [class.badge--admin]="user.role === 'school_admin'">
-                  {{ getRoleLabel(user.role) }}
+                <span class="role-badge" [class.badge--admin]="user.role.kind === 'Admin'">
+                  {{ user.role.name }}
                 </span>
                 <lec-icon name="arrowRight" [size]="16" style="flex-shrink:0;opacity:0.4"></lec-icon>
               </button>
@@ -162,7 +162,6 @@ export class LoginComponent implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
 
-  protected readonly getRoleLabel = getRoleLabel;
   protected readonly getRoleAvatarColors = getRoleAvatarColors;
 
   protected readonly preview = [

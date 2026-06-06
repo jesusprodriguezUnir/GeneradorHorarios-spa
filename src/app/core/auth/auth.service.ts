@@ -2,16 +2,15 @@ import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { AppUser } from '../models';
+import { AppUser, AppUserRole } from '../models';
 import { BlockStateService } from '../block-state.service';
 import { environment } from '../../../environments/environment';
-import { UserRole } from '../utils/role.utils';
 
 export interface DemoUser {
   id: string;
   email: string;
   fullName: string;
-  role: UserRole;
+  role: AppUserRole;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -29,8 +28,8 @@ export class AuthService {
   readonly currentUser = this._currentUser.asReadonly();
   readonly currentEmail = this._currentEmail.asReadonly();
   readonly isLoggedIn = computed(() => this._currentUser() !== null);
-  readonly isAdmin = computed(() => this._currentUser()?.role === 'school_admin');
-  readonly isTeacher = computed(() => this._currentUser()?.role === 'teacher');
+  readonly isAdmin = computed(() => this._currentUser()?.role?.kind === 'Admin');
+  readonly isTeacher = computed(() => this._currentUser()?.role?.kind === 'Teacher');
   readonly schoolName = computed(() => this._currentUser()?.school?.name ?? '');
 
   get emailHeader(): string | null {
@@ -46,8 +45,10 @@ export class AuthService {
     await this.loadCurrentUser();
     const user = this._currentUser();
     if (user) {
-      const target = user.role === 'teacher' ? '/horario' : '/dashboard';
+      const target = user.role.kind === 'Teacher' ? '/horario' : '/dashboard';
       await this.router.navigate([target]);
+    } else {
+      throw new Error('No se pudo cargar el usuario tras el login.');
     }
   }
 
@@ -61,8 +62,10 @@ export class AuthService {
       if (user) {
         this.blockState.initializeForUser(user.role, user.teacher?.assignedStageTypes);
       }
-    } catch {
+    } catch (err) {
       this._currentUser.set(null);
+      console.error('[AuthService] loadCurrentUser failed:', err);
+      throw err;
     }
   }
 

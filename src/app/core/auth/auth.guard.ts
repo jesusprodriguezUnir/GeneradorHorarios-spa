@@ -8,7 +8,11 @@ export const authGuard: CanActivateFn = async () => {
 
   // Si hay email guardado pero no usuario cargado, intentar cargar
   if (auth.emailHeader && !auth.isLoggedIn()) {
-    await auth.loadCurrentUser();
+    try {
+      await auth.loadCurrentUser();
+    } catch {
+      // Fallo silencioso: redirigir a login si no se puede cargar el usuario
+    }
   }
 
   if (auth.isLoggedIn()) return true;

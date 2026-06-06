@@ -52,7 +52,7 @@ describe('AuthService', () => {
     const mockUser: AppUser = {
       userId: '1',
       schoolId: 's1',
-      role: 'school_admin',
+      role: { id: 'r1', code: 'director', name: 'Director', kind: 'Admin' },
       school: { id: 's1', name: 'Test School', slug: 'test-school' },
       teacher: null,
     };
@@ -76,7 +76,7 @@ describe('AuthService', () => {
     const mockUser: AppUser = {
       userId: '2',
       schoolId: 's1',
-      role: 'teacher',
+      role: { id: 'r2', code: 'profesor', name: 'Profesor', kind: 'Teacher' },
       school: { id: 's1', name: 'Test School', slug: 'test-school' },
       teacher: { id: 't2', fullName: 'Teacher User', colorKey: 'mat' },
     };

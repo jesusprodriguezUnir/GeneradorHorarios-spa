@@ -1,15 +1,15 @@
-export type UserRole = 'school_admin' | 'teacher';
+import { AppUserRole } from '../models';
 
-export function getRoleLabel(role: UserRole): string {
-  return role === 'school_admin' ? 'Jefatura de estudios' : 'Profesor/a';
+export function getRoleLabel(role: AppUserRole): string {
+  return role.name;
 }
 
-export function getRoleBadgeClass(role: UserRole): string {
-  return role === 'school_admin' ? 'badge--admin' : '';
+export function getRoleBadgeClass(role: AppUserRole): string {
+  return role.kind === 'Admin' ? 'badge--admin' : '';
 }
 
-export function getRoleAvatarColors(role: UserRole): { bg: string; fg: string } {
-  return role === 'school_admin'
+export function getRoleAvatarColors(role: AppUserRole): { bg: string; fg: string } {
+  return role.kind === 'Admin'
     ? { bg: 'var(--primary-tint)', fg: 'var(--primary-strong)' }
     : { bg: 'var(--accent-tint)', fg: 'var(--accent-foreground)' };
 }
