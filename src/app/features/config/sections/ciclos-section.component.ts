@@ -3,11 +3,12 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
 import { SchoolsApiService } from '../../../core/api/schools-api.service';
-import { School } from '../../../core/models';
+import { School, TimeSlot } from '../../../core/models';
 import { LecIconComponent } from '../../../shared/ui/lec-icon.component';
 import { BlockStateService } from '../../../core/block-state.service';
-import { BLOCKS, EtapaBlock, EtapaBlockId } from '../../../core/blocks.model';
+import { BLOCKS, EtapaBlockId } from '../../../core/blocks.model';
 
 export interface CycleRecreo {
   after: number;
@@ -15,10 +16,16 @@ export interface CycleRecreo {
 }
 
 export interface LocalCycleConfig {
-  id: string;   // EtapaCiclo.id — 'inf2', 'pri1', 'pri2', 'pri3', 'eso1', 'eso2'
-  entrada: string;
-  salida: string;
+  id: string;
+  morningStart: string;
+  morningEnd: string;
+  afternoonStart: string | null;
+  afternoonEnd: string | null;
+  morningSlots: number;
+  afternoonSlots: number;
   recreos: CycleRecreo[];
+  /** Slots calculados por el backend (computedSlots). Si existen, la timeline los usa. */
+  backendSlots?: TimeSlot[];
 }
 
 export interface DayBlock {
@@ -29,7 +36,6 @@ export interface DayBlock {
   min: number;
 }
 
-const LEGACY_KEY = 'lectivo-cycles-v2';
 const STORAGE_PREFIX = 'lectivo-cycles-';
 const RECREO_OPTIONS = [15, 20, 30];
 
@@ -43,13 +49,19 @@ function formatTime(mins: number): string {
 }
 
 function etapaKey(id: EtapaBlockId): string {
-  return `${STORAGE_PREFIX}${id}-v1`;
+  return `${STORAGE_PREFIX}${id}-v2`;
 }
 
-function priCycleNum(cycleId: string): number | null {
+function cycleNumFromId(cycleId: string): number | null {
+  // Primaria
   if (cycleId === 'pri1') return 1;
   if (cycleId === 'pri2') return 2;
   if (cycleId === 'pri3') return 3;
+  // Secundaria (ESO)
+  if (cycleId === 'eso1') return 1;
+  if (cycleId === 'eso2') return 2;
+  // Infantil
+  if (cycleId === 'inf2') return 2; // 2.º ciclo
   return null;
 }
 
@@ -80,16 +92,11 @@ export class CiclosSectionComponent {
   readonly expandedEtapas = signal<Set<EtapaBlockId>>(new Set<EtapaBlockId>());
   readonly cyclesByEtapa = signal<CyclesByEtapa>({ inf: [], pri: [], sec: [] });
 
-  // State key format: `${etapaId}:${cycleId}`
   readonly savingKey = signal<string | null>(null);
   readonly savedKey = signal<string | null>(null);
-  readonly errorKey = signal<string | null>(null);
+  readonly error = signal<{ key: string; message: string } | null>(null);
 
-  readonly slotAfterOptions = computed(() => {
-    const s = this.school();
-    if (!s) return [];
-    return Array.from({ length: s.slotsPerDay - 1 }, (_, i) => i + 1);
-  });
+  readonly isPartida = computed(() => this.school()?.scheduleType === 'partida');
 
   constructor() {
     effect(() => {
@@ -134,9 +141,21 @@ export class CiclosSectionComponent {
   etapaTimeRange(etapaId: EtapaBlockId): string {
     const cs = this.cycles(etapaId);
     if (!cs.length) return '';
-    const earliest = cs.reduce((a, b) => parseTime(a.entrada) <= parseTime(b.entrada) ? a : b);
-    const latest   = cs.reduce((a, b) => parseTime(a.salida)  >= parseTime(b.salida)  ? a : b);
-    return `${earliest.entrada} – ${latest.salida}`;
+    const earliest = cs.reduce((a, b) => parseTime(a.morningStart) <= parseTime(b.morningStart) ? a : b);
+    const latest = cs.reduce((a, b) => {
+      const aEnd = a.afternoonEnd ?? a.morningEnd;
+      const bEnd = b.afternoonEnd ?? b.morningEnd;
+      return parseTime(aEnd) >= parseTime(bEnd) ? a : b;
+    });
+    const end = latest.afternoonEnd ?? latest.morningEnd;
+    return `${earliest.morningStart} \u2013 ${end}`;
+  }
+
+  cycleBadge(cycle: LocalCycleConfig): string {
+    if (cycle.afternoonStart && cycle.afternoonEnd) {
+      return `${cycle.morningStart} \u2013 ${cycle.morningEnd} / ${cycle.afternoonStart} \u2013 ${cycle.afternoonEnd}`;
+    }
+    return `${cycle.morningStart} \u2013 ${cycle.morningEnd}`;
   }
 
   // ── Initialization ──────────────────────────────────────────────────────────
@@ -160,50 +179,61 @@ export class CiclosSectionComponent {
       }
     } catch { /* fall through */ }
 
-    // Migrate legacy primaria data (lectivo-cycles-v2 with numeric ids)
-    if (etapaId === 'pri') {
-      try {
-        const legacy = JSON.parse(localStorage.getItem(LEGACY_KEY) || 'null') as
-          | { id: number; entrada: string; salida: string; recreos: CycleRecreo[] }[]
-          | null;
-        if (legacy?.length === 3) {
-          const migrated: LocalCycleConfig[] = legacy.map((c, i) => ({
-            id: etapa.ciclos[i].id,
-            entrada: c.entrada,
-            salida: c.salida,
-            recreos: c.recreos,
-          }));
-          this.saveEtapa(etapaId, migrated);
-          return migrated;
-        }
-      } catch { /* fall through */ }
-    }
-
     return this.buildDefaults(etapaId, s);
   }
 
   private buildDefaults(etapaId: EtapaBlockId, s: School): LocalCycleConfig[] {
     const etapa = BLOCKS.find(b => b.id === etapaId)!;
+    const partida = s.scheduleType === 'partida';
+    const slotMin = s.slotMinutes;
 
-    const defaults = etapa.ciclos.map((ciclo, idx) => {
-      let entrada = etapa.jornada.entrada;
-      if (etapaId === 'pri') {
-        entrada = s.cycles?.find(c => c.cycle === idx + 1)?.morningStart ?? entrada;
-      }
+    const defaults = etapa.ciclos.map((ciclo) => {
+      const num = cycleNumFromId(ciclo.id);
+      const backendCycle = num !== null ? s.cycles?.find(c => c.cycle === num) : undefined;
 
-      const defaultRecreos: CycleRecreo[] = etapaId === 'inf'
+      let morningStart = backendCycle?.morningStart ?? etapa.jornada.entrada;
+
+      const morningSlots = backendCycle?.morningSlots
+        ?? s.slotsPerDay
+        ?? etapa.jornada.slots;
+      const afternoonSlots = partida
+        ? (backendCycle?.afternoonSlots ?? s.afternoonSlots ?? 0)
+        : 0;
+
+      const backendRecreos: CycleRecreo[] = (backendCycle?.breaks ?? [])
+        .map(b => ({ after: b.afterSlot, min: b.minutes }));
+
+      const fallbackRecreos: CycleRecreo[] = etapaId === 'inf'
         ? [{ after: 2, min: 20 }]
-        : idx === 0
+        : etapa.ciclos.indexOf(ciclo) === 0
           ? [{ after: 2, min: 30 }]
           : [{ after: 3, min: 20 }];
 
-      const salidaCalc = this.computeSalidaRaw(entrada, defaultRecreos, s);
-      let salida = salidaCalc;
-      if (etapaId === 'pri') {
-        salida = s.cycles?.find(c => c.cycle === idx + 1)?.endTime ?? salidaCalc;
+      const recreos = backendRecreos.length > 0 ? backendRecreos : fallbackRecreos;
+
+      let morningEnd = this.computeEndRaw(morningStart, morningSlots, recreos, slotMin);
+      if (backendCycle) {
+        morningEnd = backendCycle.morningEnd ?? morningEnd;
       }
 
-      return { id: ciclo.id, entrada, salida, recreos: defaultRecreos };
+      let afternoonStart: string | null = null;
+      let afternoonEnd: string | null = null;
+      if (partida) {
+        afternoonStart = backendCycle?.afternoonStart ?? s.afternoonStart ?? '15:00';
+        afternoonEnd = backendCycle?.afternoonEnd ?? this.computeEndRaw(afternoonStart, afternoonSlots, [], slotMin);
+      }
+
+      return {
+        id: ciclo.id,
+        morningStart,
+        morningEnd,
+        afternoonStart,
+        afternoonEnd,
+        morningSlots,
+        afternoonSlots,
+        recreos,
+        backendSlots: backendCycle?.computedSlots,
+      };
     });
 
     this.saveEtapa(etapaId, defaults);
@@ -221,6 +251,10 @@ export class CiclosSectionComponent {
     cycleId: string,
     fn: (c: LocalCycleConfig) => LocalCycleConfig
   ): void {
+    const key = `${etapaId}:${cycleId}`;
+    if (this.error()?.key === key) {
+      this.error.set(null);
+    }
     this.cyclesByEtapa.update(all => {
       const updated = all[etapaId].map(c => c.id === cycleId ? fn(c) : c);
       this.saveEtapa(etapaId, updated);
@@ -228,21 +262,43 @@ export class CiclosSectionComponent {
     });
   }
 
-  setCycleEntrada(etapaId: EtapaBlockId, cycleId: string, entrada: string): void {
-    this.updateCycle(etapaId, cycleId, c => ({ ...c, entrada }));
+  setMorningStart(etapaId: EtapaBlockId, cycleId: string, value: string): void {
+    this.updateCycle(etapaId, cycleId, c => ({ ...c, morningStart: value }));
   }
 
-  setCycleSalida(etapaId: EtapaBlockId, cycleId: string, salida: string): void {
-    this.updateCycle(etapaId, cycleId, c => ({ ...c, salida }));
+  setMorningEnd(etapaId: EtapaBlockId, cycleId: string, value: string): void {
+    this.updateCycle(etapaId, cycleId, c => ({ ...c, morningEnd: value }));
+  }
+
+  setAfternoonStart(etapaId: EtapaBlockId, cycleId: string, value: string): void {
+    this.updateCycle(etapaId, cycleId, c => ({ ...c, afternoonStart: value }));
+  }
+
+  setAfternoonEnd(etapaId: EtapaBlockId, cycleId: string, value: string): void {
+    this.updateCycle(etapaId, cycleId, c => ({ ...c, afternoonEnd: value }));
+  }
+
+  adjustMorningSlots(etapaId: EtapaBlockId, cycleId: string, delta: number): void {
+    this.updateCycle(etapaId, cycleId, c => ({
+      ...c,
+      morningSlots: Math.max(1, Math.min(9, c.morningSlots + delta)),
+    }));
+  }
+
+  adjustAfternoonSlots(etapaId: EtapaBlockId, cycleId: string, delta: number): void {
+    this.updateCycle(etapaId, cycleId, c => ({
+      ...c,
+      afternoonSlots: Math.max(0, Math.min(9, c.afternoonSlots + delta)),
+    }));
   }
 
   addRecreo(etapaId: EtapaBlockId, cycleId: string): void {
-    const school = this.school();
-    if (!school) return;
+    const cycle = this.cycles(etapaId).find(c => c.id === cycleId);
+    if (!cycle) return;
     this.updateCycle(etapaId, cycleId, c => {
       const used = new Set(c.recreos.map(r => r.after));
       let after = 1;
-      for (let i = 1; i < school.slotsPerDay; i++) {
+      for (let i = 1; i < c.morningSlots; i++) {
         if (!used.has(i)) { after = i; break; }
       }
       return {
@@ -276,9 +332,12 @@ export class CiclosSectionComponent {
   }
 
   canAddRecreo(etapaId: EtapaBlockId, cycleId: string): boolean {
-    const s = this.school();
     const cycle = this.cycles(etapaId).find(c => c.id === cycleId);
-    return !!s && !!cycle && cycle.recreos.length < s.slotsPerDay - 1;
+    return !!cycle && cycle.recreos.length < cycle.morningSlots - 1;
+  }
+
+  slotAfterOptions(cycle: LocalCycleConfig): number[] {
+    return Array.from({ length: cycle.morningSlots - 1 }, (_, i) => i + 1);
   }
 
   // ── Save ─────────────────────────────────────────────────────────────────────
@@ -290,38 +349,68 @@ export class CiclosSectionComponent {
     const localCycle = this.cycles(etapaId).find(c => c.id === cycleId);
     if (!localCycle) return;
 
-    if (parseTime(localCycle.salida) <= parseTime(localCycle.entrada)) {
-      this.errorKey.set(`${etapaId}:${cycleId}`);
-      return;
-    }
-
     const key = `${etapaId}:${cycleId}`;
     this.savingKey.set(key);
-    this.errorKey.set(null);
+    this.error.set(null);
+
+    const validationMsg = 'Corrige los horarios. La salida debe ser posterior a la entrada'
+      + (school.scheduleType === 'partida' ? ' y el turno de tarde debe empezar después del de mañana' : '')
+      + '.';
+
+    if (parseTime(localCycle.morningEnd) <= parseTime(localCycle.morningStart)) {
+      this.error.set({ key, message: validationMsg });
+      this.savingKey.set(null);
+      return;
+    }
+    if (school.scheduleType === 'partida') {
+      if (!localCycle.afternoonStart || !localCycle.afternoonEnd) {
+        this.error.set({ key, message: validationMsg });
+        this.savingKey.set(null);
+        return;
+      }
+      if (parseTime(localCycle.afternoonEnd) <= parseTime(localCycle.afternoonStart)) {
+        this.error.set({ key, message: validationMsg });
+        this.savingKey.set(null);
+        return;
+      }
+      if (parseTime(localCycle.afternoonStart) < parseTime(localCycle.morningEnd)) {
+        this.error.set({ key, message: validationMsg });
+        this.savingKey.set(null);
+        return;
+      }
+    }
 
     try {
-      if (etapaId === 'pri') {
-        const num = priCycleNum(cycleId);
-        if (num !== null) {
-          const updated = await this.api.updateCycleSchedule(num, {
-            morningStart: localCycle.entrada,
-            endTime: localCycle.salida,
-            afternoonStart: null,
+      const num = cycleNumFromId(cycleId);
+      if (num !== null) {
+        const updated = await this.api.updateCycleSchedule(num, {
+          morningStart: localCycle.morningStart,
+          morningEnd: localCycle.morningEnd,
+          afternoonStart: localCycle.afternoonStart,
+          afternoonEnd: localCycle.afternoonEnd,
+          breaks: localCycle.recreos.map(r => ({ afterSlot: r.after, minutes: r.min })),
+        });
+        // Actualizar slots del backend en el estado local para reflejar la timeline real
+        this.cyclesByEtapa.update(all => {
+          const updatedLocal = all[etapaId].map(c =>
+            c.id === cycleId ? { ...c, backendSlots: updated.computedSlots } : c
+          );
+          this.saveEtapa(etapaId, updatedLocal);
+          return { ...all, [etapaId]: updatedLocal };
+        });
+
+        const current = this.school();
+        if (current) {
+          this.schoolChange.emit({
+            ...current,
+            cycles: current.cycles.map(c => c.cycle === num ? updated : c),
           });
-          const current = this.school();
-          if (current) {
-            this.schoolChange.emit({
-              ...current,
-              cycles: current.cycles.map(c => c.cycle === num ? updated : c),
-            });
-          }
         }
       }
-      // Para inf/sec: ya guardado en localStorage, confirmar éxito visual
       this.savedKey.set(key);
       setTimeout(() => this.savedKey.set(null), 3000);
-    } catch {
-      this.errorKey.set(key);
+    } catch (err) {
+      this.error.set({ key, message: this.describeApiError(err) });
     } finally {
       this.savingKey.set(null);
     }
@@ -336,48 +425,78 @@ export class CiclosSectionComponent {
     return this.savedKey() === `${etapaId}:${cycleId}`;
   }
   isError(etapaId: EtapaBlockId, cycleId: string): boolean {
-    return this.errorKey() === `${etapaId}:${cycleId}`;
+    return this.error()?.key === `${etapaId}:${cycleId}`;
+  }
+  errorMessage(etapaId: EtapaBlockId, cycleId: string): string {
+    const e = this.error();
+    return e?.key === `${etapaId}:${cycleId}` ? e.message : '';
+  }
+
+  private describeApiError(err: unknown): string {
+    if (err instanceof HttpErrorResponse) {
+      if (err.status === 0) {
+        return 'No se pudo conectar con el servidor. Comprueba tu conexión e inténtalo de nuevo.';
+      }
+      const serverMsg = (err.error as { message?: string } | null)?.message;
+      if (serverMsg) return serverMsg;
+      return `No se pudo guardar el ciclo (error ${err.status}). Inténtalo de nuevo.`;
+    }
+    return 'Se produjo un error inesperado al guardar. Inténtalo de nuevo.';
   }
 
   // ── Day plan ─────────────────────────────────────────────────────────────────
 
-  private computeSalidaRaw(entrada: string, recreos: CycleRecreo[], school: School): string {
-    let mins = parseTime(entrada);
+  private computeEndRaw(start: string, slots: number, recreos: CycleRecreo[], slotMin: number): string {
+    let mins = parseTime(start);
     const rMap = new Map(recreos.map(r => [r.after, r.min]));
-    for (let i = 1; i <= school.slotsPerDay; i++) {
-      mins += school.slotMinutes;
+    for (let i = 1; i <= slots; i++) {
+      mins += slotMin;
       if (rMap.has(i)) mins += rMap.get(i)!;
     }
     return formatTime(mins);
   }
 
-  computeSalida(cycle: LocalCycleConfig, school: School): string {
-    return this.computeSalidaRaw(cycle.entrada, cycle.recreos, school);
+  /** Convierte los computedSlots del backend en bloques visuales separados por turno. */
+  private blocksFromBackend(cycle: LocalCycleConfig): { morning: DayBlock[]; afternoon: DayBlock[] } | null {
+    if (!cycle.backendSlots?.length) return null;
+
+    const pivot = cycle.afternoonStart ? parseTime(cycle.afternoonStart) : Infinity;
+    const morning: DayBlock[] = [];
+    const afternoon: DayBlock[] = [];
+    let morningLectiveCount = 0;
+
+    for (const slot of cycle.backendSlots) {
+      const start = parseTime(slot.startTime);
+      const end = parseTime(slot.endTime);
+      const min = end - start;
+      const isAfternoon = start >= pivot;
+
+      if (slot.isBreak) {
+        (isAfternoon ? afternoon : morning).push({ type: 'recreo', start, end, min });
+      } else {
+        if (!isAfternoon) {
+          morningLectiveCount++;
+          morning.push({ type: 'lectiva', n: morningLectiveCount, start, end, min });
+        } else {
+          const afternoonIndex = slot.index >= 0 ? (slot.index + 1) - morningLectiveCount : undefined;
+          afternoon.push({ type: 'lectiva', n: afternoonIndex, start, end, min });
+        }
+      }
+    }
+
+    return { morning, afternoon };
   }
 
-  getSalidaSugerida(etapaId: EtapaBlockId, cycleId: string): string {
-    const s = this.school();
-    const c = this.cycles(etapaId).find(x => x.id === cycleId);
-    return s && c ? this.computeSalida(c, s) : '';
-  }
+  getMorningDayPlan(cycle: LocalCycleConfig, slotMin: number): DayBlock[] {
+    const backend = this.blocksFromBackend(cycle);
+    if (backend) return backend.morning;
 
-  salidaDifiereDeCalculo(etapaId: EtapaBlockId, cycleId: string): boolean {
-    const c = this.cycles(etapaId).find(x => x.id === cycleId);
-    return !!c && c.salida !== this.getSalidaSugerida(etapaId, cycleId);
-  }
-
-  usarSalidaSugerida(etapaId: EtapaBlockId, cycleId: string): void {
-    const s = this.getSalidaSugerida(etapaId, cycleId);
-    if (s) this.setCycleSalida(etapaId, cycleId, s);
-  }
-
-  getDayPlan(cycle: LocalCycleConfig, school: School): DayBlock[] {
     const blocks: DayBlock[] = [];
-    let mins = parseTime(cycle.entrada);
+    let mins = parseTime(cycle.morningStart);
     const rMap = new Map(cycle.recreos.map(r => [r.after, r.min]));
-    for (let i = 1; i <= school.slotsPerDay; i++) {
-      blocks.push({ type: 'lectiva', n: i, start: mins, end: mins + school.slotMinutes, min: school.slotMinutes });
-      mins += school.slotMinutes;
+    for (let i = 1; i <= cycle.morningSlots; i++) {
+      blocks.push({ type: 'lectiva', n: i, start: mins, end: mins + slotMin, min: slotMin });
+      mins += slotMin;
       if (rMap.has(i)) {
         const rm = rMap.get(i)!;
         blocks.push({ type: 'recreo', start: mins, end: mins + rm, min: rm });
@@ -387,13 +506,54 @@ export class CiclosSectionComponent {
     return blocks;
   }
 
-  totalLectiveMin(school: School): number {
-    return school.slotsPerDay * school.slotMinutes;
+  getAfternoonDayPlan(cycle: LocalCycleConfig, slotMin: number): DayBlock[] {
+    const backend = this.blocksFromBackend(cycle);
+    if (backend) return backend.afternoon;
+
+    if (!cycle.afternoonStart || cycle.afternoonSlots <= 0) return [];
+    const blocks: DayBlock[] = [];
+    let mins = parseTime(cycle.afternoonStart);
+    for (let i = 1; i <= cycle.afternoonSlots; i++) {
+      blocks.push({ type: 'lectiva', n: i, start: mins, end: mins + slotMin, min: slotMin });
+      mins += slotMin;
+    }
+    return blocks;
+  }
+
+  totalLectiveMin(cycle: LocalCycleConfig, slotMin: number): number {
+    if (cycle.backendSlots?.length) {
+      return cycle.backendSlots
+        .filter(s => !s.isBreak)
+        .reduce((sum, s) => sum + (parseTime(s.endTime) - parseTime(s.startTime)), 0);
+    }
+    return (cycle.morningSlots + cycle.afternoonSlots) * slotMin;
   }
 
   totalRecreoMin(etapaId: EtapaBlockId, cycleId: string): number {
-    return this.cycles(etapaId).find(c => c.id === cycleId)
-      ?.recreos.reduce((a, r) => a + r.min, 0) ?? 0;
+    const cycle = this.cycles(etapaId).find(c => c.id === cycleId);
+    if (!cycle) return 0;
+    if (cycle.backendSlots?.length) {
+      return cycle.backendSlots
+        .filter(s => s.isBreak)
+        .reduce((sum, s) => sum + (parseTime(s.endTime) - parseTime(s.startTime)), 0);
+    }
+    return cycle.recreos.reduce((a, r) => a + r.min, 0);
+  }
+
+  morningSlotCount(cycle: LocalCycleConfig): number {
+    if (cycle.backendSlots?.length) {
+      const pivot = cycle.afternoonStart ? parseTime(cycle.afternoonStart) : Infinity;
+      return cycle.backendSlots.filter(s => !s.isBreak && parseTime(s.startTime) < pivot).length;
+    }
+    return cycle.morningSlots;
+  }
+
+  afternoonSlotCount(cycle: LocalCycleConfig): number {
+    if (cycle.backendSlots?.length) {
+      const pivot = cycle.afternoonStart ? parseTime(cycle.afternoonStart) : Infinity;
+      return cycle.backendSlots.filter(s => !s.isBreak && parseTime(s.startTime) >= pivot).length;
+    }
+    return cycle.afternoonSlots;
   }
 
   lecHrs(mins: number): string {

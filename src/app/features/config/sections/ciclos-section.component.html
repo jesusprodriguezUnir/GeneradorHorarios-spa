@@ -4,9 +4,8 @@
   <div class="info-banner">
     <lec-icon name="info" [size]="18" />
     <span>
-      Cada ciclo define su <strong>hora exacta de entrada y de salida</strong>.
-      La salida se precarga calculada (entrada + sesiones + recreos), pero puedes ajustarla
-      a la hora oficial real. La duración de las sesiones es común al centro.
+      Cada ciclo define su <strong>horario de entrada y salida por turno</strong>.
+      La duración de las sesiones es común al centro; el número de sesiones y los recreos se configuran por ciclo.
     </span>
   </div>
 
@@ -63,7 +62,7 @@
                   <div class="cycle-header-right">
                     <span class="lec-badge" style="background:var(--secondary);color:var(--secondary-foreground)">
                       <lec-icon name="clock" [size]="13" />
-                      {{ cycle.entrada }} – {{ cycle.salida }}
+                      {{ cycleBadge(cycle) }}
                     </span>
                     <button class="btn-cycle-save"
                       [disabled]="isSaving(etapa.id, cycle.id)"
@@ -85,37 +84,40 @@
                   <!-- Controles izquierda -->
                   <div class="cycle-controls">
 
-                    <!-- Hora de entrada -->
+                    <!-- Turno de mañana -->
                     <div class="ctrl-section">
-                      <div class="ctrl-label">Hora de entrada</div>
-                      <input
-                        type="time"
-                        class="time-input"
-                        [value]="cycle.entrada"
-                        (change)="setCycleEntrada(etapa.id, cycle.id, $any($event.target).value)" />
-                    </div>
+                      <div class="ctrl-label">Turno de mañana</div>
 
-                    <!-- Hora de salida -->
-                    <div class="ctrl-section">
-                      <div class="ctrl-label">Hora de salida</div>
-                      <input
-                        type="time"
-                        class="time-input"
-                        [value]="cycle.salida"
-                        (change)="setCycleSalida(etapa.id, cycle.id, $any($event.target).value)" />
-                      @if (salidaDifiereDeCalculo(etapa.id, cycle.id)) {
-                        <div class="salida-hint">
-                          <lec-icon name="info" [size]="13" />
-                          Calculada: {{ getSalidaSugerida(etapa.id, cycle.id) }}
-                          <button class="usar-sugerida-btn"
-                            (click)="usarSalidaSugerida(etapa.id, cycle.id)">
-                            usar calculada
-                          </button>
+                      <div class="time-row">
+                        <div class="time-field">
+                          <div class="time-field-label">Entrada</div>
+                          <input
+                            type="time"
+                            class="time-input"
+                            [value]="cycle.morningStart"
+                            (change)="setMorningStart(etapa.id, cycle.id, $any($event.target).value)" />
                         </div>
-                      }
+                        <div class="time-field">
+                          <div class="time-field-label">Salida</div>
+                          <input
+                            type="time"
+                            class="time-input"
+                            [value]="cycle.morningEnd"
+                            (change)="setMorningEnd(etapa.id, cycle.id, $any($event.target).value)" />
+                        </div>
+                      </div>
+
+                      <div class="stepper-row">
+                        <div class="stepper-label">Sesiones mañana</div>
+                        <div class="stepper">
+                          <button class="stepper-btn" (click)="adjustMorningSlots(etapa.id, cycle.id, -1)">−</button>
+                          <span class="stepper-val">{{ cycle.morningSlots }}</span>
+                          <button class="stepper-btn" (click)="adjustMorningSlots(etapa.id, cycle.id, 1)">+</button>
+                        </div>
+                      </div>
                     </div>
 
-                    <!-- Recreos -->
+                    <!-- Recreos (mañana) -->
                     <div class="ctrl-section">
                       <div class="ctrl-label-row">
                         <div class="ctrl-label">Recreos · {{ cycle.recreos.length }}</div>
@@ -141,7 +143,7 @@
                               <select class="mini-select"
                                 [value]="r.after"
                                 (change)="setRecreoAfter(etapa.id, cycle.id, idx, +($any($event.target).value))">
-                                @for (n of slotAfterOptions(); track n) {
+                                @for (n of slotAfterOptions(cycle); track n) {
                                   <option [value]="n">{{ n }}.ª</option>
                                 }
                               </select>
@@ -160,43 +162,118 @@
                         </div>
                       }
                     </div>
+
+                    <!-- Turno de tarde (solo partida) -->
+                    @if (isPartida()) {
+                      <div class="ctrl-section">
+                        <div class="ctrl-label">Turno de tarde</div>
+
+                        <div class="time-row">
+                          <div class="time-field">
+                            <div class="time-field-label">Entrada</div>
+                            <input
+                              type="time"
+                              class="time-input"
+                              [value]="cycle.afternoonStart"
+                              (change)="setAfternoonStart(etapa.id, cycle.id, $any($event.target).value)" />
+                          </div>
+                          <div class="time-field">
+                            <div class="time-field-label">Salida</div>
+                            <input
+                              type="time"
+                              class="time-input"
+                              [value]="cycle.afternoonEnd"
+                              (change)="setAfternoonEnd(etapa.id, cycle.id, $any($event.target).value)" />
+                          </div>
+                        </div>
+
+                        <div class="stepper-row">
+                          <div class="stepper-label">Sesiones tarde</div>
+                          <div class="stepper">
+                            <button class="stepper-btn" (click)="adjustAfternoonSlots(etapa.id, cycle.id, -1)">−</button>
+                            <span class="stepper-val">{{ cycle.afternoonSlots }}</span>
+                            <button class="stepper-btn" (click)="adjustAfternoonSlots(etapa.id, cycle.id, 1)">+</button>
+                          </div>
+                        </div>
+                      </div>
+                    }
                   </div>
 
                   <!-- Timeline derecha -->
                   <div class="cycle-timeline">
-                    <div class="timeline-label">Cómo queda el día</div>
-                    <div class="timeline-row">
-                      <div class="time-end">
-                        <div class="time-end-label">Entra</div>
-                        <div class="time-end-val">{{ cycle.entrada }}</div>
-                      </div>
-                      <div class="timeline-blocks thin-scroll">
-                        @for (block of getDayPlan(cycle, school()!); track $index) {
-                          @if (block.type === 'lectiva') {
-                            <div class="block-lectiva" [style.flex]="school()!.slotMinutes">
-                              <div class="block-n">{{ block.n }}.ª</div>
-                              <div class="block-time">{{ formatTime(block.start) }}</div>
-                            </div>
-                          } @else {
-                            <div class="block-recreo" [style.flex]="block.min">
-                              <lec-icon name="coffee" [size]="14" />
-                              <div class="block-n">{{ block.min }}'</div>
-                            </div>
+
+                    <!-- Timeline mañana -->
+                    <div class="timeline-block">
+                      <div class="timeline-label">Turno de mañana</div>
+                      <div class="timeline-row">
+                        <div class="time-end">
+                          <div class="time-end-label">Entra</div>
+                          <div class="time-end-val">{{ cycle.morningStart }}</div>
+                        </div>
+                        <div class="timeline-blocks thin-scroll">
+                          @for (block of getMorningDayPlan(cycle, school()!.slotMinutes); track $index) {
+                            @if (block.type === 'lectiva') {
+                              <div class="block-lectiva" [style.flex]="school()!.slotMinutes">
+                                <div class="block-n">{{ block.n }}.ª</div>
+                                <div class="block-time">{{ formatTime(block.start) }}</div>
+                              </div>
+                            } @else {
+                              <div class="block-recreo" [style.flex]="block.min">
+                                <lec-icon name="coffee" [size]="14" />
+                                <div class="block-n">{{ block.min }}'</div>
+                              </div>
+                            }
                           }
-                        }
+                        </div>
+                        <div class="time-end">
+                          <div class="time-end-label">Sale</div>
+                          <div class="time-end-val">{{ cycle.morningEnd }}</div>
+                        </div>
                       </div>
-                      <div class="time-end">
-                        <div class="time-end-label">Sale</div>
-                        <div class="time-end-val">{{ cycle.salida }}</div>
+                      <div class="timeline-summary">
+                        {{ morningSlotCount(cycle) }} sesiones ·
+                        {{ lecHrs(morningSlotCount(cycle) * school()!.slotMinutes) }} lectivas
+                        @if (totalRecreoMin(etapa.id, cycle.id) > 0) {
+                          + {{ totalRecreoMin(etapa.id, cycle.id) }} min de recreo
+                        }
+                        · sale a las <strong>{{ cycle.morningEnd }}</strong>
                       </div>
                     </div>
-                    <div class="timeline-summary">
-                      {{ school()!.slotsPerDay }} sesiones ·
-                      {{ lecHrs(totalLectiveMin(school()!)) }} lectivas
-                      @if (totalRecreoMin(etapa.id, cycle.id) > 0) {
-                        + {{ totalRecreoMin(etapa.id, cycle.id) }} min de recreo
-                      }
-                      · sale a las <strong>{{ cycle.salida }}</strong>
+
+                    <!-- Timeline tarde (solo partida) -->
+                    @if (isPartida()) {
+                      <div class="timeline-block timeline-block--afternoon">
+                        <div class="timeline-label">Turno de tarde</div>
+                        <div class="timeline-row">
+                          <div class="time-end">
+                            <div class="time-end-label">Entra</div>
+                            <div class="time-end-val">{{ cycle.afternoonStart }}</div>
+                          </div>
+                          <div class="timeline-blocks thin-scroll">
+                            @for (block of getAfternoonDayPlan(cycle, school()!.slotMinutes); track $index) {
+                              <div class="block-lectiva block-lectiva--afternoon" [style.flex]="school()!.slotMinutes">
+                                <div class="block-n">{{ block.n }}.ª</div>
+                                <div class="block-time">{{ formatTime(block.start) }}</div>
+                              </div>
+                            }
+                          </div>
+                          <div class="time-end">
+                            <div class="time-end-label">Sale</div>
+                            <div class="time-end-val">{{ cycle.afternoonEnd }}</div>
+                          </div>
+                        </div>
+                        <div class="timeline-summary">
+                          {{ afternoonSlotCount(cycle) }} sesiones ·
+                          {{ lecHrs(afternoonSlotCount(cycle) * school()!.slotMinutes) }} lectivas
+                          · sale a las <strong>{{ cycle.afternoonEnd }}</strong>
+                        </div>
+                      </div>
+                    }
+
+                    <!-- Resumen global -->
+                    <div class="timeline-global-summary">
+                      Total: {{ morningSlotCount(cycle) + afternoonSlotCount(cycle) }} sesiones ·
+                      {{ lecHrs(totalLectiveMin(cycle, school()!.slotMinutes)) }} lectivas/semana
                     </div>
                   </div>
                 </div>
@@ -204,11 +281,7 @@
                 @if (isError(etapa.id, cycle.id)) {
                   <div class="cycle-error">
                     <lec-icon name="alert" [size]="15" />
-                    @if (getSalidaSugerida(etapa.id, cycle.id) && cycle.salida <= cycle.entrada) {
-                      La hora de salida debe ser posterior a la entrada.
-                    } @else {
-                      Error al guardar. Inténtalo de nuevo.
-                    }
+                    {{ errorMessage(etapa.id, cycle.id) }}
                   </div>
                 }
               </div>
@@ -222,7 +295,7 @@
     <!-- Footer informativo -->
     <div class="success-banner">
       <lec-icon name="checkCircle" [size]="18" />
-      Puedes ajustar la salida exacta de cada ciclo. El generador de horarios respetará la entrada y la salida oficial de cada ciclo.
+      El generador de horarios respetará los horarios oficiales de entrada y salida de cada ciclo.
     </div>
   }
 </div>

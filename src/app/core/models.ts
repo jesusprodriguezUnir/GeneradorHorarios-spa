@@ -1,12 +1,27 @@
 // ── Modelos de dominio compartidos ────────────────────────────────────────────
 
+export interface CycleBreak {
+  afterSlot: number;
+  minutes: number;
+}
+
 export interface CycleSchedule {
   /** Número de ciclo: 1 (1º-2º), 2 (3º-4º), 3 (5º-6º). */
   cycle: number;
   morningStart: string;
+  morningEnd: string;
+  /** Solo lectura. Igual a `afternoonEnd ?? morningEnd`. */
   endTime: string;
   afternoonStart: string | null;
+  afternoonEnd: string | null;
+  /** @deprecated Se deriva automáticamente del backend a partir de breaks + slotMinutes. */
+  morningSlots?: number;
+  /** @deprecated Se deriva automáticamente del backend a partir de breaks + slotMinutes. */
+  afternoonSlots?: number;
+  /** Solo lectura. Franjas calculadas por el backend. */
   computedSlots: TimeSlot[];
+  /** Recreos configurados para este ciclo. */
+  breaks: CycleBreak[];
 }
 
 export interface School {
@@ -28,8 +43,10 @@ export interface School {
   slotMinutes: number;
   breakAfterSlot: number;
   breakMinutes: number;
-  slotsPerDay: number;
-  afternoonSlots: number;
+  /** @deprecated Se configura por ciclo en `CycleSchedule.morningSlots/afternoonSlots` */
+  slotsPerDay?: number;
+  /** @deprecated Se configura por ciclo en `CycleSchedule.morningSlots/afternoonSlots` */
+  afternoonSlots?: number;
   daysPerWeek: number;
   workingDays: number[];
   computedSlots: TimeSlot[];

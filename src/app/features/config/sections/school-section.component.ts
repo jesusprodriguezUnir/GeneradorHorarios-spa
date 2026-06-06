@@ -53,8 +53,6 @@ export class SchoolSectionComponent {
     slotMinutes: 60,
     breakAfterSlot: 2,
     breakMinutes: 30,
-    slotsPerDay: 5,
-    afternoonSlots: 0,
     workingDays: [1, 2, 3, 4, 5],
   };
 
@@ -78,12 +76,6 @@ export class SchoolSectionComponent {
     return current
       .map(val => this.stages.find(s => s.value === val)?.label ?? val)
       .join(' · ');
-  });
-
-  readonly hoursPerWeek = computed(() => {
-    const mins = this.schoolForm.slotsPerDay * this.schoolForm.slotMinutes * this.schoolForm.workingDays.length;
-    const h = mins / 60;
-    return Number.isInteger(h) ? `${h} h` : `${h.toFixed(1)} h`;
   });
 
   readonly journeyLabel = computed(() =>
@@ -140,8 +132,6 @@ export class SchoolSectionComponent {
       slotMinutes: s.slotMinutes,
       breakAfterSlot: s.breakAfterSlot,
       breakMinutes: s.breakMinutes,
-      slotsPerDay: s.slotsPerDay,
-      afternoonSlots: s.afternoonSlots,
       workingDays: [...s.workingDays],
     };
   }
@@ -159,11 +149,6 @@ export class SchoolSectionComponent {
     } else {
       this.schoolForm.workingDays = this.schoolForm.workingDays.filter(d => d !== day);
     }
-  }
-
-  adjustSlotsPerDay(delta: number): void {
-    const v = Math.max(3, Math.min(9, this.schoolForm.slotsPerDay + delta));
-    this.schoolForm.slotsPerDay = v;
   }
 
   selectSlotMinutes(min: number): void {
@@ -190,8 +175,6 @@ export class SchoolSectionComponent {
       slotMinutes: this.schoolForm.slotMinutes,
       breakAfterSlot: this.schoolForm.breakAfterSlot,
       breakMinutes: this.schoolForm.breakMinutes,
-      slotsPerDay: this.schoolForm.slotsPerDay,
-      afternoonSlots: this.schoolForm.scheduleType === 'partida' ? this.schoolForm.afternoonSlots : 0,
       workingDays: this.schoolForm.workingDays,
     } as any).catch(() => null);
 

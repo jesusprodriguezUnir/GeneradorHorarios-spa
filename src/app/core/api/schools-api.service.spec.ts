@@ -53,9 +53,48 @@ describe('SchoolsApiService', () => {
   });
 
   it('should update cycle schedule', async () => {
-    const mockCycle = { cycle: 1, morningStart: '09:00', endTime: '14:00' } as CycleSchedule;
-    const promise = service.updateCycleSchedule(1, { morningStart: '09:00', endTime: '14:00' });
+    const mockCycle = {
+      cycle: 1, morningStart: '09:00', morningEnd: '14:00',
+      endTime: '14:00', afternoonStart: null, afternoonEnd: null,
+      computedSlots: [], breaks: [],
+    } as CycleSchedule;
+    const promise = service.updateCycleSchedule(1, {
+      morningStart: '09:00', morningEnd: '14:00',
+      afternoonStart: null, afternoonEnd: null,
+    });
     const req = httpMock.expectOne(`${baseUrl}/schools/me/cycles/1`);
+    expect(req.request.method).toBe('PUT');
+    req.flush(mockCycle);
+    const result = await promise;
+    expect(result).toEqual(mockCycle);
+  });
+
+  it('should get cycle schedule', async () => {
+    const mockCycle = {
+      cycle: 1, morningStart: '09:00', morningEnd: '14:00',
+      endTime: '14:00', afternoonStart: null, afternoonEnd: null,
+      computedSlots: [], breaks: [],
+    } as CycleSchedule;
+    const promise = service.getCycleSchedule(1);
+    const req = httpMock.expectOne(`${baseUrl}/schools/me/cycles/1`);
+    expect(req.request.method).toBe('GET');
+    req.flush(mockCycle);
+    const result = await promise;
+    expect(result).toEqual(mockCycle);
+  });
+
+  it('should update cycle schedule with periodId', async () => {
+    const mockCycle = {
+      cycle: 1, morningStart: '09:00', morningEnd: '14:00',
+      endTime: '14:00', afternoonStart: null, afternoonEnd: null,
+      computedSlots: [], breaks: [{ afterSlot: 2, minutes: 30 }],
+    } as CycleSchedule;
+    const promise = service.updateCycleSchedule(1, {
+      morningStart: '09:00', morningEnd: '14:00',
+      afternoonStart: null, afternoonEnd: null,
+      breaks: [{ afterSlot: 2, minutes: 30 }],
+    }, 'period-123');
+    const req = httpMock.expectOne(`${baseUrl}/schools/me/periods/period-123/cycles/1`);
     expect(req.request.method).toBe('PUT');
     req.flush(mockCycle);
     const result = await promise;
