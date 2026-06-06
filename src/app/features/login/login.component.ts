@@ -6,6 +6,7 @@ import { Router } from '@angular/router';
 import { AuthService, DemoUser } from '../../core/auth/auth.service';
 import { LogoMarkComponent } from '../../shared/ui/logo-mark.component';
 import { LecIconComponent } from '../../shared/ui/lec-icon.component';
+import { getRoleLabel, getRoleAvatarColors } from '../../core/utils/role.utils';
 
 @Component({
   selector: 'app-login',
@@ -40,8 +41,8 @@ import { LecIconComponent } from '../../shared/ui/lec-icon.component';
 
             @for (user of demoUsers(); track user.id) {
               <button class="user-option" (click)="loginAs(user.email)" [attr.data-testid]="'user-option-' + user.email">
-                <div class="user-avatar" [style.background]="user.role === 'school_admin' ? 'var(--primary-tint)' : 'var(--accent-tint)'"
-                  [style.color]="user.role === 'school_admin' ? 'var(--primary-strong)' : 'var(--accent-foreground)'">
+                <div class="user-avatar" [style.background]="getRoleAvatarColors(user.role).bg"
+                  [style.color]="getRoleAvatarColors(user.role).fg">
                   {{ initials(user.fullName) }}
                 </div>
                 <div style="flex:1;min-width:0">
@@ -49,7 +50,7 @@ import { LecIconComponent } from '../../shared/ui/lec-icon.component';
                   <div class="user-email">{{ user.email }}</div>
                 </div>
                 <span class="role-badge" [class.badge--admin]="user.role === 'school_admin'">
-                  {{ user.role === 'school_admin' ? 'Dirección' : 'Profesor/a' }}
+                  {{ getRoleLabel(user.role) }}
                 </span>
                 <lec-icon name="arrowRight" [size]="16" style="flex-shrink:0;opacity:0.4"></lec-icon>
               </button>
@@ -160,6 +161,9 @@ export class LoginComponent implements OnInit {
   readonly demoUsers = signal<DemoUser[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+
+  protected readonly getRoleLabel = getRoleLabel;
+  protected readonly getRoleAvatarColors = getRoleAvatarColors;
 
   protected readonly preview = [
     { n: 'Matemáticas', g: '3ºA', k: 'mat' }, { n: 'Inglés', g: '5ºB', k: 'ing' },

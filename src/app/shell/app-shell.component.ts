@@ -10,6 +10,7 @@ import { PeriodSelectorComponent } from '../shared/ui/period-selector.component'
 import { BloqueSwitcherComponent } from '../shared/ui/bloque-switcher.component';
 import { PeriodStateService } from '../core/period-state.service';
 import { BlockStateService } from '../core/block-state.service';
+import { getRoleLabel } from '../core/utils/role.utils';
 
 interface NavItem {
   id: string;
@@ -226,7 +227,7 @@ export class AppShellComponent implements OnInit {
   );
 
   readonly roleLabel = computed(() =>
-    this.auth.isAdmin() ? 'Jefatura de estudios' : 'Profesor/a'
+    getRoleLabel(this.auth.currentUser()?.role ?? 'teacher')
   );
 
   readonly isDarkMode = signal(false);

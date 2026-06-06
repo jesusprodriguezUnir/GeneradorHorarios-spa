@@ -5,12 +5,13 @@ import { firstValueFrom } from 'rxjs';
 import { AppUser } from '../models';
 import { BlockStateService } from '../block-state.service';
 import { environment } from '../../../environments/environment';
+import { UserRole } from '../utils/role.utils';
 
 export interface DemoUser {
   id: string;
   email: string;
   fullName: string;
-  role: string;
+  role: UserRole;
 }
 
 @Injectable({ providedIn: 'root' })
