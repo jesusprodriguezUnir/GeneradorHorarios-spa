@@ -45,6 +45,7 @@ export class GroupsSectionComponent {
   readonly isGroupModalOpen = signal(false);
   readonly editingGroup = signal<CourseGroup | null>(null);
   readonly searchQuery = signal('');
+  readonly stageCycleFilters = signal<Record<string, number | null>>({});
   readonly openAccordions = signal<Set<string>>(new Set<string>());
   readonly isTutorDropdownOpen = signal(false);
 
@@ -77,13 +78,21 @@ export class GroupsSectionComponent {
 
   readonly filteredGroupsMap = computed(() => {
     const q = this.searchQuery().trim().toLowerCase();
+    const filters = this.stageCycleFilters();
     const map = this.groupsMap();
-    if (!q) return map;
     const out: Record<string, CourseGroup[]> = {};
     for (const [sid, gs] of Object.entries(map)) {
-      out[sid] = gs.filter(g =>
-        (g.displayName + ' ' + (g.tutorName ?? '')).toLowerCase().includes(q),
-      );
+      const cycle = filters[sid] ?? null;
+      out[sid] = gs.filter(g => {
+        if (cycle !== null) {
+          const cNum = this.cycleNumberForGroup(g);
+          if (cNum !== cycle) return false;
+        }
+        if (q) {
+          return (g.displayName + ' ' + (g.tutorName ?? '')).toLowerCase().includes(q);
+        }
+        return true;
+      });
     }
     return out;
   });
@@ -254,6 +263,28 @@ export class GroupsSectionComponent {
     const stage = this.stages().find(s => s.id === g.stageId);
     if (!stage) return '';
     return this.cicloLabel(this.cicloForLevel(g.courseLevel, stage));
+  }
+
+  cycleNumberForGroup(g: CourseGroup): number | null {
+    const stage = this.stages().find(s => s.id === g.stageId);
+    if (!stage) return null;
+    return this.cicloForLevel(g.courseLevel, stage);
+  }
+
+  cyclesForStage(stage: SchoolStage): number[] {
+    const minCycle = 1;
+    const maxCycle = Math.ceil((stage.maxLevel - stage.minLevel + 1) / 2);
+    const out = [];
+    for(let i = minCycle; i <= maxCycle; i++) out.push(i);
+    return out;
+  }
+
+  cycleFilterFor(stageId: string): number | null {
+    return this.stageCycleFilters()[stageId] ?? null;
+  }
+
+  setCycleFilter(stageId: string, cycle: number | null): void {
+    this.stageCycleFilters.update(prev => ({ ...prev, [stageId]: cycle }));
   }
 
   // ── Carga lectiva ─────────────────────────────────────────────────────────

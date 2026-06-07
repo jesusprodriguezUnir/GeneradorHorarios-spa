@@ -60,7 +60,7 @@
 
       @case ('subjects') {
         <div class="lec-card" style="padding:0;overflow:hidden">
-          <app-subjects-section [subjects]="subjects()" (subjectsChange)="subjects.set($event)" />
+          <app-subjects-section [subjects]="filteredSubjects()" [stages]="filteredStages()" (subjectsChange)="subjects.set($event)" />
         </div>
       }
 

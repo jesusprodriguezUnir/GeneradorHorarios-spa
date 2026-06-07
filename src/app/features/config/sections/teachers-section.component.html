@@ -1,9 +1,15 @@
-<div data-testid="config-teachers-section" class="lec-fade-up">
-  <div class="section-header" style="margin-bottom: 12px;">
-    <h3 class="section-title">Profesores</h3>
-    <button class="btn-primary btn-primary--sm" (click)="openAddModal()" data-testid="add-teacher-btn">
-      + Añadir profesor
-    </button>
+<div data-testid="config-teachers-section" class="teachers-root">
+  <div class="card-head" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <h2 class="card-title">Claustro</h2>
+      <div class="card-sub">Gestiona los profesores y sus asignaciones de etapa</div>
+    </div>
+    
+    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+      <button class="btn-primary btn-primary--sm" (click)="openAddModal()" data-testid="add-teacher-btn">
+        + Añadir profesor
+      </button>
+    </div>
   </div>
 
   <!-- Acordeones por etapa -->
@@ -29,8 +35,21 @@
       </button>
 
       <!-- Cuerpo del acordeón (expandible) -->
+      <!-- Cuerpo del acordeón (expandible) -->
       @if (isStageExpanded(stage.id)) {
         <div class="etapa-body">
+
+          @if (cyclesForStage(stage).length > 1) {
+            <div class="cycle-pills-bar">
+              <button class="cycle-pill" [class.cycle-pill--active]="cycleFilterFor(stage.id) === null" (click)="setCycleFilter(stage.id, null)">Todos los ciclos</button>
+              @for (c of cyclesForStage(stage); track c) {
+                <button class="cycle-pill" [class.cycle-pill--active]="cycleFilterFor(stage.id) === c" (click)="setCycleFilter(stage.id, c)">
+                  {{ cicloLabel(c) }}
+                </button>
+              }
+            </div>
+          }
+
           <p-table #dtTeachers [value]="teachersForStage(stage.id)" [paginator]="true" [rows]="10"
                    [rowsPerPageOptions]="[5,10,25]" dataKey="id"
                    [globalFilterFields]="['fullName','email','teacherType']"

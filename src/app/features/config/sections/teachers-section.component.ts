@@ -35,6 +35,7 @@ export class TeachersSectionComponent {
   readonly editingTeacher = signal<Teacher | null>(null);
 
   readonly expandedStages = signal<Set<string>>(new Set<string>());
+  readonly stageCycleFilters = signal<Record<string, number | null>>({});
 
   teacherForm = signal({
     fullName: '',
@@ -106,15 +107,41 @@ export class TeachersSectionComponent {
   }
 
   teachersForStage(stageId: string): Teacher[] {
+    const cycle = this.cycleFilterFor(stageId);
     return this.teachers().filter(t =>
-      t.stageAssignments?.some(sa => sa.stageId === stageId)
+      t.stageAssignments?.some(sa => 
+        sa.stageId === stageId && 
+        (cycle === null || sa.cycle === null || sa.cycle === cycle)
+      )
     );
   }
 
   teachersWithoutStage(): Teacher[] {
+    // Los profesores sin etapa asignada se muestran siempre (comunes)
     return this.teachers().filter(t =>
       !t.stageAssignments || t.stageAssignments.length === 0
     );
+  }
+
+  cyclesForStage(stage: SchoolStage): number[] {
+    const minCycle = 1;
+    const maxCycle = Math.ceil((stage.maxLevel - stage.minLevel + 1) / 2);
+    const out = [];
+    for(let i = minCycle; i <= maxCycle; i++) out.push(i);
+    return out;
+  }
+
+  cycleFilterFor(stageId: string): number | null {
+    return this.stageCycleFilters()[stageId] ?? null;
+  }
+
+  setCycleFilter(stageId: string, cycle: number | null): void {
+    this.stageCycleFilters.update(prev => ({ ...prev, [stageId]: cycle }));
+  }
+
+  cicloLabel(c: number | null): string {
+    if (!c) return '';
+    return c === 1 ? '1.er Ciclo' : c === 3 ? '3.er Ciclo' : `${c}.º Ciclo`;
   }
 
   teacherTypeLabel(type: string): string {

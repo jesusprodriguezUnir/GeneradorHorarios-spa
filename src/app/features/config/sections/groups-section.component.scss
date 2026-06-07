@@ -63,6 +63,39 @@ $chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' w
 // ── Table ─────────────────────────────────────────────────────────────────────
 .accordion-body { border-top: 1px solid var(--border); }
 .group-table-scroll { overflow-x: auto; }
+.cycle-pills-bar {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--muted);
+  overflow-x: auto;
+}
+
+.cycle-pill {
+  padding: 6px 14px;
+  border-radius: 100px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--muted-foreground);
+  background: var(--card);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--border);
+    color: var(--foreground);
+  }
+
+  &--active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-fg);
+  }
+}
+
 .group-table { min-width: 860px; }
 
 $cols: 1.15fr 0.8fr 1.2fr 1.35fr 1.05fr 84px;

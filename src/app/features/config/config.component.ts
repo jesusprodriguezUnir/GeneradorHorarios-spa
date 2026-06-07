@@ -100,6 +100,32 @@ export class ConfigComponent implements OnInit {
     );
   });
 
+  readonly filteredSubjects = computed(() => {
+    const ab = this.activeBlock();
+    if (ab === 'all') return this.subjects();
+    const stagesForBlock = this.stages().filter(s => {
+      const type = s.stageType.toLowerCase();
+      if (ab === 'inf') return type.includes('inf');
+      if (ab === 'pri') return type.includes('pri');
+      if (ab === 'sec') return type.includes('sec') || type.includes('eso');
+      return false;
+    });
+    if (stagesForBlock.length === 0) return [];
+    
+    return this.subjects().filter(subj => {
+      if (subj.courseLevel) {
+        return stagesForBlock.some(s => subj.courseLevel! >= s.minLevel && subj.courseLevel! <= s.maxLevel);
+      }
+      if (subj.cycle) {
+        return stagesForBlock.some(st => {
+          const maxCycle = Math.ceil((st.maxLevel - st.minLevel + 1) / 2);
+          return subj.cycle! >= 1 && subj.cycle! <= maxCycle;
+        });
+      }
+      return true;
+    });
+  });
+
   readonly tabs: { id: Tab; label: string; icon: string }[] = [
     { id: 'school',     label: 'Centro',       icon: '🏛' },
     { id: 'ciclos',     label: 'Ciclos',        icon: '🕐' },
@@ -150,7 +176,7 @@ export class ConfigComponent implements OnInit {
     switch (tab) {
       case 'teachers':   return this.filteredTeachers().length;
       case 'groups':     return this.filteredGroups().length;
-      case 'subjects':   return this.subjects().length;
+      case 'subjects':   return this.filteredSubjects().length;
       case 'classrooms': return this.classrooms().length;
       default: return 0;
     }

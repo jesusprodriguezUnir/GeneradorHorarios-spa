@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, input, output, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, input, output, effect, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MessageService, ConfirmationService } from 'primeng/api';
@@ -6,12 +6,15 @@ import { Dialog } from 'primeng/dialog';
 import { TableModule } from 'primeng/table';
 import { InputText } from 'primeng/inputtext';
 import { SubjectsApiService } from '../../../core/api/subjects-api.service';
-import { SubjectAllocation } from '../../../core/models';
+import { SubjectAllocation, SchoolStage } from '../../../core/models';
+import { BLOCKS, EtapaBlock } from '../../../core/blocks.model';
+import { BlockStateService } from '../../../core/block-state.service';
+import { LecIconComponent } from '../../../shared/ui/lec-icon.component';
 
 @Component({
   selector: 'app-subjects-section',
   standalone: true,
-  imports: [CommonModule, FormsModule, Dialog, TableModule, InputText],
+  imports: [CommonModule, FormsModule, Dialog, TableModule, InputText, LecIconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './subjects-section.component.html',
   styleUrls: ['./subjects-section.component.scss']
@@ -20,12 +23,17 @@ export class SubjectsSectionComponent {
   private readonly api = inject(SubjectsApiService);
   private readonly msg = inject(MessageService);
   private readonly confirmation = inject(ConfirmationService);
+  private readonly blockState = inject(BlockStateService);
 
   readonly subjects = input.required<SubjectAllocation[]>();
+  readonly stages = input.required<SchoolStage[]>();
   readonly subjectsChange = output<SubjectAllocation[]>();
 
   readonly isSubjectModalOpen = signal(false);
   readonly editingSubject = signal<SubjectAllocation | null>(null);
+
+  readonly expandedStages = signal<Set<string>>(new Set<string>());
+  readonly stageCycleFilters = signal<Record<string, number | null>>({});
 
   subjectForm = signal({
     subjectName: '',
@@ -42,9 +50,104 @@ export class SubjectsSectionComponent {
     courseLevel: null as number | null,
   });
 
+  constructor() {
+    effect(() => {
+      const active = this.blockState.activeBlock();
+      if (active !== 'all') {
+        this.expandedStages.set(new Set([active]));
+      } else {
+        this.expandedStages.set(new Set(['inf', 'pri', 'sec']));
+      }
+    });
+  }
+
   readonly isOfficialTemplate = computed(() => 
     this.subjects().length > 0 && this.subjects().every(s => s.isOfficial)
   );
+
+  // ── Accordion Helpers ────────────────────────────────────────────────────────
+  toggleStage(stageId: string): void {
+    const stage = this.stages().find(s => s.id === stageId);
+    const blockId = stage ? this.getEtapaId(stage.stageType) : stageId;
+
+    this.expandedStages.update(prev => {
+      const next = new Set(prev);
+      if (next.has(stageId) || next.has(blockId)) {
+        next.delete(stageId);
+        next.delete(blockId);
+      } else {
+        next.add(stageId);
+      }
+      return next;
+    });
+  }
+
+  isStageExpanded(stageId: string): boolean {
+    const stage = this.stages().find(s => s.id === stageId);
+    const blockId = stage ? this.getEtapaId(stage.stageType) : stageId;
+    return this.expandedStages().has(stageId) || this.expandedStages().has(blockId);
+  }
+
+  getEtapaId(stageType: string): string {
+    const type = stageType.toLowerCase();
+    if (type.includes('inf')) return 'inf';
+    if (type.includes('pri')) return 'pri';
+    if (type.includes('sec') || type.includes('eso')) return 'sec';
+    return type;
+  }
+
+  getEtapaBlock(stageType: string): EtapaBlock | undefined {
+    const id = this.getEtapaId(stageType);
+    return BLOCKS.find(b => b.id === id);
+  }
+
+  subjectsForStage(stageId: string): SubjectAllocation[] {
+    const stage = this.stages().find(s => s.id === stageId);
+    if (!stage) return [];
+    const filterCycle = this.cycleFilterFor(stageId);
+    
+    return this.subjects().filter(subj => {
+      let subjCycle: number | null = null;
+      if (subj.courseLevel) {
+        if (subj.courseLevel < stage.minLevel || subj.courseLevel > stage.maxLevel) return false;
+        subjCycle = Math.ceil((subj.courseLevel - stage.minLevel + 1) / 2);
+      } else if (subj.cycle) {
+        const maxCycle = Math.ceil((stage.maxLevel - stage.minLevel + 1) / 2);
+        if (subj.cycle < 1 || subj.cycle > maxCycle) return false;
+        subjCycle = subj.cycle;
+      } else {
+        return false;
+      }
+      
+      if (filterCycle !== null && subjCycle !== filterCycle) return false;
+      return true;
+    });
+  }
+
+  genericSubjects(): SubjectAllocation[] {
+    return this.subjects().filter(subj => !subj.courseLevel && !subj.cycle);
+  }
+
+  cyclesForStage(stage: SchoolStage): number[] {
+    const minCycle = 1;
+    const maxCycle = Math.ceil((stage.maxLevel - stage.minLevel + 1) / 2);
+    const out = [];
+    for(let i = minCycle; i <= maxCycle; i++) out.push(i);
+    return out;
+  }
+
+  cycleFilterFor(stageId: string): number | null {
+    return this.stageCycleFilters()[stageId] ?? null;
+  }
+
+  setCycleFilter(stageId: string, cycle: number | null): void {
+    this.stageCycleFilters.update(prev => ({ ...prev, [stageId]: cycle }));
+  }
+
+  cicloLabel(c: number | null): string {
+    if (!c) return '';
+    return c === 1 ? '1.er Ciclo' : c === 3 ? '3.er Ciclo' : `${c}.º Ciclo`;
+  }
 
   openAddModal(): void {
     this.editingSubject.set(null);
@@ -136,7 +239,7 @@ export class SubjectsSectionComponent {
     if (isNaN(val) || val < min || val > max) return;
     await this.api.updateSubjectHours(id, val).catch(() => {});
     
-    const updated = this.subjects().map(s => s.id === id ? { ...s, weeklyHoursDefault: val } : s);
+    const updated = await this.api.getSubjects();
     this.subjectsChange.emit(updated);
   }
 
@@ -174,7 +277,7 @@ export class SubjectsSectionComponent {
       acceptButtonStyleClass: 'p-button-danger',
       accept: async () => {
         await this.api.deleteSubject(id).catch(() => {});
-        const updated = this.subjects().filter(s => s.id !== id);
+        const updated = await this.api.getSubjects();
         this.subjectsChange.emit(updated);
         this.msg.add({ severity: 'success', summary: 'Asignatura eliminada', detail: 'La asignatura ha sido eliminada correctamente.' });
       },

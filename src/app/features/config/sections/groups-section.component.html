@@ -14,9 +14,8 @@
 
   <!-- ── Card body ────────────────────────────────────────────────────────── -->
   <div class="card-body">
-
     <!-- Search -->
-    <div class="search-wrap">
+    <div class="search-wrap" style="margin-bottom: 16px;">
       <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
       <input [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" placeholder="Buscar grupos…" class="search-input" />
     </div>
@@ -60,13 +59,24 @@
             <svg class="chevron" [class.chevron--open]="isOpen" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
           </button>
 
-          <!-- Accordion body -->
-          @if (isOpen) {
-            <div class="accordion-body">
-              <div class="group-table-scroll thin-scroll">
-                <div class="group-table">
+          <!-- BODY del acordeón -->
+        @if (isStageOpen(stage.id)) {
+          <div class="accordion-body group-table-scroll">
+            
+            @if (cyclesForStage(stage).length > 1) {
+              <div class="cycle-pills-bar">
+                <button class="cycle-pill" [class.cycle-pill--active]="cycleFilterFor(stage.id) === null" (click)="setCycleFilter(stage.id, null)">Todos los ciclos</button>
+                @for (c of cyclesForStage(stage); track c) {
+                  <button class="cycle-pill" [class.cycle-pill--active]="cycleFilterFor(stage.id) === c" (click)="setCycleFilter(stage.id, c)">
+                    {{ cicloLabel(c) }}
+                  </button>
+                }
+              </div>
+            }
 
-                  <!-- Table head -->
+            @if (filteredForStage(stage.id).length > 0) {
+              <div class="group-table">
+                <!-- Header fila -->
                   <div class="group-thead">
                     <span class="sort-head">Grupo</span>
                     <span class="sort-head">Alumnos</span>

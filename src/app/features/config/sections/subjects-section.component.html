@@ -2,101 +2,250 @@
   <div class="section-header">
     <h3 class="section-title">Asignaturas y horas semanales</h3>
     @if (isOfficialTemplate()) {
-      <span class="official-badge">Plantilla oficial Madrid</span>
-    } @else {
-      <button class="btn-primary btn-primary--sm" (click)="openAddModal()">
-        + Añadir asignatura
-      </button>
-    }
-  </div>
-
+<div data-testid="config-subjects-section" class="subjects-root">
+  <!-- Banner -->
   @if (isOfficialTemplate()) {
     <div class="lomloe-banner">
       <div class="lomloe-banner__body">
-        <h4 class="lomloe-banner__title">Plantilla LOMLOE Oficial Activa</h4>
+        <h3 class="lomloe-banner__title">Plantilla LOMLOE activa</h3>
         <p class="lomloe-banner__desc">
-          Estás visualizando la configuración de asignaturas oficial del Decreto 61/2022 de Madrid. Para poder añadir asignaturas propias, cambiar nombres o modificar especialidades, debes personalizar el currículo de tu centro.
+          Estás usando la distribución oficial del Ministerio. Puedes personalizar las horas o
+          clonar la plantilla para crear asignaturas propias.
         </p>
       </div>
-      <button (click)="cloneOfficialTemplate()" class="btn-primary btn-primary--sm">
-        Personalizar Asignaturas
+      <button class="btn-template" (click)="cloneOfficialTemplate()">
+        <lec-icon name="copy" [size]="14" />
+        <span>Personalizar centro</span>
       </button>
     </div>
   }
 
-  <p-table #dtSubjects [value]="subjects()" [paginator]="true" [rows]="10"
-           [rowsPerPageOptions]="[5,10,25]" dataKey="id"
-           [globalFilterFields]="['subjectName','subjectShort','subjectKey']"
-           currentPageReportTemplate="{first}–{last} de {totalRecords}"
-           [showCurrentPageReport]="true">
-    <ng-template pTemplate="caption">
-      <div class="table-caption">
-        <input pInputText type="text"
-               (input)="dtSubjects.filterGlobal($any($event.target).value,'contains')"
-               placeholder="Buscar asignaturas…" class="table-filter-input" />
-      </div>
-    </ng-template>
-    <ng-template pTemplate="header">
-      <tr>
-        <th pSortableColumn="subjectName">Asignatura <p-sortIcon field="subjectName"/></th>
-        <th pSortableColumn="subjectShort">Clave <p-sortIcon field="subjectShort"/></th>
-        <th>Horas (mín–máx)</th>
-        <th>Horas actuales</th>
-        <th>Especialista</th>
-        @if (!isOfficialTemplate()) {
-          <th class="th-actions">Acciones</th>
-        }
-      </tr>
-    </ng-template>
-    <ng-template pTemplate="body" let-s>
-      <tr>
-        <td>
-          <div class="subj-name-cell">
-            <span class="subj-dot" [style.background]="'var(--subj-' + s.subjectKey + ')'"
-              [style.color]="'var(--subj-' + s.subjectKey + '-fg)'"></span>
-            {{ s.subjectName }}
-            @if (s.isOfficial) {
-              <span class="official-mini">LOMLOE</span>
-            }
-            @if (s.courseLevel) {
-              <span class="official-mini" style="background:var(--secondary);color:var(--foreground)">{{ s.courseLevel }}º Curso</span>
-            }
-            @if (s.cycle && !s.courseLevel) {
-              <span class="official-mini" style="background:var(--secondary);color:var(--foreground)">Ciclo {{ s.cycle }}</span>
-            }
-          </div>
-        </td>
-        <td class="td-muted">{{ s.subjectShort }}</td>
-        <td class="td-muted">{{ s.weeklyHoursMin }}–{{ s.weeklyHoursMax }}h</td>
-        <td>
-          <input type="number" [value]="s.weeklyHoursDefault"
-            [min]="s.weeklyHoursMin" [max]="s.weeklyHoursMax"
-            class="hours-input"
-            (change)="updateSubjectHours(s.id, $event, s.weeklyHoursMin, s.weeklyHoursMax)" />
-        </td>
-        <td>{{ s.requiresSpecialist ? 'Sí' : '—' }}</td>
-        @if (!isOfficialTemplate()) {
-          <td class="td-actions">
-            <div class="row-actions">
-              <button (click)="editSubject(s)" class="btn-edit" title="Editar asignatura">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-              </button>
-              <button (click)="deleteSubject(s.id)" class="btn-del" title="Eliminar asignatura">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-                </svg>
-              </button>
+  <div class="card-head" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <h2 class="card-title">Asignaturas</h2>
+      <div class="card-sub">Gestiona las asignaturas impartidas en el centro</div>
+    </div>
+    
+    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+      @if (!isOfficialTemplate()) {
+        <button class="btn-primary btn-primary--sm" (click)="openAddModal()" data-testid="add-subject-btn">
+          + Añadir asignatura
+        </button>
+      } @else {
+        <span class="official-badge">LOMLOE Oficial</span>
+      }
+    </div>
+  </div>
+
+  <!-- Acordeones por etapa -->
+  @for (stage of stages(); track stage.id) {
+    <div class="etapa-accordion" [class.etapa-accordion--open]="isStageExpanded(stage.id)" style="margin-bottom: 16px;">
+      
+      <!-- Cabecera de etapa (clickable) -->
+      <button class="etapa-header" type="button" (click)="toggleStage(stage.id)" [attr.data-testid]="'stage-header-' + stage.id">
+        <div class="etapa-header-left">
+          <span class="etapa-dot" [style.background]="getEtapaBlock(stage.stageType)?.color ?? 'var(--muted-foreground)'"></span>
+          <div>
+            <div class="etapa-name">{{ stage.name }}</div>
+            <div class="etapa-meta">
+              {{ getEtapaBlock(stage.stageType)?.ages ?? '' }} · {{ subjectsForStage(stage.id).length }} asignatura{{ subjectsForStage(stage.id).length !== 1 ? 's' : '' }}
             </div>
-          </td>
-        }
-      </tr>
-    </ng-template>
-    <ng-template pTemplate="emptymessage">
-      <tr><td [attr.colspan]="isOfficialTemplate() ? 5 : 6" class="td-empty">No hay asignaturas registradas.</td></tr>
-    </ng-template>
-  </p-table>
+          </div>
+        </div>
+        <div class="etapa-header-right">
+          <span class="accordion-chevron" [class.accordion-chevron--open]="isStageExpanded(stage.id)">
+            <lec-icon name="chevronDown" [size]="18" />
+          </span>
+        </div>
+      </button>
+
+      <!-- Cuerpo del acordeón (expandible) -->
+      @if (isStageExpanded(stage.id)) {
+        <div class="etapa-body">
+          
+          @if (cyclesForStage(stage).length > 1) {
+            <div class="cycle-pills-bar">
+              <button class="cycle-pill" [class.cycle-pill--active]="cycleFilterFor(stage.id) === null" (click)="setCycleFilter(stage.id, null)">Todos los ciclos</button>
+              @for (c of cyclesForStage(stage); track c) {
+                <button class="cycle-pill" [class.cycle-pill--active]="cycleFilterFor(stage.id) === c" (click)="setCycleFilter(stage.id, c)">
+                  {{ cicloLabel(c) }}
+                </button>
+              }
+            </div>
+          }
+
+          <p-table #dtStageSubjects [value]="subjectsForStage(stage.id)" [paginator]="true" [rows]="10"
+                   [rowsPerPageOptions]="[5,10,25]" dataKey="id"
+                   [globalFilterFields]="['subjectName','subjectShort','subjectKey','cycle','courseLevel']"
+                   currentPageReportTemplate="{first}–{last} de {totalRecords}"
+                   [showCurrentPageReport]="true">
+            <ng-template pTemplate="caption">
+              <div class="table-caption" style="padding: 12px 16px;">
+                <input pInputText type="text"
+                       (input)="dtStageSubjects.filterGlobal($any($event.target).value,'contains')"
+                       placeholder="Buscar asignaturas en {{ stage.name }}…" class="table-filter-input" />
+              </div>
+            </ng-template>
+            <ng-template pTemplate="header">
+              <tr>
+                <th pSortableColumn="subjectName">Asignatura <p-sortIcon field="subjectName"/></th>
+                <th pSortableColumn="subjectShort">Clave <p-sortIcon field="subjectShort"/></th>
+                <th>Horas (mín–máx)</th>
+                <th>Horas actuales</th>
+                <th>Especialista</th>
+                @if (!isOfficialTemplate()) {
+                  <th class="th-actions">Acciones</th>
+                }
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-s>
+              <tr>
+                <td>
+                  <div class="subj-name-cell">
+                    <span class="subj-dot" [style.background]="'var(--subj-' + s.subjectKey + ')'"
+                      [style.color]="'var(--subj-' + s.subjectKey + '-fg)'"></span>
+                    {{ s.subjectName }}
+                    @if (s.isOfficial) {
+                      <span class="official-mini">LOMLOE</span>
+                    }
+                    @if (s.courseLevel) {
+                      <span class="official-mini" style="background:var(--secondary);color:var(--foreground)">{{ s.courseLevel }}º Curso</span>
+                    }
+                    @if (s.cycle && !s.courseLevel) {
+                      <span class="official-mini" style="background:var(--secondary);color:var(--foreground)">Ciclo {{ s.cycle }}</span>
+                    }
+                  </div>
+                </td>
+                <td class="td-muted">{{ s.subjectShort }}</td>
+                <td class="td-muted">{{ s.weeklyHoursMin }}–{{ s.weeklyHoursMax }}h</td>
+                <td>
+                  <input type="number" [value]="s.weeklyHoursDefault"
+                    [min]="s.weeklyHoursMin" [max]="s.weeklyHoursMax"
+                    class="hours-input"
+                    (change)="updateSubjectHours(s.id, $event, s.weeklyHoursMin, s.weeklyHoursMax)" />
+                </td>
+                <td>{{ s.requiresSpecialist ? 'Sí' : '—' }}</td>
+                @if (!isOfficialTemplate()) {
+                  <td class="td-actions">
+                    <div class="row-actions">
+                      <button (click)="editSubject(s)" class="btn-edit" title="Editar asignatura">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                      </button>
+                      <button (click)="deleteSubject(s.id)" class="btn-del" title="Eliminar asignatura">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                }
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr><td [attr.colspan]="isOfficialTemplate() ? 5 : 6" class="td-empty">No hay asignaturas registradas en esta etapa.</td></tr>
+            </ng-template>
+          </p-table>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Acordeón para asignaturas comunes / sin etapa -->
+  @if (genericSubjects().length > 0) {
+    <div class="etapa-accordion" [class.etapa-accordion--open]="isStageExpanded('unassigned')" style="margin-bottom: 16px;">
+      
+      <button class="etapa-header" type="button" (click)="toggleStage('unassigned')">
+        <div class="etapa-header-left">
+          <span class="etapa-dot" style="background: var(--muted-foreground)"></span>
+          <div>
+            <div class="etapa-name">Comunes / Todas las etapas</div>
+            <div class="etapa-meta">
+              {{ genericSubjects().length }} asignatura{{ genericSubjects().length !== 1 ? 's' : '' }}
+            </div>
+          </div>
+        </div>
+        <div class="etapa-header-right">
+          <span class="accordion-chevron" [class.accordion-chevron--open]="isStageExpanded('unassigned')">
+            <lec-icon name="chevronDown" [size]="18" />
+          </span>
+        </div>
+      </button>
+
+      @if (isStageExpanded('unassigned')) {
+        <div class="etapa-body">
+          <p-table #dtGenericSubjects [value]="genericSubjects()" [paginator]="true" [rows]="10"
+                   [rowsPerPageOptions]="[5,10,25]" dataKey="id"
+                   [globalFilterFields]="['subjectName','subjectShort','subjectKey']"
+                   currentPageReportTemplate="{first}–{last} de {totalRecords}"
+                   [showCurrentPageReport]="true">
+            <ng-template pTemplate="caption">
+              <div class="table-caption" style="padding: 12px 16px;">
+                <input pInputText type="text"
+                       (input)="dtGenericSubjects.filterGlobal($any($event.target).value,'contains')"
+                       placeholder="Buscar asignaturas comunes…" class="table-filter-input" />
+              </div>
+            </ng-template>
+            <ng-template pTemplate="header">
+              <tr>
+                <th pSortableColumn="subjectName">Asignatura <p-sortIcon field="subjectName"/></th>
+                <th pSortableColumn="subjectShort">Clave <p-sortIcon field="subjectShort"/></th>
+                <th>Horas (mín–máx)</th>
+                <th>Horas actuales</th>
+                <th>Especialista</th>
+                @if (!isOfficialTemplate()) {
+                  <th class="th-actions">Acciones</th>
+                }
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-s>
+              <tr>
+                <td>
+                  <div class="subj-name-cell">
+                    <span class="subj-dot" [style.background]="'var(--subj-' + s.subjectKey + ')'"
+                      [style.color]="'var(--subj-' + s.subjectKey + '-fg)'"></span>
+                    {{ s.subjectName }}
+                    @if (s.isOfficial) {
+                      <span class="official-mini">LOMLOE</span>
+                    }
+                  </div>
+                </td>
+                <td class="td-muted">{{ s.subjectShort }}</td>
+                <td class="td-muted">{{ s.weeklyHoursMin }}–{{ s.weeklyHoursMax }}h</td>
+                <td>
+                  <input type="number" [value]="s.weeklyHoursDefault"
+                    [min]="s.weeklyHoursMin" [max]="s.weeklyHoursMax"
+                    class="hours-input"
+                    (change)="updateSubjectHours(s.id, $event, s.weeklyHoursMin, s.weeklyHoursMax)" />
+                </td>
+                <td>{{ s.requiresSpecialist ? 'Sí' : '—' }}</td>
+                @if (!isOfficialTemplate()) {
+                  <td class="td-actions">
+                    <div class="row-actions">
+                      <button (click)="editSubject(s)" class="btn-edit" title="Editar asignatura">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                      </button>
+                      <button (click)="deleteSubject(s.id)" class="btn-del" title="Eliminar asignatura">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                }
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr><td [attr.colspan]="isOfficialTemplate() ? 5 : 6" class="td-empty">No hay asignaturas comunes.</td></tr>
+            </ng-template>
+          </p-table>
+        </div>
+      }
+    </div>
+  }
 </div>
 
 <!-- Modal para Añadir / Editar Asignatura -->
