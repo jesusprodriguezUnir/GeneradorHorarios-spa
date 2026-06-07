@@ -41,6 +41,7 @@
           <app-teachers-section
             [teachers]="filteredTeachers()"
             [stages]="filteredStages()"
+            [subjects]="subjects()"
             (teachersChange)="teachers.set($event)" />
         </div>
       }
@@ -52,6 +53,7 @@
             [teachers]="filteredTeachers()"
             [classrooms]="classrooms()"
             [subjects]="subjects()"
+            [stages]="filteredStages()"
             [school]="school()" />
         </div>
       }

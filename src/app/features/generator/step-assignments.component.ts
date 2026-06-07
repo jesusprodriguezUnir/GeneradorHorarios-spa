@@ -276,18 +276,11 @@ export class StepAssignmentsComponent {
   }
   protected firstName(t: Teacher): string { return t.fullName.split(/\s+/)[0]; }
   protected roleOf(t: Teacher): string {
-    return t.specialties?.length ? t.specialties[0] : 'Docente';
+    return t.subjectHours?.length ? (t.subjectHours[0].subjectKey) : 'Docente';
   }
 
-  /** Heurística de capacidad: generalistas dan troncales; especialistas, su materia. */
   protected canTeach(t: Teacher, alloc: SubjectAllocation): boolean {
-    const sp = (t.specialties ?? []).map(s => s.toLowerCase());
-    const generalist = sp.some(s => s.includes('general') || s.includes('primaria') || s.includes('infantil'));
-    const core = ['mat', 'len', 'soc', 'cie', 'tut'];
-    if (generalist && core.includes(alloc.subjectKey)) return true;
-    const name = alloc.subjectName.toLowerCase();
-    const shortFirst = alloc.subjectShort.toLowerCase().split(/\s+/)[0];
-    return sp.some(s => name.includes(s) || s.includes(shortFirst));
+    return (t.subjectHours ?? []).some(sh => sh.subjectKey === alloc.subjectKey);
   }
 
   protected loadStatus(t: Teacher): { c: string; l: string } {

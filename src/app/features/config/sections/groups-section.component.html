@@ -1,75 +1,176 @@
-<div data-testid="config-groups-section">
-  <div class="section-header">
-    <h3 class="section-title">Grupos y cursos</h3>
-    <button class="btn-primary btn-primary--sm" (click)="openAddModal()">
-      + Añadir grupo
+<div data-testid="config-groups-section" class="groups-root">
+
+  <!-- ── Card header ──────────────────────────────────────────────────────── -->
+  <div class="card-head">
+    <div>
+      <h2 class="card-title">Grupos y cursos</h2>
+      <p class="card-sub">{{ groups().length }} grupos en {{ stages().length }} etapas · organizados por etapa educativa</p>
+    </div>
+    <button class="btn-add" (click)="openAddModal()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg>
+      Añadir grupo
     </button>
   </div>
 
-  <p-table #dtGroups [value]="groups()" [paginator]="true" [rows]="10"
-           [rowsPerPageOptions]="[5,10,25]" dataKey="id"
-           [globalFilterFields]="['displayName','tutorName']"
-           currentPageReportTemplate="{first}–{last} de {totalRecords}"
-           [showCurrentPageReport]="true">
-    <ng-template pTemplate="caption">
-      <div class="table-caption">
-        <input pInputText type="text"
-               (input)="dtGroups.filterGlobal($any($event.target).value,'contains')"
-               placeholder="Buscar grupos…" class="table-filter-input" />
-      </div>
-    </ng-template>
-    <ng-template pTemplate="header">
-      <tr>
-        <th pSortableColumn="displayName">Grupo <p-sortIcon field="displayName"/></th>
-        <th pSortableColumn="studentCount">Alumnos <p-sortIcon field="studentCount"/></th>
-        <th pSortableColumn="tutorName">Tutor/a <p-sortIcon field="tutorName"/></th>
-        <th>Aula de referencia</th>
-        <th>Carga Lectiva</th>
-        <th class="th-actions">Acciones</th>
-      </tr>
-    </ng-template>
-    <ng-template pTemplate="body" let-g>
-      <tr>
-        <td><strong>{{ g.displayName }}</strong></td>
-        <td>{{ g.studentCount }} alumnos</td>
-        <td>{{ g.tutorName ?? '—' }}</td>
-        <td>{{ getClassroomName(g.homeClassroomId) }}</td>
-        <td>
-          <div class="pills-wrap">
-            @for (sh of getSubjectHoursList(g); track sh.key) {
-              <span class="subj-pill"
-                [style.background]="'var(--subj-' + sh.key + ')'"
-                [style.color]="'var(--subj-' + sh.key + '-fg)'">
-                {{ sh.short }}: {{ sh.hours }}h
-              </span>
-            } @empty {
-              <span class="text-empty-italic">— Sin configurar —</span>
+  <!-- ── Card body ────────────────────────────────────────────────────────── -->
+  <div class="card-body">
+
+    <!-- Search -->
+    <div class="search-wrap">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" placeholder="Buscar grupos…" class="search-input" />
+    </div>
+
+    <!-- Accordions stack -->
+    <div class="accordions-stack">
+
+      @if (stages().length === 0) {
+        <div class="empty-stages">No hay etapas configuradas en este centro.</div>
+      }
+
+      @for (stage of stages(); track stage.id) {
+        @let all = allForStage(stage.id);
+        @let filtered = filteredForStage(stage.id);
+        @let nStudents = stageTotalStudents(stage.id);
+        @let nConf = stageGroupsConfigured(stage.id);
+        @let isOpen = isStageOpen(stage.id);
+
+        <div class="accordion" [class.accordion--open]="isOpen">
+
+          <!-- Accordion header -->
+          <button class="accordion-head" (click)="toggleStage(stage.id)">
+            <span class="stage-dot"
+              [style.background]="getStageColor(stage)"
+              [style.box-shadow]="'0 0 0 4px ' + getStageColorTint(stage)">
+            </span>
+            <div class="stage-info">
+              <span class="stage-name">{{ stage.name }}</span>
+              <span class="stage-meta">{{ getStageAgeRange(stage) }} · {{ all.length }} grupos · {{ nStudents }} alumnos</span>
+            </div>
+            @if (all.length > 0) {
+              @if (nConf < all.length) {
+                <span class="stage-badge badge--warn">{{ all.length - nConf }} sin carga</span>
+              } @else {
+                <span class="stage-badge badge--ok">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  Carga completa
+                </span>
+              }
             }
-          </div>
-        </td>
-        <td class="td-actions">
-          <div class="row-actions">
-            <button (click)="editGroup(g)" class="btn-edit" title="Editar grupo">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
-              </svg>
-            </button>
-            <button (click)="deleteGroup(g.id)" class="btn-del" title="Eliminar grupo">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-              </svg>
-            </button>
-          </div>
-        </td>
-      </tr>
-    </ng-template>
-    <ng-template pTemplate="emptymessage">
-      <tr><td colspan="6" class="td-empty">No hay grupos registrados.</td></tr>
-    </ng-template>
-  </p-table>
+            <svg class="chevron" [class.chevron--open]="isOpen" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+
+          <!-- Accordion body -->
+          @if (isOpen) {
+            <div class="accordion-body">
+              <div class="group-table-scroll thin-scroll">
+                <div class="group-table">
+
+                  <!-- Table head -->
+                  <div class="group-thead">
+                    <span class="sort-head">Grupo</span>
+                    <span class="sort-head">Alumnos</span>
+                    <span class="sort-head">Tutor/a</span>
+                    <span>Aula de referencia</span>
+                    <span>Carga lectiva</span>
+                    <span class="head-actions">Acciones</span>
+                  </div>
+
+                  <!-- Group rows -->
+                  @for (g of filtered; track g.id) {
+                    @let pal = getGroupPal(g);
+                    @let carga = getCarga(g);
+                    <div class="group-row">
+
+                      <!-- Grupo -->
+                      <div class="cell-name">
+                        <span class="group-badge"
+                          [style.background]="pal.bg"
+                          [style.color]="pal.fg">
+                          {{ g.displayName }}
+                        </span>
+                        <div>
+                          <div class="group-display">{{ g.displayName }}</div>
+                          <div class="group-ciclo">{{ cicloForGroup(g) }}</div>
+                        </div>
+                      </div>
+
+                      <!-- Alumnos -->
+                      <div class="cell-muted">{{ g.studentCount }} alumnos</div>
+
+                      <!-- Tutor/a -->
+                      <div class="cell-tutor">
+                        @if (g.tutorId) {
+                          <span class="tutor-avatar"
+                            [style.background]="'var(--subj-' + tutorColorKey(g.tutorId) + ')'"
+                            [style.color]="'var(--subj-' + tutorColorKey(g.tutorId) + '-fg)'">
+                            {{ tutorInitials(g.tutorId) }}
+                          </span>
+                          <span class="tutor-label">{{ tutorName(g.tutorId) }}</span>
+                        } @else {
+                          <span class="cell-empty">—</span>
+                        }
+                      </div>
+
+                      <!-- Aula -->
+                      <div class="cell-muted ellipsis">{{ getClassroomName(g.homeClassroomId) }}</div>
+
+                      <!-- Carga lectiva -->
+                      <div>
+                        @if (carga) {
+                          <span class="badge-ok">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/></svg>
+                            {{ carga.totalH }} h · {{ carga.nSubjects }} áreas
+                          </span>
+                        } @else {
+                          <span class="cell-empty-italic">— Sin configurar —</span>
+                        }
+                      </div>
+
+                      <!-- Acciones -->
+                      <div class="cell-actions">
+                        <button (click)="editGroup(g)" class="btn-edit" title="Editar grupo">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+                        </button>
+                        <button (click)="deleteGroup(g)" class="btn-del" title="Eliminar grupo">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        </button>
+                      </div>
+                    </div>
+                  }
+
+                  @if (filtered.length === 0) {
+                    <div class="empty-row">
+                      @if (searchQuery().trim()) {
+                        Ningún grupo coincide con la búsqueda en esta etapa.
+                      } @else {
+                        No hay grupos registrados en esta etapa.
+                      }
+                    </div>
+                  }
+
+                </div>
+              </div>
+
+              <!-- Accordion footer -->
+              <div class="accordion-foot">
+                <span class="foot-count">{{ all.length }} grupos en {{ stage.name }}</span>
+                <button class="btn-add-stage" (click)="openAddModal(stage.id)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg>
+                  Añadir grupo a {{ stage.name }}
+                </button>
+              </div>
+            </div>
+          }
+
+        </div>
+      }
+    </div>
+  </div>
 </div>
 
-<!-- Modal para Añadir / Editar Grupo -->
+
+<!-- ── Modal crear / editar grupo ─────────────────────────────────────────── -->
 <p-dialog
   [visible]="isGroupModalOpen()"
   (visibleChange)="isGroupModalOpen.set($event)"
@@ -77,155 +178,292 @@
   [draggable]="false"
   [resizable]="false"
   [closeOnEscape]="true"
-  [style]="{ width: '560px', maxWidth: '95vw' }"
-  [contentStyle]="{ 'overflow-y': 'auto', 'max-height': '62vh' }">
+  [style]="{ width: '620px', maxWidth: '96vw' }"
+  [contentStyle]="{ 'overflow-y': 'auto', 'max-height': '70vh', 'padding': '0' }"
+  appendTo="body">
 
   <ng-template pTemplate="header">
     <div>
       <span class="premium-badge">{{ editingGroup() ? 'MODIFICACIÓN' : 'NUEVO REGISTRO' }}</span>
-      <h3 class="premium-title">{{ editingGroup() ? 'Editar Grupo' : 'Crear Nuevo Grupo' }}</h3>
+      <h3 class="premium-title">{{ editingGroup() ? 'Editar grupo' : 'Nuevo grupo' }}</h3>
+      @if (editingGroup()) {
+        <p class="modal-sub">{{ stages().find(s => s.id === groupForm().stageId)?.name }} · {{ groupForm().groupLabel }}</p>
+      } @else {
+        <p class="modal-sub">Añade un grupo a la configuración del centro</p>
+      }
     </div>
   </ng-template>
 
-  <div class="modal-body-premium">
-        
-        <!-- Tarjeta de Vista Previa -->
-        <div class="preview-card-premium">
-          <div class="preview-badge-label">VISTA PREVIA DEL GRUPO</div>
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <div style="display:flex;align-items:center;gap:12px">
-              <span class="preview-group-dot">
-                {{ groupForm().courseLevel }}º{{ groupForm().groupLabel ? groupForm().groupLabel.toUpperCase() : '?' }}
-              </span>
-              <div>
-                <div style="font-weight:700;font-size:var(--text-md);color:var(--foreground)">
-                  Curso {{ groupForm().courseLevel }}º — Grupo {{ groupForm().groupLabel ? groupForm().groupLabel.toUpperCase() : 'Sin definir' }}
-                </div>
-                <div style="font-size:var(--text-xs);color:var(--muted-foreground)">
-                  {{ groupForm().studentCount }} alumnos registrados
-                </div>
-              </div>
-            </div>
-            <div class="preview-meta-pill" [class.preview-meta-pill--active]="groupForm().tutorId">
-              {{ getTutorInitialsOrText() }}
-            </div>
-          </div>
-        </div>
+  <div class="modal-body">
 
-        <!-- Selector de Nivel de Curso (Tarjetas Interactivas) -->
-        <div class="form-field-premium">
-          <label class="field-label-premium">Nivel del Curso</label>
-          <div class="course-levels-grid">
-            @for (level of getSchoolCourseLevels(); track level) {
-              <button class="course-level-card" 
-                [class.course-level-card--active]="groupForm().courseLevel === level"
-                (click)="groupForm().courseLevel = level">
-                <span class="course-level-card-num">{{ level }}º</span>
-                <span class="course-level-card-sub">{{ getStageLabelForLevel(level) }}</span>
-              </button>
+    <!-- ① Identidad ────────────────────────────────────────────────────── -->
+    <section class="modal-section">
+
+      <!-- Nombre -->
+      <div class="field">
+        <label class="field-label">Nombre del grupo</label>
+        <input [ngModel]="groupForm().groupLabel"
+          (ngModelChange)="groupForm.update(f => ({...f, groupLabel: $event.toUpperCase()}))"
+          placeholder="p. ej. 1ºA"
+          class="field-input" />
+      </div>
+
+      <!-- Paleta de color -->
+      <div class="field">
+        <label class="field-label">Color / etiqueta del grupo</label>
+        <div class="palette-row">
+          @for (p of palette; track p.key) {
+            <button class="palette-swatch"
+              [class.swatch--active]="groupForm().colorKey === p.key"
+              [style.background]="p.bg"
+              [style.border-color]="groupForm().colorKey === p.key ? p.dot : 'transparent'"
+              (click)="groupForm.update(f => ({...f, colorKey: p.key}))"
+              [title]="p.key">
+              <span class="swatch-dot" [style.background]="p.dot"></span>
+            </button>
+          }
+        </div>
+      </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- ② Ubicación académica ───────────────────────────────────────────── -->
+    <section class="modal-section">
+      <div class="section-title-row">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></svg>
+        <span>Ubicación académica</span>
+      </div>
+      <div class="fields-3">
+
+        <div class="field">
+          <label class="field-label">Etapa</label>
+          <select [ngModel]="groupForm().stageId" (ngModelChange)="onStageChange($event)" class="field-select">
+            @for (s of stages(); track s.id) {
+              <option [value]="s.id">{{ s.name }}</option>
             }
-          </div>
-        </div>
-        
-        <!-- Fila con Letra de Grupo y Número de Alumnos -->
-        <div class="form-row-premium">
-          
-          <!-- Letra del Grupo -->
-          <div class="form-field-premium" style="flex:1">
-            <label class="field-label-premium">Letra / Etiqueta</label>
-            <div class="input-with-icon-premium">
-              <span class="input-icon-premium" style="font-size:16px;font-weight:800;color:var(--muted-foreground)">A</span>
-              <input [ngModel]="groupForm().groupLabel" 
-                class="field-input-premium" 
-                placeholder="Ej: A, B..." 
-                type="text" 
-                maxlength="5" 
-                (input)="onGroupLabelInput($event)" />
-            </div>
-          </div>
-
-          <!-- Cantidad de Alumnos -->
-          <div class="form-field-premium" style="flex:1">
-            <label class="field-label-premium">Nº de Alumnos</label>
-            <div class="student-counter-premium">
-              <button class="counter-btn-premium" (click)="adjustStudentCount(-1)">−</button>
-              <input [(ngModel)]="groupForm().studentCount" 
-                class="counter-input-premium" 
-                type="number" min="1" max="100" />
-              <button class="counter-btn-premium" (click)="adjustStudentCount(1)">+</button>
-            </div>
-          </div>
-
+          </select>
         </div>
 
-        <!-- Asignación de Tutor/a -->
-        <div class="form-field-premium">
-          <label class="field-label-premium">Profesor/a Tutor/a</label>
-          <div class="input-with-icon-premium">
-            <span class="input-icon-premium" style="font-size:15px">👤</span>
-            <select [(ngModel)]="groupForm().tutorId" class="field-select-premium">
-              <option value="">Sin tutor asignado</option>
-              @for (t of teachers(); track t.id) {
-                <option [value]="t.id">{{ t.fullName }}</option>
+        <div class="field">
+          <label class="field-label">Ciclo</label>
+          <select [ngModel]="groupForm().selectedCiclo" (ngModelChange)="onCicloChange($event)" class="field-select">
+            @for (c of cicloOptionsForStage(); track c.value) {
+              <option [value]="c.value">{{ c.label }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Curso</label>
+          <select [ngModel]="groupForm().courseLevel" (ngModelChange)="onCourseLevelChange($event)" class="field-select">
+            @for (c of courseOptionsForStage(); track c.value) {
+              <option [value]="c.value">{{ c.label }}</option>
+            }
+          </select>
+        </div>
+
+      </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- ③ Alumnado y referencias ────────────────────────────────────────── -->
+    <section class="modal-section">
+      <div class="section-title-row">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Alumnado y referencias</span>
+      </div>
+      <div class="fields-2">
+
+        <!-- Nº alumnos -->
+        <div class="field">
+          <label class="field-label">Nº de alumnos</label>
+          <div class="stepper">
+            <button class="stepper-btn" (click)="adjustStudentCount(-1)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
+            </button>
+            <span class="stepper-val">{{ groupForm().studentCount }} alum.</span>
+            <button class="stepper-btn" (click)="adjustStudentCount(1)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Aula de referencia -->
+        <div class="field">
+          <label class="field-label">Aula de referencia</label>
+          <select [ngModel]="groupForm().homeClassroomId"
+            (ngModelChange)="groupForm.update(f => ({...f, homeClassroomId: $event}))"
+            class="field-select">
+            <option value="">— Sin asignar —</option>
+            @for (c of classrooms(); track c.id) {
+              <option [value]="c.id">{{ c.name }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Tutor/a (full row) -->
+        <div class="field field--full">
+          <label class="field-label">Tutor/a</label>
+
+          <!-- Backdrop for click-outside -->
+          @if (isTutorDropdownOpen()) {
+            <div class="tutor-backdrop" (click)="isTutorDropdownOpen.set(false)"></div>
+          }
+
+          <div class="tutor-select-wrap">
+            <button class="tutor-select-btn" type="button" (click)="isTutorDropdownOpen.update(v => !v)">
+              @if (groupForm().tutorId) {
+                <span class="tutor-avatar-sm"
+                  [style.background]="'var(--subj-' + tutorColorKey(groupForm().tutorId) + ')'"
+                  [style.color]="'var(--subj-' + tutorColorKey(groupForm().tutorId) + '-fg)'">
+                  {{ tutorInitials(groupForm().tutorId) }}
+                </span>
+                <span class="tutor-selected-name">{{ tutorName(groupForm().tutorId) }}</span>
+              } @else {
+                <span class="tutor-placeholder">Selecciona tutor/a…</span>
               }
-            </select>
-          </div>
-        </div>
+              <svg class="select-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
 
-        <!-- Aula de Referencia -->
-        <div class="form-field-premium">
-          <label class="field-label-premium">Aula de Referencia</label>
-          <div class="input-with-icon-premium">
-            <span class="input-icon-premium" style="font-size:15px">🚪</span>
-            <select [(ngModel)]="groupForm().homeClassroomId" class="field-select-premium">
-              <option value="">Sin aula de referencia</option>
-              @for (c of classrooms(); track c.id) {
-                <option [value]="c.id">{{ c.name }} ({{ classroomTypeLabel(c.classroomType) }})</option>
-              }
-            </select>
-          </div>
-        </div>
-
-        <!-- Sección de Horas por Asignatura -->
-        <div class="form-field-premium" style="border-top:1px solid var(--border);padding-top:18px">
-          <label class="field-label-premium" style="margin-bottom:12px;display:flex;align-items:center;gap:6px">
-            <span>⏱️</span> Horas Requeridas por Asignatura
-          </label>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:12px">
-            @for (s of subjects(); track s.id) {
-              <div style="display:flex;align-items:center;justify-content:space-between;background:var(--secondary);border-radius:8px;padding:8px 12px;border:1px solid var(--border)">
-                <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1">
-                  <span class="subj-dot" [style.background]="'var(--subj-' + s.subjectKey + ')'" style="width:8px;height:8px;border-radius:50%"></span>
-                  <span style="font-size:var(--text-xs);font-weight:700;color:var(--foreground);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" [title]="s.subjectName">
-                    {{ s.subjectShort }}
-                  </span>
-                </div>
-                <div style="display:flex;align-items:center;gap:6px">
-                  <input type="number" 
-                    [ngModel]="groupForm().subjectHours[s.subjectKey]" 
-                    (ngModelChange)="onGroupSubjectHourChange(s.subjectKey, $event)"
-                    [min]="s.weeklyHoursMin" 
-                    [max]="s.weeklyHoursMax" 
-                    class="hours-input" 
-                    style="width:50px;padding:4px 6px;font-size:var(--text-xs);font-weight:700" />
-                  <span style="font-size:10px;color:var(--muted-foreground)">h</span>
-                </div>
+            @if (isTutorDropdownOpen()) {
+              <div class="tutor-dropdown thin-scroll">
+                <!-- Sin tutor -->
+                <button class="tutor-option"
+                  (click)="groupForm.update(f => ({...f, tutorId: ''})); isTutorDropdownOpen.set(false)">
+                  <span class="tutor-avatar-sm tutor-avatar--empty">–</span>
+                  <span>Sin tutor asignado</span>
+                  @if (!groupForm().tutorId) {
+                    <svg style="margin-left: auto; color: var(--primary-strong)" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  }
+                </button>
+                @for (t of teachers(); track t.id) {
+                  <button class="tutor-option"
+                    [class.tutor-option--active]="groupForm().tutorId === t.id"
+                    (click)="groupForm.update(f => ({...f, tutorId: t.id})); isTutorDropdownOpen.set(false)">
+                    <span class="tutor-avatar-sm"
+                      [style.background]="'var(--subj-' + t.colorKey + ')'"
+                      [style.color]="'var(--subj-' + t.colorKey + '-fg)'">
+                      {{ tutorInitials(t.id) }}
+                    </span>
+                    <span>{{ t.fullName }}</span>
+                    @if (groupForm().tutorId === t.id) {
+                      <svg style="margin-left: auto; color: var(--primary-strong)" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                    }
+                  </button>
+                }
               </div>
             }
           </div>
         </div>
 
       </div>
-      
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- ④ Carga lectiva ─────────────────────────────────────────────────── -->
+    <section class="modal-section">
+      <div class="section-title-row">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <span>Carga lectiva</span>
+        <span class="section-hint">· Asignaturas y horas/semana</span>
+      </div>
+
+      <div class="carga-box">
+        <!-- Carga header -->
+        <div class="carga-head">
+          <div class="carga-head-left">
+            <span class="carga-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            </span>
+            <div>
+              <div class="carga-head-title">Carga lectiva</div>
+              <div class="carga-head-sub">{{ activeSubjects().length }} asignaturas</div>
+            </div>
+          </div>
+          <div class="carga-totals">
+            <div class="carga-hours" [class.carga-hours--over]="totalHours() > targetHours()">
+              {{ totalHours() }} / {{ targetHours() }} h
+            </div>
+            <div class="carga-progress-bg">
+              <div class="carga-progress-fill"
+                [style.width.%]="Math.min(100, totalHours() / targetHours() * 100)"
+                [class.fill--over]="totalHours() > targetHours()">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        @if (activeSubjects().length === 0) {
+          <div class="carga-empty">
+            <p class="carga-empty-text">Sin carga configurada para este grupo.</p>
+            <button class="btn-template" (click)="loadTemplate()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.726 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.49 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>
+              Cargar plantilla LOMLOE Madrid
+            </button>
+          </div>
+        } @else {
+          <div class="carga-list">
+            @for (s of activeSubjects(); track s.subjectKey) {
+              <div class="carga-row">
+                <span class="carga-subj-ico"
+                  [style.background]="'var(--subj-' + s.subjectKey + ')'"
+                  [style.color]="'var(--subj-' + s.subjectKey + '-fg)'">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+                </span>
+                <span class="carga-subj-name">{{ s.subjectName }}</span>
+                <div class="stepper stepper--sm">
+                  <button class="stepper-btn" (click)="adjustSubjectHours(s.subjectKey, -1)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
+                  </button>
+                  <span class="stepper-val stepper-val--sm">{{ groupForm().subjectHours[s.subjectKey] }} h</span>
+                  <button class="stepper-btn" (click)="adjustSubjectHours(s.subjectKey, 1)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg>
+                  </button>
+                </div>
+                <button class="btn-remove-subj" (click)="removeSubject(s.subjectKey)" title="Quitar">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+            }
+
+            <!-- Footer acciones -->
+            <div class="carga-footer">
+              @if (inactiveSubjects().length > 0) {
+                <select class="select-add-subj" (change)="addSubject($event)">
+                  <option value="" disabled selected>+ Añadir asignatura…</option>
+                  @for (s of inactiveSubjects(); track s.subjectKey) {
+                    <option [value]="s.subjectKey">{{ s.subjectName }}</option>
+                  }
+                </select>
+              }
+              <button class="btn-reset" (click)="loadTemplate()">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.726 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.49 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>
+                Restablecer plantilla
+              </button>
+              @if (totalHours() > targetHours()) {
+                <span class="over-warning">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><path d="M12 9v4M12 17h.01"/></svg>
+                  Supera las {{ targetHours() }} h del grupo
+                </span>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+
+  </div><!-- end modal-body -->
+
   <ng-template pTemplate="footer">
     <button class="btn-cancel-premium" (click)="isGroupModalOpen.set(false)">Cancelar</button>
-    <button class="btn-save-premium" (click)="saveGroup()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;vertical-align:middle;display:inline-block">
-        <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
-        <polyline points="17 21 17 13 7 13 7 21"/>
-        <polyline points="7 3 7 8 15 8"/>
-      </svg>
-      Guardar Cambios
+    <button class="btn-save-premium" (click)="saveGroup()" [disabled]="!groupForm().groupLabel.trim()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      {{ editingGroup() ? 'Guardar cambios' : 'Crear grupo' }}
     </button>
   </ng-template>
+
 </p-dialog>

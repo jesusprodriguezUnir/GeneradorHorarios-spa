@@ -1,27 +1,38 @@
-import { Component, inject, signal, input, output, ChangeDetectionStrategy } from '@angular/core';
+import {
+  Component, inject, signal, computed, input, output,
+  ChangeDetectionStrategy, effect, untracked, afterNextRender,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { Dialog } from 'primeng/dialog';
-import { TableModule } from 'primeng/table';
-import { InputText } from 'primeng/inputtext';
 import { GroupsApiService } from '../../../core/api/groups-api.service';
-import { CourseGroup, Teacher, Classroom, SubjectAllocation, School, SchoolStage } from '../../../core/models';
-import { BlockStateService } from '../../../core/block-state.service';
+import {
+  CourseGroup, Teacher, Classroom, SubjectAllocation,
+  School, SchoolStage, cycleFromLevel,
+} from '../../../core/models';
+
+export const GROUP_PALETTE = [
+  { key: 'indigo', dot: 'oklch(0.45 0.135 272)', bg: 'oklch(0.95 0.035 272)', fg: 'oklch(0.39 0.14 275)' },
+  { key: 'coral',  dot: 'oklch(0.64 0.15 40)',   bg: 'oklch(0.95 0.05 40)',   fg: 'oklch(0.42 0.13 38)'  },
+  { key: 'teal',   dot: 'oklch(0.55 0.11 205)',  bg: 'oklch(0.93 0.055 200)', fg: 'oklch(0.36 0.10 205)' },
+  { key: 'green',  dot: 'oklch(0.58 0.13 155)',  bg: 'oklch(0.93 0.06 155)',  fg: 'oklch(0.34 0.10 160)' },
+  { key: 'amber',  dot: 'oklch(0.70 0.13 65)',   bg: 'oklch(0.93 0.055 65)',  fg: 'oklch(0.40 0.10 60)'  },
+  { key: 'violet', dot: 'oklch(0.55 0.14 300)',  bg: 'oklch(0.92 0.06 300)',  fg: 'oklch(0.42 0.12 300)' },
+];
 
 @Component({
   selector: 'app-groups-section',
   standalone: true,
-  imports: [CommonModule, FormsModule, Dialog, TableModule, InputText],
+  imports: [CommonModule, FormsModule, Dialog],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './groups-section.component.html',
-  styleUrls: ['./groups-section.component.scss']
+  styleUrls: ['./groups-section.component.scss'],
 })
 export class GroupsSectionComponent {
   private readonly api = inject(GroupsApiService);
   private readonly msg = inject(MessageService);
   private readonly confirmation = inject(ConfirmationService);
-  private readonly blockState = inject(BlockStateService);
 
   readonly school = input.required<School | null>();
   readonly groups = input.required<CourseGroup[]>();
@@ -33,187 +44,386 @@ export class GroupsSectionComponent {
 
   readonly isGroupModalOpen = signal(false);
   readonly editingGroup = signal<CourseGroup | null>(null);
-  
+  readonly searchQuery = signal('');
+  readonly openAccordions = signal<Set<string>>(new Set<string>());
+  readonly isTutorDropdownOpen = signal(false);
+
+  readonly palette = GROUP_PALETTE;
+  readonly Math = Math;
+
   groupForm = signal({
+    groupLabel: '',
+    stageId: '',
     courseLevel: 1,
-    groupLabel: 'A',
+    colorKey: 'indigo',
     studentCount: 25,
     tutorId: '',
     homeClassroomId: '',
     subjectHours: {} as Record<string, number>,
+    selectedCiclo: 1,
   });
 
-  getClassroomName(classroomId: string | null): string {
-    if (!classroomId) return '—';
-    return this.classrooms().find(c => c.id === classroomId)?.name ?? '—';
-  }
+  // ── Maps computed once per groups/search change ───────────────────────────
 
-  classroomTypeLabel(type: string): string {
-    const map: Record<string, string> = {
-      regular: 'Ordinaria', gym: 'Gimnasio', music: 'Música',
-      lab: 'Laboratorio', it: 'Informática', support: 'Apoyo',
-    };
-    return map[type] ?? type;
-  }
-
-  getSubjectHoursList(g: CourseGroup): { key: string; short: string; hours: number }[] {
-    if (!g.subjectHours) return [];
-    return Object.entries(g.subjectHours)
-      .filter(([_, hours]) => hours > 0)
-      .map(([key, hours]) => {
-        const sub = this.subjects().find(s => s.subjectKey === key);
-        return {
-          key,
-          short: sub?.subjectShort || key.toUpperCase(),
-          hours
-        };
-      });
-  }
-
-  getSchoolCourseLevels(): number[] {
-    const s = this.school();
-    if (!s) return [1, 2, 3, 4, 5, 6];
-    
-    const ab = this.blockState.activeBlock();
-    let min = s.minCourseLevel;
-    let max = s.maxCourseLevel;
-    
-    if (ab !== 'all') {
-      const stagesForBlock = this.stages().filter(stage => {
-        const type = stage.stageType.toLowerCase();
-        if (ab === 'inf') return type.includes('inf');
-        if (ab === 'pri') return type.includes('pri');
-        if (ab === 'sec') return type.includes('sec') || type.includes('eso');
-        return false;
-      });
-      if (stagesForBlock.length > 0) {
-        min = Math.min(...stagesForBlock.map(st => st.minLevel));
-        max = Math.max(...stagesForBlock.map(st => st.maxLevel));
+  readonly groupsMap = computed(() => {
+    const map: Record<string, CourseGroup[]> = {};
+    for (const g of this.groups()) {
+      if (g.stageId) {
+        (map[g.stageId] ??= []).push(g);
       }
     }
+    return map;
+  });
 
-    const levels = [];
-    for (let i = min; i <= max; i++) {
-      levels.push(i);
+  readonly filteredGroupsMap = computed(() => {
+    const q = this.searchQuery().trim().toLowerCase();
+    const map = this.groupsMap();
+    if (!q) return map;
+    const out: Record<string, CourseGroup[]> = {};
+    for (const [sid, gs] of Object.entries(map)) {
+      out[sid] = gs.filter(g =>
+        (g.displayName + ' ' + (g.tutorName ?? '')).toLowerCase().includes(q),
+      );
     }
-    return levels;
+    return out;
+  });
+
+  // ── Ciclo / curso options for modal ──────────────────────────────────────
+
+  readonly cicloOptionsForStage = computed(() => {
+    const stageId = this.groupForm().stageId;
+    const stage = this.stages().find(s => s.id === stageId);
+    if (!stage) return [];
+    const seen = new Set<number>();
+    for (let l = stage.minLevel; l <= stage.maxLevel; l++) {
+      seen.add(this.cicloForLevel(l, stage));
+    }
+    return [...seen].map(c => ({ value: c, label: this.cicloLabel(c) }));
+  });
+
+  readonly courseOptionsForStage = computed(() => {
+    const { stageId, selectedCiclo } = this.groupForm();
+    const stage = this.stages().find(s => s.id === stageId);
+    if (!stage) return [];
+    const opts: { value: number; label: string }[] = [];
+    for (let l = stage.minLevel; l <= stage.maxLevel; l++) {
+      if (this.cicloForLevel(l, stage) === selectedCiclo) {
+        opts.push({ value: l, label: `${l}º` });
+      }
+    }
+    return opts;
+  });
+
+  // ── Subjects in / out of form carga ──────────────────────────────────────
+
+  readonly activeSubjects = computed(() => {
+    const sh = this.groupForm().subjectHours;
+    return this.subjects().filter(s => s.subjectKey in sh);
+  });
+
+  readonly inactiveSubjects = computed(() => {
+    const sh = this.groupForm().subjectHours;
+    return this.subjects().filter(s => !(s.subjectKey in sh));
+  });
+
+  // ── Init: open first accordion ────────────────────────────────────────────
+
+  constructor() {
+    afterNextRender(() => {
+      const first = this.stages()[0];
+      if (first && this.openAccordions().size === 0) {
+        this.openAccordions.set(new Set([first.id]));
+      }
+    });
   }
 
-  getStageLabelForLevel(level: number): string {
-    const found = this.stages().find(s => level >= s.minLevel && level <= s.maxLevel);
-    if (!found) {
-      if (level <= 6) return 'Primaria';
-      return 'ESO';
-    }
-    return found.name;
+  // ── Accordion helpers ─────────────────────────────────────────────────────
+
+  isStageOpen(stageId: string): boolean {
+    return this.openAccordions().has(stageId);
   }
 
-  openAddModal(): void {
-    const minCourse = this.school()?.minCourseLevel ?? 1;
-    const initialHours: Record<string, number> = {};
+  toggleStage(stageId: string): void {
+    this.openAccordions.update(set => {
+      const next = new Set(set);
+      if (next.has(stageId)) { next.delete(stageId); } else { next.add(stageId); }
+      return next;
+    });
+  }
+
+  filteredForStage(stageId: string): CourseGroup[] {
+    return this.filteredGroupsMap()[stageId] ?? [];
+  }
+
+  allForStage(stageId: string): CourseGroup[] {
+    return this.groupsMap()[stageId] ?? [];
+  }
+
+  stageTotalStudents(stageId: string): number {
+    return this.allForStage(stageId).reduce((s, g) => s + g.studentCount, 0);
+  }
+
+  stageGroupsConfigured(stageId: string): number {
+    return this.allForStage(stageId).filter(g => this.getCarga(g)).length;
+  }
+
+  // ── Visual helpers ────────────────────────────────────────────────────────
+
+  getCarga(g: CourseGroup): { totalH: number; nSubjects: number } | null {
+    if (!g.subjectHours) return null;
+    const entries = Object.entries(g.subjectHours).filter(([, h]) => h > 0);
+    if (!entries.length) return null;
+    return { totalH: entries.reduce((s, [, h]) => s + h, 0), nSubjects: entries.length };
+  }
+
+  getGroupPal(g: CourseGroup): { bg: string; fg: string; dot: string } {
+    const key = (g as any).colorKey as string
+      || this.defaultColorForStage(this.stages().find(s => s.id === g.stageId)?.stageType ?? '');
+    return GROUP_PALETTE.find(p => p.key === key) ?? GROUP_PALETTE[0];
+  }
+
+  getStageColor(stage: SchoolStage): string {
+    const t = stage.stageType.toLowerCase();
+    if (t.includes('inf')) return 'oklch(0.64 0.15 40)';
+    if (t.includes('sec') || t.includes('eso')) return 'oklch(0.55 0.11 205)';
+    return 'var(--primary)';
+  }
+
+  getStageColorTint(stage: SchoolStage): string {
+    const t = stage.stageType.toLowerCase();
+    if (t.includes('inf')) return 'oklch(0.95 0.05 40)';
+    if (t.includes('sec') || t.includes('eso')) return 'oklch(0.93 0.055 200)';
+    return 'var(--primary-tint)';
+  }
+
+  getStageAgeRange(stage: SchoolStage): string {
+    const t = stage.stageType.toLowerCase();
+    if (t.includes('inf')) return '3 – 6 años';
+    if (t.includes('sec') || t.includes('eso')) return '12 – 16 años';
+    return '6 – 12 años';
+  }
+
+  defaultColorForStage(stageType: string): string {
+    const t = stageType.toLowerCase();
+    if (t.includes('inf')) return 'coral';
+    if (t.includes('sec') || t.includes('eso')) return 'teal';
+    return 'indigo';
+  }
+
+  // ── Tutor helpers ─────────────────────────────────────────────────────────
+
+  tutorInitials(tutorId: string | null): string {
+    if (!tutorId) return '';
+    const t = this.teachers().find(x => x.id === tutorId);
+    if (!t) return '';
+    const p = t.fullName.trim().split(' ');
+    return (p[0][0] + (p[1]?.[0] ?? '')).toUpperCase();
+  }
+
+  tutorColorKey(tutorId: string | null): string {
+    if (!tutorId) return 'mat';
+    return this.teachers().find(x => x.id === tutorId)?.colorKey ?? 'mat';
+  }
+
+  tutorName(tutorId: string | null): string {
+    return this.teachers().find(x => x.id === tutorId)?.fullName ?? '';
+  }
+
+  getClassroomName(id: string | null): string {
+    if (!id) return '—';
+    return this.classrooms().find(c => c.id === id)?.name ?? '—';
+  }
+
+  // ── Ciclo helpers ─────────────────────────────────────────────────────────
+
+  cicloForLevel(level: number, stage: SchoolStage): number {
+    return Math.ceil((level - stage.minLevel + 1) / 2);
+  }
+
+  cicloLabel(n: number): string {
+    return n === 1 ? '1.er ciclo' : n === 2 ? '2.º ciclo' : '3.er ciclo';
+  }
+
+  cicloForGroup(g: CourseGroup): string {
+    const stage = this.stages().find(s => s.id === g.stageId);
+    if (!stage) return '';
+    return this.cicloLabel(this.cicloForLevel(g.courseLevel, stage));
+  }
+
+  // ── Carga lectiva ─────────────────────────────────────────────────────────
+
+  totalHours(): number {
+    return Object.values(this.groupForm().subjectHours).reduce((s, h) => s + (h || 0), 0);
+  }
+
+  targetHours(): number {
+    const stage = this.stages().find(s => s.id === this.groupForm().stageId);
+    return (stage?.stageType.toLowerCase().includes('sec') || stage?.stageType.toLowerCase().includes('eso'))
+      ? 30 : 25;
+  }
+
+  loadTemplate(): void {
+    const hours: Record<string, number> = {};
     for (const s of this.subjects()) {
-      initialHours[s.subjectKey] = s.weeklyHoursDefault;
+      hours[s.subjectKey] = s.weeklyHoursDefault;
     }
+    this.groupForm.update(f => ({ ...f, subjectHours: hours }));
+  }
+
+  adjustSubjectHours(key: string, delta: number): void {
+    this.groupForm.update(f => {
+      const s = this.subjects().find(x => x.subjectKey === key);
+      const min = s?.weeklyHoursMin ?? 0;
+      const max = s?.weeklyHoursMax ?? 12;
+      const next = Math.max(min, Math.min(max, (f.subjectHours[key] ?? 0) + delta));
+      return { ...f, subjectHours: { ...f.subjectHours, [key]: next } };
+    });
+  }
+
+  removeSubject(key: string): void {
+    this.groupForm.update(f => {
+      const { [key]: _, ...rest } = f.subjectHours;
+      return { ...f, subjectHours: rest };
+    });
+  }
+
+  addSubject(event: Event): void {
+    const sel = event.target as HTMLSelectElement;
+    const key = sel.value;
+    sel.value = '';
+    if (!key) return;
+    const s = this.subjects().find(x => x.subjectKey === key);
+    if (!s) return;
+    this.groupForm.update(f => ({
+      ...f,
+      subjectHours: { ...f.subjectHours, [key]: s.weeklyHoursDefault },
+    }));
+  }
+
+  // ── Modal ─────────────────────────────────────────────────────────────────
+
+  openAddModal(stageId?: string): void {
     this.editingGroup.set(null);
+    const sid = stageId ?? this.stages()[0]?.id ?? '';
+    const stage = this.stages().find(s => s.id === sid);
+    const defaultColor = this.defaultColorForStage(stage?.stageType ?? '');
+    const defaultLevel = stage?.minLevel ?? 1;
+    const defaultCiclo = stage ? this.cicloForLevel(defaultLevel, stage) : 1;
     this.groupForm.set({
-      courseLevel: minCourse,
-      groupLabel: 'A',
+      groupLabel: '',
+      stageId: sid,
+      courseLevel: defaultLevel,
+      colorKey: defaultColor,
       studentCount: 25,
       tutorId: '',
       homeClassroomId: '',
-      subjectHours: initialHours,
+      subjectHours: {},
+      selectedCiclo: defaultCiclo,
     });
+    this.isTutorDropdownOpen.set(false);
     this.isGroupModalOpen.set(true);
   }
 
   editGroup(g: CourseGroup): void {
     this.editingGroup.set(g);
-    const initialHours: Record<string, number> = {};
-    for (const s of this.subjects()) {
-      initialHours[s.subjectKey] = g.subjectHours?.[s.subjectKey] ?? s.weeklyHoursDefault;
-    }
+    const stage = this.stages().find(s => s.id === g.stageId);
+    const sh: Record<string, number> = g.subjectHours ? { ...g.subjectHours } : {};
+    const ciclo = stage ? this.cicloForLevel(g.courseLevel, stage) : 1;
     this.groupForm.set({
-      courseLevel: g.courseLevel,
       groupLabel: g.groupLabel,
+      stageId: g.stageId ?? '',
+      courseLevel: g.courseLevel,
+      colorKey: (g as any).colorKey ?? this.defaultColorForStage(stage?.stageType ?? ''),
       studentCount: g.studentCount,
       tutorId: g.tutorId ?? '',
       homeClassroomId: g.homeClassroomId ?? '',
-      subjectHours: initialHours,
+      subjectHours: sh,
+      selectedCiclo: ciclo,
     });
+    this.isTutorDropdownOpen.set(false);
     this.isGroupModalOpen.set(true);
+  }
+
+  onStageChange(stageId: string): void {
+    const stage = this.stages().find(s => s.id === stageId);
+    if (!stage) return;
+    const level = stage.minLevel;
+    this.groupForm.update(f => ({
+      ...f,
+      stageId,
+      courseLevel: level,
+      colorKey: this.defaultColorForStage(stage.stageType),
+      selectedCiclo: this.cicloForLevel(level, stage),
+    }));
+  }
+
+  onCicloChange(ciclo: number): void {
+    const stage = this.stages().find(s => s.id === this.groupForm().stageId);
+    if (!stage) return;
+    for (let l = stage.minLevel; l <= stage.maxLevel; l++) {
+      if (this.cicloForLevel(l, stage) === +ciclo) {
+        this.groupForm.update(f => ({ ...f, selectedCiclo: +ciclo, courseLevel: l }));
+        return;
+      }
+    }
+  }
+
+  onCourseLevelChange(level: number): void {
+    const stage = this.stages().find(s => s.id === this.groupForm().stageId);
+    const ciclo = stage ? this.cicloForLevel(+level, stage) : 1;
+    this.groupForm.update(f => ({ ...f, courseLevel: +level, selectedCiclo: ciclo }));
+  }
+
+  adjustStudentCount(delta: number): void {
+    this.groupForm.update(f => ({
+      ...f,
+      studentCount: Math.max(1, Math.min(100, f.studentCount + delta)),
+    }));
   }
 
   async saveGroup(): Promise<void> {
     const form = this.groupForm();
-    const editing = this.editingGroup();
-
-    if (!form.groupLabel || form.groupLabel.trim() === '') {
-      this.msg.add({ severity: 'warn', summary: 'Campo requerido', detail: 'El identificador/letra del grupo es obligatorio.' });
+    if (!form.groupLabel.trim()) {
+      this.msg.add({ severity: 'warn', summary: 'Campo requerido', detail: 'El nombre del grupo es obligatorio.' });
       return;
     }
-
-    const payload = {
+    const editing = this.editingGroup();
+    const payload: Partial<CourseGroup> = {
       courseLevel: Number(form.courseLevel),
-      groupLabel: form.groupLabel.trim().toUpperCase(),
+      groupLabel: form.groupLabel.trim(),
       studentCount: Number(form.studentCount),
-      tutorId: form.tutorId ? form.tutorId : null,
-      homeClassroomId: form.homeClassroomId ? form.homeClassroomId : null,
+      stageId: form.stageId || undefined,
+      tutorId: form.tutorId || null,
+      homeClassroomId: form.homeClassroomId || null,
       subjectHours: form.subjectHours,
+      ...(form.colorKey ? { colorKey: form.colorKey } as any : {}),
     };
-
     try {
       if (editing) {
         await this.api.updateGroup(editing.id, payload);
       } else {
         await this.api.createGroup(payload);
       }
-      
-      const updatedGroups = await this.api.getGroups();
-      this.groupsChange.emit(updatedGroups);
+      const updated = await this.api.getGroups();
+      this.groupsChange.emit(updated);
       this.isGroupModalOpen.set(false);
     } catch {
-      this.msg.add({ severity: 'error', summary: 'Error al guardar', detail: 'No se pudo guardar el grupo. Por favor, comprueba los datos.' });
+      this.msg.add({ severity: 'error', summary: 'Error al guardar', detail: 'No se pudo guardar el grupo.' });
     }
   }
 
-  onGroupLabelInput(ev: Event): void {
-    const val = (ev.target as HTMLInputElement).value;
-    this.groupForm.update(f => ({ ...f, groupLabel: val.toUpperCase() }));
-  }
-
-  adjustStudentCount(amount: number): void {
-    this.groupForm.update(f => {
-      const newCount = Math.max(1, Math.min(100, f.studentCount + amount));
-      return { ...f, studentCount: newCount };
-    });
-  }
-
-  getTutorInitialsOrText(): string {
-    const tutorId = this.groupForm().tutorId;
-    if (!tutorId) return 'Sin tutor';
-    const tutor = this.teachers().find(t => t.id === tutorId);
-    return tutor ? `Tutor: ${tutor.fullName}` : 'Sin tutor';
-  }
-
-  onGroupSubjectHourChange(key: string, val: number): void {
-    this.groupForm.update(f => {
-      const updated = { ...f.subjectHours, [key]: Number(val) };
-      return { ...f, subjectHours: updated };
-    });
-  }
-
-  deleteGroup(id: string): void {
+  deleteGroup(g: CourseGroup): void {
     this.confirmation.confirm({
-      message: '¿Estás seguro de que deseas eliminar este grupo? Esta acción no se puede deshacer.',
+      message: `¿Eliminar el grupo ${g.displayName}? Esta acción no se puede deshacer.`,
       header: 'Eliminar grupo',
       acceptLabel: 'Eliminar',
       rejectLabel: 'Cancelar',
       acceptButtonStyleClass: 'p-button-danger',
       accept: async () => {
-        await this.api.deleteGroup(id).catch(() => {});
-        const updatedGroups = await this.api.getGroups();
-        this.groupsChange.emit(updatedGroups);
-        this.msg.add({ severity: 'success', summary: 'Grupo eliminado', detail: 'El grupo ha sido eliminado correctamente.' });
+        await this.api.deleteGroup(g.id).catch(() => {});
+        const updated = await this.api.getGroups();
+        this.groupsChange.emit(updated);
+        this.msg.add({ severity: 'success', summary: 'Grupo eliminado', detail: `${g.displayName} eliminado correctamente.` });
       },
     });
   }

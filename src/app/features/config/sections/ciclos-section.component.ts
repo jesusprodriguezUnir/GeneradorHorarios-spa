@@ -191,7 +191,7 @@ export class CiclosSectionComponent {
       const num = cycleNumFromId(ciclo.id);
       const backendCycle = num !== null ? s.cycles?.find(c => c.cycle === num) : undefined;
 
-      let morningStart = backendCycle?.morningStart ?? etapa.jornada.entrada;
+      const morningStart = backendCycle?.morningStart ?? etapa.jornada.entrada;
 
       const morningSlots = backendCycle?.morningSlots
         ?? s.slotsPerDay

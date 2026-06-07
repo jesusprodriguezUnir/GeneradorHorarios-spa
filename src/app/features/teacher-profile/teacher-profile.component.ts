@@ -50,10 +50,10 @@ const SUBJECT_NAMES: Record<string, string> = {
                 </div>
               </div>
 
-              @if (teacher()!.specialties.length) {
+              @if (teacher()!.subjectHours.length) {
                 <div style="display:flex;flex-wrap:wrap;gap:6px">
-                  @for (s of teacher()!.specialties; track s) {
-                    <span class="specialty-badge">{{ s }}</span>
+                  @for (sh of teacher()!.subjectHours; track sh.subjectKey) {
+                    <span class="specialty-badge">{{ subjectName(sh.subjectKey) }} · {{ sh.weeklyHours }}h</span>
                   }
                 </div>
               }
@@ -280,11 +280,7 @@ export class TeacherProfileComponent implements OnInit {
   readonly subjectKeys = computed((): string[] => {
     const t = this.teacher();
     if (!t) return [];
-    // Derivar claves de asignatura desde las especialidades (texto libre → clave corta)
-    return Object.keys(SUBJECT_COLORS).filter(key => {
-      const name = SUBJECT_NAMES[key]?.toLowerCase() ?? key;
-      return t.specialties.some(s => s.toLowerCase().includes(name) || name.includes(s.toLowerCase()));
-    }).slice(0, 6);
+    return t.subjectHours.map(sh => sh.subjectKey).slice(0, 6);
   });
 
   // ── lifecycle ────────────────────────────────────────────────────────────────

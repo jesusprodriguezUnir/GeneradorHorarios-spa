@@ -98,7 +98,7 @@ export interface Teacher {
   email: string;
   teacherType: string;
   maxWeeklyHours: number;
-  specialties: string[];
+  subjectHours: { subjectKey: string; weeklyHours: number }[];
   colorKey: string;
   assignedHours: number;
   stageAssignments?: StageAssignment[];
@@ -106,6 +106,7 @@ export interface Teacher {
 
 export interface CourseGroup {
   id: string;
+  stageId?: string;
   courseLevel: number;
   groupLabel: string;
   displayName: string;

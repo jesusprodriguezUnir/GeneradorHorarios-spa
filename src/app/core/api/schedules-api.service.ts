@@ -21,4 +21,8 @@ export class SchedulesApiService {
     firstValueFrom(this.http.post<{ message: string }>(`${this.base}/schedules/${id}/publish`, {}));
   updateScheduleEntry = (scheduleId: string, entryId: string, teacherId: string, classroomId: string) =>
     firstValueFrom(this.http.put(`${this.base}/schedules/${scheduleId}/entries/${entryId}`, { teacherId, classroomId }));
+  deleteSchedule = (id: string) =>
+    firstValueFrom(this.http.delete(`${this.base}/schedules/${id}`));
+  archiveSchedule = (id: string) =>
+    firstValueFrom(this.http.post<{ message: string }>(`${this.base}/schedules/${id}/archive`, {}));
 }

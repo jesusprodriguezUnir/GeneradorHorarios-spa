@@ -81,6 +81,14 @@ type ViewMode = 'group' | 'teacher' | 'room';
               </option>
             }
           </select>
+          @if (currentSchedule()) {
+            @if (currentSchedule()!.status === 'draft' || currentSchedule()!.status === 'generated') {
+              <button class="btn-secondary" (click)="discard()" data-testid="discard-button">Descartar</button>
+            }
+            @if (currentSchedule()!.status !== 'published') {
+              <button class="btn-secondary btn-danger" (click)="remove()" data-testid="delete-button">Borrar</button>
+            }
+          }
         </div>
       }
 
@@ -248,6 +256,8 @@ type ViewMode = 'group' | 'teacher' | 'room';
     .btn-primary { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--primary); color: #fff; border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm); cursor: pointer; }
     .btn-primary:hover { background: var(--primary-strong); }
     .btn-secondary { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--card); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--border-strong); border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm); cursor: pointer; }
+    .btn-danger { color: var(--destructive); box-shadow: inset 0 0 0 1px var(--destructive); }
+    .btn-danger:hover { background: var(--destructive-tint); }
     .field-select { padding: 9px 12px; border: 1px solid var(--input); border-radius: var(--radius-md); font-size: var(--text-sm); font-family: var(--font-sans); background: var(--card); color: var(--foreground); }
     .spinner { width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--primary); animation: lec-spin 0.8s linear infinite; margin: 0 auto 16px; }
     
@@ -495,6 +505,10 @@ export class ScheduleResultComponent implements OnInit {
       icon: 'pi pi-send',
       acceptLabel: 'Publicar',
       rejectLabel: 'Cancelar',
+      acceptVisible: true,
+      rejectVisible: true,
+      acceptButtonProps: { label: 'Publicar', severity: 'primary' },
+      rejectButtonProps: { label: 'Cancelar', severity: 'secondary', outlined: true },
       accept: async () => {
         try {
           await this.schedulesApi.publishSchedule(id);
@@ -504,6 +518,67 @@ export class ScheduleResultComponent implements OnInit {
           this.toast.add({ severity: 'success', summary: 'Horario publicado', detail: 'El horario está ahora activo y visible para los profesores.' });
         } catch {
           this.toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo publicar el horario.' });
+        }
+      }
+    });
+  }
+
+  discard(): void {
+    const id = this.selectedId();
+    if (!id) return;
+    this.confirmation.confirm({
+      message: '¿Estás seguro de que deseas descartar este horario? Quedará archivado (puedes borrarlo definitivamente después).',
+      header: 'Descartar horario',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Descartar',
+      rejectLabel: 'Cancelar',
+      acceptVisible: true,
+      rejectVisible: true,
+      acceptButtonProps: { label: 'Descartar', severity: 'danger' },
+      rejectButtonProps: { label: 'Cancelar', severity: 'secondary', outlined: true },
+      accept: async () => {
+        try {
+          await this.schedulesApi.archiveSchedule(id);
+          const schedules = await this.schedulesApi.getSchedules();
+          this.schedules.set(schedules);
+          await this.loadGrid(id);
+          this.toast.add({ severity: 'success', summary: 'Horario archivado', detail: 'El horario ha sido descartado y archivado.' });
+        } catch {
+          this.toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo descartar el horario.' });
+        }
+      }
+    });
+  }
+
+  remove(): void {
+    const id = this.selectedId();
+    if (!id) return;
+    this.confirmation.confirm({
+      message: 'Esta acción no se puede deshacer.',
+      header: 'Borrar horario',
+      icon: 'pi pi-trash',
+      acceptLabel: 'Borrar',
+      rejectLabel: 'Cancelar',
+      acceptVisible: true,
+      rejectVisible: true,
+      acceptButtonProps: { label: 'Borrar', severity: 'danger' },
+      rejectButtonProps: { label: 'Cancelar', severity: 'secondary', outlined: true },
+      accept: async () => {
+        try {
+          await this.schedulesApi.deleteSchedule(id);
+          const schedules = await this.schedulesApi.getSchedules();
+          this.schedules.set(schedules);
+          const targetId = schedules.find(s => s.status === 'published')?.id ?? schedules[0]?.id;
+          if (targetId) {
+            this.selectedId.set(targetId);
+            await this.loadGrid(targetId);
+          } else {
+            this.selectedId.set('');
+            this.grid.set(null);
+          }
+          this.toast.add({ severity: 'success', summary: 'Horario borrado', detail: 'El horario ha sido eliminado permanentemente.' });
+        } catch {
+          this.toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo borrar el horario.' });
         }
       }
     });
