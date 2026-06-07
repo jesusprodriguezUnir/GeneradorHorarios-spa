@@ -58,6 +58,12 @@
             @if (s.isOfficial) {
               <span class="official-mini">LOMLOE</span>
             }
+            @if (s.courseLevel) {
+              <span class="official-mini" style="background:var(--secondary);color:var(--foreground)">{{ s.courseLevel }}º Curso</span>
+            }
+            @if (s.cycle && !s.courseLevel) {
+              <span class="official-mini" style="background:var(--secondary);color:var(--foreground)">Ciclo {{ s.cycle }}</span>
+            }
           </div>
         </td>
         <td class="td-muted">{{ s.subjectShort }}</td>
@@ -199,6 +205,37 @@
           <div class="form-field-premium" style="flex:1">
             <label class="field-label-premium">Horas Recomendadas</label>
             <input [(ngModel)]="subjectForm().weeklyHoursDefault" class="field-input-premium" type="number" min="0" max="15" style="padding-left:14px" />
+          </div>
+        </div>
+
+        <!-- Fila con Ciclo y Curso -->
+        <div class="form-row-premium">
+          <div class="form-field-premium" style="flex:1">
+            <label class="field-label-premium">Ciclo Específico (Opcional)</label>
+            <div class="input-with-icon-premium">
+              <span class="input-icon-premium" style="font-size:15px">🔄</span>
+              <select [(ngModel)]="subjectForm().cycle" class="field-select-premium">
+                <option [ngValue]="null">Aplica a cualquier ciclo</option>
+                <option [ngValue]="1">1º Ciclo</option>
+                <option [ngValue]="2">2º Ciclo</option>
+                <option [ngValue]="3">3º Ciclo</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-field-premium" style="flex:1">
+            <label class="field-label-premium">Curso Específico (Opcional)</label>
+            <div class="input-with-icon-premium">
+              <span class="input-icon-premium" style="font-size:15px">🎓</span>
+              <select [(ngModel)]="subjectForm().courseLevel" class="field-select-premium">
+                <option [ngValue]="null">Aplica a cualquier curso</option>
+                <option [ngValue]="1">1º Curso</option>
+                <option [ngValue]="2">2º Curso</option>
+                <option [ngValue]="3">3º Curso</option>
+                <option [ngValue]="4">4º Curso</option>
+                <option [ngValue]="5">5º Curso</option>
+                <option [ngValue]="6">6º Curso</option>
+              </select>
+            </div>
           </div>
         </div>
 

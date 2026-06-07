@@ -138,6 +138,8 @@ export interface SubjectAllocation {
   maxConsecutiveSlots: number;
   splittableAcrossDays: boolean;
   isOfficial: boolean;
+  cycle?: number | null;
+  courseLevel?: number | null;
 }
 
 export interface AssignmentSummary {

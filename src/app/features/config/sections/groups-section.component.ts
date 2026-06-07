@@ -122,8 +122,14 @@ export class GroupsSectionComponent {
   });
 
   readonly inactiveSubjects = computed(() => {
-    const sh = this.groupForm().subjectHours;
-    return this.subjects().filter(s => !(s.subjectKey in sh));
+    const f = this.groupForm();
+    const sh = f.subjectHours;
+    return this.subjects().filter(s => {
+      if (s.subjectKey in sh) return false;
+      if (s.courseLevel && s.courseLevel !== f.courseLevel) return false;
+      if (s.cycle && !s.courseLevel && s.cycle !== f.selectedCiclo) return false;
+      return true;
+    });
   });
 
   // ── Init: open first accordion ────────────────────────────────────────────
@@ -264,10 +270,13 @@ export class GroupsSectionComponent {
 
   loadTemplate(): void {
     const hours: Record<string, number> = {};
+    const f = untracked(this.groupForm);
     for (const s of this.subjects()) {
+      if (s.courseLevel && s.courseLevel !== f.courseLevel) continue;
+      if (s.cycle && !s.courseLevel && s.cycle !== f.selectedCiclo) continue;
       hours[s.subjectKey] = s.weeklyHoursDefault;
     }
-    this.groupForm.update(f => ({ ...f, subjectHours: hours }));
+    this.groupForm.update(prev => ({ ...prev, subjectHours: hours }));
   }
 
   adjustSubjectHours(key: string, delta: number): void {

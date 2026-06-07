@@ -38,6 +38,8 @@ export class SubjectsSectionComponent {
     requiredClassroomType: '',
     maxConsecutiveSlots: 2,
     splittableAcrossDays: true,
+    cycle: null as number | null,
+    courseLevel: null as number | null,
   });
 
   readonly isOfficialTemplate = computed(() => 
@@ -57,6 +59,8 @@ export class SubjectsSectionComponent {
       requiredClassroomType: '',
       maxConsecutiveSlots: 2,
       splittableAcrossDays: true,
+      cycle: null,
+      courseLevel: null,
     });
     this.isSubjectModalOpen.set(true);
   }
@@ -74,6 +78,8 @@ export class SubjectsSectionComponent {
       requiredClassroomType: s.requiredClassroomType ?? '',
       maxConsecutiveSlots: s.maxConsecutiveSlots,
       splittableAcrossDays: s.splittableAcrossDays,
+      cycle: s.cycle ?? null,
+      courseLevel: s.courseLevel ?? null,
     });
     this.isSubjectModalOpen.set(true);
   }
@@ -106,6 +112,8 @@ export class SubjectsSectionComponent {
       requiredClassroomType: form.requiredClassroomType ? form.requiredClassroomType : null,
       maxConsecutiveSlots: Number(form.maxConsecutiveSlots),
       splittableAcrossDays: form.splittableAcrossDays,
+      cycle: form.cycle ? Number(form.cycle) : null,
+      courseLevel: form.courseLevel ? Number(form.courseLevel) : null,
     };
 
     try {
