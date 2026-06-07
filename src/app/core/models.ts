@@ -98,10 +98,22 @@ export interface Teacher {
   email: string;
   teacherType: string;
   maxWeeklyHours: number;
+  /** Derivado del backend sumando assignments por asignatura. Se mantiene para compatibilidad con listados. */
   subjectHours: { subjectKey: string; weeklyHours: number }[];
   colorKey: string;
   assignedHours: number;
   stageAssignments?: StageAssignment[];
+  /** Distribución real por grupo: la fuente de verdad para el motor de generación. */
+  assignments?: Assignment[];
+}
+
+/** Payload de entrada para crear/reemplazar una línea de distribución docente. */
+export interface TeacherAssignmentInput {
+  /** SubjectAllocation.id */
+  allocationId: string;
+  /** CourseGroup.id */
+  groupId: string;
+  weeklyHours: number;
 }
 
 export interface CourseGroup {

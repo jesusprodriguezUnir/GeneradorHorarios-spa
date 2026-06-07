@@ -4,7 +4,7 @@
       <h2 class="card-title">Claustro</h2>
       <div class="card-sub">Gestiona los profesores y sus asignaciones de etapa</div>
     </div>
-    
+
     <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
       <button class="btn-primary btn-primary--sm" (click)="openAddModal()" data-testid="add-teacher-btn">
         + Añadir profesor
@@ -15,7 +15,7 @@
   <!-- Acordeones por etapa -->
   @for (stage of stages(); track stage.id) {
     <div class="etapa-accordion" [class.etapa-accordion--open]="isStageExpanded(stage.id)" style="margin-bottom: 16px;">
-      
+
       <!-- Cabecera de etapa (clickable) -->
       <button class="etapa-header" type="button" (click)="toggleStage(stage.id)" [attr.data-testid]="'stage-header-' + stage.id">
         <div class="etapa-header-left">
@@ -34,8 +34,6 @@
         </div>
       </button>
 
-      <!-- Cuerpo del acordeón (expandible) -->
-      <!-- Cuerpo del acordeón (expandible) -->
       @if (isStageExpanded(stage.id)) {
         <div class="etapa-body">
 
@@ -68,7 +66,7 @@
                 <th pSortableColumn="email">Email <p-sortIcon field="email"/></th>
                 <th pSortableColumn="teacherType">Tipo <p-sortIcon field="teacherType"/></th>
                 <th pSortableColumn="maxWeeklyHours">H. máx/semana <p-sortIcon field="maxWeeklyHours"/></th>
-                <th>Especialidades</th>
+                <th>Distribución docente</th>
                 <th>H. asignadas</th>
                 <th class="th-actions">Acciones</th>
               </tr>
@@ -78,7 +76,7 @@
                 <td>
                    <span class="avatar-sm" [style.background]="'var(--subj-' + t.colorKey + ')'">
                      {{ initials(t.fullName) }}
-                   </span> 
+                   </span>
                   {{ t.fullName }}
                 </td>
                 <td class="td-muted">{{ t.email }}</td>
@@ -120,7 +118,7 @@
   <!-- Acordeón para profesores sin etapa asignada -->
   @if (teachersWithoutStage().length > 0) {
     <div class="etapa-accordion" [class.etapa-accordion--open]="isStageExpanded('unassigned')" style="margin-bottom: 16px;">
-      
+
       <button class="etapa-header" type="button" (click)="toggleStage('unassigned')">
         <div class="etapa-header-left">
           <span class="etapa-dot" style="background: var(--muted-foreground)"></span>
@@ -158,7 +156,7 @@
                 <th pSortableColumn="email">Email <p-sortIcon field="email"/></th>
                 <th pSortableColumn="teacherType">Tipo <p-sortIcon field="teacherType"/></th>
                 <th pSortableColumn="maxWeeklyHours">H. máx/semana <p-sortIcon field="maxWeeklyHours"/></th>
-                <th>Especialidades</th>
+                <th>Distribución docente</th>
                 <th>H. asignadas</th>
                 <th class="th-actions">Acciones</th>
               </tr>
@@ -168,7 +166,7 @@
                 <td>
                    <span class="avatar-sm" [style.background]="'var(--subj-' + t.colorKey + ')'">
                      {{ initials(t.fullName) }}
-                   </span> 
+                   </span>
                   {{ t.fullName }}
                 </td>
                 <td class="td-muted">{{ t.email }}</td>
@@ -217,8 +215,8 @@
   [draggable]="false"
   [resizable]="false"
   [closeOnEscape]="true"
-  [style]="{ width: '560px', maxWidth: '95vw' }"
-  [contentStyle]="{ 'overflow-y': 'auto', 'max-height': '62vh' }"
+  [style]="{ width: '620px', maxWidth: '96vw' }"
+  [contentStyle]="{ 'overflow-y': 'auto', 'max-height': '70vh' }"
   appendTo="body">
 
   <ng-template pTemplate="header">
@@ -229,195 +227,254 @@
   </ng-template>
 
   <div class="modal-body-premium">
-        
-        <!-- Tarjeta de Vista Previa -->
-        <div class="preview-card-premium">
-          <div class="preview-badge-label">VISTA PREVIA DE PROFESOR</div>
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <div style="display:flex;align-items:center;gap:12px">
-              <span class="preview-group-dot" [style.background]="'var(--subj-' + teacherForm().colorKey + ')'">
-                {{ teacherForm().fullName ? initials(teacherForm().fullName) : 'PR' }}
-              </span>
-              <div>
-                <div style="font-weight:700;font-size:var(--text-md);color:var(--foreground)">
-                  {{ teacherForm().fullName || 'Nuevo Profesor/a' }}
-                </div>
-                <div style="font-size:var(--text-xs);color:var(--muted-foreground)">
-                  {{ teacherForm().email || 'sin-email@centro.es' }}
-                </div>
-              </div>
+
+    <!-- Tarjeta de Vista Previa -->
+    <div class="preview-card-premium">
+      <div class="preview-badge-label">VISTA PREVIA DE PROFESOR</div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span class="preview-group-dot" [style.background]="'var(--subj-' + teacherForm().colorKey + ')'">
+            {{ teacherForm().fullName ? initials(teacherForm().fullName) : 'PR' }}
+          </span>
+          <div>
+            <div style="font-weight:700;font-size:var(--text-md);color:var(--foreground)">
+              {{ teacherForm().fullName || 'Nuevo Profesor/a' }}
             </div>
-            <div class="preview-meta-pill" [class.preview-meta-pill--active]="teacherForm().teacherType === 'definitivo'">
-              {{ teacherForm().teacherType === 'definitivo' ? 'Definitivo' : 'Especialista' }}
+            <div style="font-size:var(--text-xs);color:var(--muted-foreground)">
+              {{ teacherForm().email || 'sin-email@centro.es' }}
+            </div>
+          </div>
+        </div>
+        <div class="preview-meta-pill" [class.preview-meta-pill--active]="teacherForm().teacherType === 'definitivo'">
+          {{ teacherForm().teacherType === 'definitivo' ? 'Definitivo' : 'Especialista' }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Nombre del Profesor -->
+    <div class="form-field-premium">
+      <label class="field-label-premium">Nombre Completo</label>
+      <div class="input-with-icon-premium">
+        <span class="input-icon-premium" style="font-size:15px">👤</span>
+        <input [(ngModel)]="teacherForm().fullName"
+          class="field-input-premium"
+          placeholder="Ej: Laura Fernández, Carlos Martínez..."
+          type="text"
+          maxlength="100"
+          data-testid="teacher-name-input" />
+      </div>
+    </div>
+
+    <!-- Email -->
+    <div class="form-field-premium">
+      <label class="field-label-premium">Correo Electrónico</label>
+      <div class="input-with-icon-premium">
+        <span class="input-icon-premium" style="font-size:15px">✉️</span>
+        <input [(ngModel)]="teacherForm().email"
+          class="field-input-premium"
+          placeholder="Ej: laura.fernandez@centro.es"
+          type="email"
+          maxlength="100"
+          data-testid="teacher-email-input" />
+      </div>
+    </div>
+
+    <!-- Fila con Tipo y Horas Máximas -->
+    <div class="form-row-premium">
+
+      <!-- Tipo de Profesor -->
+      <div class="form-field-premium" style="flex:1">
+        <label class="field-label-premium">Tipo de Docente</label>
+        <div class="input-with-icon-premium">
+          <span class="input-icon-premium" style="font-size:15px">💼</span>
+          <select [(ngModel)]="teacherForm().teacherType" class="field-select-premium">
+            <option value="definitivo">Definitivo / Generalista</option>
+            <option value="especialista">Especialista / Interino</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Horas Máximas Semanales -->
+      <div class="form-field-premium" style="flex:1">
+        <label class="field-label-premium">Horas Máximas Semanales</label>
+        <div class="student-counter-premium">
+          <button class="counter-btn-premium" (click)="adjustTeacherHours(-1)">−</button>
+          <input [(ngModel)]="teacherForm().maxWeeklyHours"
+            class="counter-input-premium"
+            type="number" min="1" max="40" />
+          <button class="counter-btn-premium" (click)="adjustTeacherHours(1)">+</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Etapas Educativas -->
+    <div class="form-field-premium">
+      <label class="field-label-premium">Etapas en las que imparte clase</label>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:8px;padding:4px 0">
+        @for (stage of stages(); track stage.id) {
+          <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font-weight:600;font-size:var(--text-sm);color:var(--foreground)">
+            <input type="checkbox"
+              [checked]="isStageSelected(stage.id)"
+              (change)="toggleStageSelection(stage.id)"
+              [attr.data-testid]="'teacher-stage-checkbox-' + stage.id"
+              style="width:16px;height:16px;border-radius:4px;border:1.5px solid var(--border-strong);cursor:pointer;accent-color:var(--primary)" />
+            {{ stage.name }}
+          </label>
+        }
+      </div>
+    </div>
+
+    <!-- ── Distribución docente ── -->
+    <div class="form-field-premium">
+      <label class="field-label-premium">Distribución docente por grupo</label>
+
+      <!-- Cabecera: total de horas con barra de progreso -->
+      <div class="carga-box" style="margin-top:4px">
+        <div class="carga-head">
+          <div class="carga-head-left">
+            <span class="carga-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            </span>
+            <div>
+              <div class="carga-head-title">Horas asignadas</div>
+              <div class="carga-head-sub">{{ formActiveGroups().length }} grupo{{ formActiveGroups().length !== 1 ? 's' : '' }} · {{ teacherForm().assignments.length }} asignacion{{ teacherForm().assignments.length !== 1 ? 'es' : '' }}</div>
+            </div>
+          </div>
+          <div class="carga-totals">
+            <div class="carga-hours" [style.color]="hoursExceeded() ? 'var(--destructive)' : 'inherit'">
+              {{ totalAssignedHours() }} / {{ teacherForm().maxWeeklyHours }} h
             </div>
           </div>
         </div>
 
-        <!-- Nombre del Profesor -->
-        <div class="form-field-premium">
-          <label class="field-label-premium">Nombre Completo</label>
-          <div class="input-with-icon-premium">
-            <span class="input-icon-premium" style="font-size:15px">👤</span>
-            <input [(ngModel)]="teacherForm().fullName" 
-              class="field-input-premium" 
-              placeholder="Ej: Laura Fernández, Carlos Martínez..." 
-              type="text" 
-              maxlength="100"
-              data-testid="teacher-name-input" />
+        <!-- Barra de progreso -->
+        <div class="mini-bar-wrap" style="margin: 8px 12px 12px; height:6px; border-radius:99px; overflow:hidden; background:var(--muted)">
+          <div class="mini-bar" style="height:100%; border-radius:99px; transition:width .3s"
+            [style.width]="hoursProgressPct() + '%'"
+            [style.background]="hoursExceeded() ? 'var(--destructive)' : 'var(--primary)'"></div>
+        </div>
+
+        @if (hoursExceeded()) {
+          <div style="margin:0 12px 10px;padding:8px 10px;background:var(--destructive-tint);border-radius:var(--radius-sm);font-size:var(--text-xs);color:var(--destructive);font-weight:600">
+            ⚠️ Has asignado {{ totalAssignedHours() - teacherForm().maxWeeklyHours }}h de más respecto al máximo del profesor.
           </div>
-        </div>
+        }
 
-        <!-- Email -->
-        <div class="form-field-premium">
-          <label class="field-label-premium">Correo Electrónico</label>
-          <div class="input-with-icon-premium">
-            <span class="input-icon-premium" style="font-size:15px">✉️</span>
-            <input [(ngModel)]="teacherForm().email" 
-              class="field-input-premium" 
-              placeholder="Ej: laura.fernandez@centro.es" 
-              type="email" 
-              maxlength="100"
-              data-testid="teacher-email-input" />
+        <!-- Estado vacío: sin etapas seleccionadas o sin grupos añadidos -->
+        @if (teacherForm().selectedStageIds.length === 0) {
+          <div class="carga-empty">
+            <p class="carga-empty-text">Selecciona primero una o más etapas para poder añadir grupos.</p>
           </div>
-        </div>
+        } @else if (formActiveGroups().length === 0) {
+          <div class="carga-empty">
+            <p class="carga-empty-text">Añade grupos para repartir las horas del profesor.</p>
+            @if (groupsToAdd().length === 0 && availableGroups().length === 0) {
+              <p style="font-size:var(--text-xs);color:var(--muted-foreground);margin-top:4px">No hay grupos configurados para las etapas seleccionadas.</p>
+            }
+          </div>
+        } @else {
 
-        <!-- Fila con Tipo y Horas Máximas -->
-        <div class="form-row-premium">
-          
-          <!-- Tipo de Profesor -->
-          <div class="form-field-premium" style="flex:1">
-            <label class="field-label-premium">Tipo de Docente</label>
-            <div class="input-with-icon-premium">
-              <span class="input-icon-premium" style="font-size:15px">💼</span>
-              <select [(ngModel)]="teacherForm().teacherType" class="field-select-premium">
-                <option value="definitivo">Definitivo / Generalista</option>
-                <option value="especialista">Especialista / Interino</option>
-              </select>
-            </div>
-           </div>
+          <!-- Un bloque por grupo -->
+          @for (group of formActiveGroups(); track group.id) {
+            <div class="grupo-block">
 
-           <!-- Horas Máximas Semanales -->
-           <div class="form-field-premium" style="flex:1">
-             <label class="field-label-premium">Horas Máximas Semanales</label>
-             <div class="student-counter-premium">
-               <button class="counter-btn-premium" (click)="adjustTeacherHours(-1)">−</button>
-               <input [(ngModel)]="teacherForm().maxWeeklyHours" 
-                 class="counter-input-premium" 
-                 type="number" min="1" max="40" />
-               <button class="counter-btn-premium" (click)="adjustTeacherHours(1)">+</button>
-             </div>
-           </div>
-
-        </div>
-
-        <!-- Asignaturas y carga horaria -->
-        <div class="form-field-premium">
-          <label class="field-label-premium">Asignaturas y carga horaria</label>
-          <div class="carga-box" style="margin-top:4px">
-            <div class="carga-head">
-              <div class="carga-head-left">
-                <span class="carga-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                </span>
-                <div>
-                  <div class="carga-head-title">Capacidad docente</div>
-                  <div class="carga-head-sub">{{ activeSubjects().length }} asignaturas</div>
+              <!-- Cabecera del grupo -->
+              <div class="grupo-block-head">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span class="group-chip-sm">{{ group.displayName }}</span>
+                  <span style="font-size:var(--text-xs);color:var(--muted-foreground)">{{ group.courseLevel }}º · {{ groupCicloLabel(group) }}</span>
                 </div>
-              </div>
-              <div class="carga-totals">
-                <div class="carga-hours">{{ totalHours() }} h</div>
-              </div>
-            </div>
-
-            @if (activeSubjects().length === 0) {
-              <div class="carga-empty">
-                <p class="carga-empty-text">Sin asignaturas configuradas para este profesor.</p>
-                <button class="btn-template" (click)="loadTemplate()">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.726 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.49 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>
-                  Cargar plantilla LOMLOE Madrid
+                <button class="btn-remove-group" (click)="removeGroup(group.id)" title="Quitar grupo">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
                 </button>
               </div>
-            } @else {
-              <div class="carga-list">
-                @for (s of activeSubjects(); track s.subjectKey) {
+
+              <!-- Filas de asignaturas de este grupo -->
+              <div class="carga-list" style="padding:0 0 4px">
+                @for (row of assignmentsForGroup(group.id); track row.allocationId) {
                   <div class="carga-row">
                     <span class="carga-subj-ico"
-                      [style.background]="'var(--subj-' + s.subjectKey + ')'"
-                      [style.color]="'var(--subj-' + s.subjectKey + '-fg)'">
+                      [style.background]="row.subject ? 'var(--subj-' + row.subject.subjectKey + ')' : 'var(--muted)'"
+                      [style.color]="row.subject ? 'var(--subj-' + row.subject.subjectKey + '-fg)' : 'var(--muted-foreground)'">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
                     </span>
-                    <span class="carga-subj-name">{{ s.subjectName }}</span>
+                    <span class="carga-subj-name">{{ row.subject?.subjectName ?? row.allocationId }}</span>
                     <div class="stepper stepper--sm">
-                      <button class="stepper-btn" (click)="adjustSubjectHours(s.subjectKey, -1)">
+                      <button class="stepper-btn" (click)="adjustAssignmentHours(row.allocationId, group.id, -1)">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
                       </button>
-                      <span class="stepper-val stepper-val--sm">{{ teacherForm().subjectHours[s.subjectKey] }} h</span>
-                      <button class="stepper-btn" (click)="adjustSubjectHours(s.subjectKey, 1)">
+                      <span class="stepper-val stepper-val--sm">{{ row.weeklyHours }} h</span>
+                      <button class="stepper-btn" (click)="adjustAssignmentHours(row.allocationId, group.id, 1)">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg>
                       </button>
                     </div>
-                    <button class="btn-remove-subj" (click)="removeSubject(s.subjectKey)" title="Quitar">
+                    <button class="btn-remove-subj" (click)="removeAssignment(row.allocationId, group.id)" title="Quitar">
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
                     </button>
                   </div>
                 }
 
-                <div class="carga-footer">
-                  @if (inactiveSubjects().length > 0) {
-                    <select class="select-add-subj" (change)="addSubject($event)">
-                      <option value="" disabled selected>+ Añadir asignatura…</option>
-                      @for (s of inactiveSubjects(); track s.subjectKey) {
-                        <option [value]="s.subjectKey">{{ s.subjectName }}</option>
+                <!-- Select añadir asignatura al grupo -->
+                @if (subjectsForGroup(group).length > 0) {
+                  <div style="padding:6px 12px 4px">
+                    <select class="select-add-subj"
+                      (change)="addAssignment(group.id, $any($event.target).value); $any($event.target).value = ''">
+                      <option value="" disabled selected>+ Añadir asignatura a {{ group.displayName }}…</option>
+                      @for (s of subjectsForGroup(group); track s.id) {
+                        <option [value]="s.id">{{ s.subjectName }}</option>
                       }
                     </select>
-                  }
-                  <button class="btn-reset" (click)="loadTemplate()">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.726 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.49 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>
-                    Restablecer plantilla
-                  </button>
-                </div>
-              </div>
-            }
-          </div>
-        </div>
-
-        <!-- Etapas Educativas -->
-        <div class="form-field-premium">
-          <label class="field-label-premium">Etapas en las que imparte clase</label>
-          <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:8px;padding:4px 0">
-            @for (stage of stages(); track stage.id) {
-              <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font-weight:600;font-size:var(--text-sm);color:var(--foreground)">
-                <input type="checkbox"
-                  [checked]="isStageSelected(stage.id)"
-                  (change)="toggleStageSelection(stage.id)"
-                  [attr.data-testid]="'teacher-stage-checkbox-' + stage.id"
-                  style="width:16px;height:16px;border-radius:4px;border:1.5px solid var(--border-strong);cursor:pointer;accent-color:var(--primary)" />
-                {{ stage.name }}
-              </label>
-            }
-          </div>
-        </div>
-
-        <!-- Selector de Color Key -->
-        <div class="form-field-premium">
-          <label class="field-label-premium">Color Representativo</label>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
-            @for (color of ['len', 'mat', 'cie', 'ing', 'ef', 'mus', 'art', 'rel', 'tut']; track color) {
-              <button class="color-select-btn" 
-                [style.background]="'var(--subj-' + color + ')'"
-                [class.color-select-btn--active]="teacherForm().colorKey === color"
-                (click)="teacherForm().colorKey = color"
-                style="width:36px;height:36px;border-radius:50%;border:3px solid transparent;cursor:pointer;transition:all 0.15s;box-shadow:0 2px 4px rgba(0,0,0,0.1)">
-                @if (teacherForm().colorKey === color) {
-                  <span style="color:#fff;font-weight:900;text-shadow:0 1px 2px rgba(0,0,0,0.5);font-size:12px">✓</span>
+                  </div>
                 }
-              </button>
-            }
+
+                @if (assignmentsForGroup(group.id).length === 0) {
+                  <div style="padding:10px 12px;font-size:var(--text-xs);color:var(--muted-foreground)">
+                    Sin asignaturas. Usa el selector para añadir.
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+        }
+
+        <!-- Selector para añadir un nuevo grupo -->
+        @if (groupsToAdd().length > 0) {
+          <div class="carga-footer" style="border-top: 1px solid var(--border); margin-top:4px; padding:8px 12px">
+            <select class="select-add-subj"
+              (change)="addGroup($any($event.target).value); $any($event.target).value = ''">
+              <option value="" disabled selected>+ Añadir grupo…</option>
+              @for (g of groupsToAdd(); track g.id) {
+                <option [value]="g.id">{{ g.displayName }} ({{ g.courseLevel }}º)</option>
+              }
+            </select>
           </div>
-        </div>
+        }
 
       </div>
-      
+    </div>
+
+    <!-- Selector de Color Key -->
+    <div class="form-field-premium">
+      <label class="field-label-premium">Color Representativo</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+        @for (color of ['len', 'mat', 'cie', 'ing', 'ef', 'mus', 'art', 'rel', 'tut']; track color) {
+          <button class="color-select-btn"
+            [style.background]="'var(--subj-' + color + ')'"
+            [class.color-select-btn--active]="teacherForm().colorKey === color"
+            (click)="teacherForm().colorKey = color"
+            style="width:36px;height:36px;border-radius:50%;border:3px solid transparent;cursor:pointer;transition:all 0.15s;box-shadow:0 2px 4px rgba(0,0,0,0.1)">
+            @if (teacherForm().colorKey === color) {
+              <span style="color:#fff;font-weight:900;text-shadow:0 1px 2px rgba(0,0,0,0.5);font-size:12px">✓</span>
+            }
+          </button>
+        }
+      </div>
+    </div>
+
+  </div>
+
   <ng-template pTemplate="footer">
     <button class="btn-cancel-premium" (click)="isTeacherModalOpen.set(false)">Cancelar</button>
     <button class="btn-save-premium" (click)="saveTeacher()" data-testid="save-teacher-btn">
@@ -430,4 +487,3 @@
     </button>
   </ng-template>
 </p-dialog>
-

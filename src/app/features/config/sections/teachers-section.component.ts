@@ -6,7 +6,10 @@ import { Dialog } from 'primeng/dialog';
 import { TableModule } from 'primeng/table';
 import { InputText } from 'primeng/inputtext';
 import { TeachersApiService } from '../../../core/api/teachers-api.service';
-import { Teacher, SchoolStage, SubjectAllocation } from '../../../core/models';
+import {
+  Teacher, SchoolStage, SubjectAllocation, CourseGroup,
+  TeacherAssignmentInput, Assignment,
+} from '../../../core/models';
 import { TEACHER_TYPES } from '../config.constants';
 import { BLOCKS, EtapaBlock } from '../../../core/blocks.model';
 import { BlockStateService } from '../../../core/block-state.service';
@@ -29,8 +32,9 @@ export class TeachersSectionComponent {
   readonly teachers = input.required<Teacher[]>();
   readonly stages = input.required<SchoolStage[]>();
   readonly subjects = input.required<SubjectAllocation[]>();
+  readonly groups = input.required<CourseGroup[]>();
   readonly teachersChange = output<Teacher[]>();
-  
+
   readonly isTeacherModalOpen = signal(false);
   readonly editingTeacher = signal<Teacher | null>(null);
 
@@ -42,7 +46,8 @@ export class TeachersSectionComponent {
     email: '',
     teacherType: 'definitivo',
     maxWeeklyHours: 25,
-    subjectHours: {} as Record<string, number>,
+    /** Distribución real: lista de filas asignatura+grupo+horas. */
+    assignments: [] as TeacherAssignmentInput[],
     colorKey: 'mat',
     selectedStageIds: [] as string[],
   });
@@ -58,23 +63,203 @@ export class TeachersSectionComponent {
     });
   }
 
-  // ── Subjects in / out of form carga ──────────────────────────────────────
+  // ── Grupos disponibles para el modal (solo los de las etapas seleccionadas) ──
 
-  readonly activeSubjects = computed(() => {
-    const sh = this.teacherForm().subjectHours;
-    return this.subjects().filter(s => s.subjectKey in sh);
+  readonly availableGroups = computed(() => {
+    const stageIds = new Set(this.teacherForm().selectedStageIds);
+    return this.groups().filter(g => g.stageId && stageIds.has(g.stageId));
   });
 
-  readonly inactiveSubjects = computed(() => {
-    const sh = this.teacherForm().subjectHours;
-    return this.subjects().filter(s => !(s.subjectKey in sh));
+  /** Grupos que el usuario ya ha añadido al form (tienen al menos 1 asignación). */
+  readonly assignedGroupIds = computed(() => {
+    const ids = new Set<string>();
+    for (const a of this.teacherForm().assignments) ids.add(a.groupId);
+    return ids;
   });
 
-  // ── Accordion Helpers ────────────────────────────────────────────────────────
+  /** Grupos disponibles que aún no están añadidos. */
+  readonly groupsToAdd = computed(() =>
+    this.availableGroups().filter(g => !this.assignedGroupIds().has(g.id))
+  );
+
+  /** Grupos presentes en el form (con sus datos completos). */
+  readonly activeGroups = computed(() => {
+    const ids = this.assignedGroupIds();
+    // Devolvemos tanto los grupos de las etapas seleccionadas como los que
+    // ya tenían asignaciones aunque la etapa se haya deseleccionado (no perder datos).
+    const all = this.groups();
+    return all.filter(g => ids.has(g.id));
+  });
+
+  // ── Asignaturas elegibles por grupo ─────────────────────────────────────────
+
+  /** Asignaturas que ya están asignadas a un grupo concreto (para excluirlas del select). */
+  assignedSubjectIdsForGroup(groupId: string): Set<string> {
+    const ids = new Set<string>();
+    for (const a of this.teacherForm().assignments) {
+      if (a.groupId === groupId) ids.add(a.allocationId);
+    }
+    return ids;
+  }
+
+  /** Asignaturas elegibles para añadir a un grupo (filtradas por curso/ciclo del grupo, sin las ya añadidas). */
+  subjectsForGroup(group: CourseGroup): SubjectAllocation[] {
+    const stage = this.stages().find(s => s.id === group.stageId);
+    const ciclo = stage ? this.cicloForLevel(group.courseLevel, stage) : null;
+    const assigned = this.assignedSubjectIdsForGroup(group.id);
+    return this.subjects().filter(s => {
+      if (assigned.has(s.id)) return false;
+      if (s.courseLevel && s.courseLevel !== group.courseLevel) return false;
+      if (s.cycle && !s.courseLevel && ciclo && s.cycle !== ciclo) return false;
+      return true;
+    });
+  }
+
+  // ── Asignaciones del form por grupo ─────────────────────────────────────────
+
+  assignmentsForGroup(groupId: string): (TeacherAssignmentInput & { subject: SubjectAllocation | undefined })[] {
+    return this.teacherForm().assignments
+      .filter(a => a.groupId === groupId)
+      .map(a => ({ ...a, subject: this.subjects().find(s => s.id === a.allocationId) }));
+  }
+
+  // ── Operaciones CRUD sobre assignments ──────────────────────────────────────
+
+  addGroup(groupId: string): void {
+    if (!groupId) return;
+    // Añadir el grupo sin asignaciones aún (se añaden asignaturas después).
+    // Noop si ya existe.
+    if (!this.assignedGroupIds().has(groupId)) {
+      // No añadimos fila todavía, pero al haber "tocado" el grupo queremos mostrarlo.
+      // Añadimos una centinela vacía que no se enviará: mejor simplemente no añadimos
+      // nada y dejamos que assignedGroupIds detecte el grupo solo cuando haya filas.
+      // En cambio, para mostrar el bloque vacío necesitamos trackear los groupIds de otra forma.
+      // Solución: guardamos los groupIds activos en un signal separado.
+      this._activeGroupIds.update(ids => new Set([...ids, groupId]));
+    }
+  }
+
+  /** Quita un grupo y todas sus asignaciones. */
+  removeGroup(groupId: string): void {
+    this.teacherForm.update(f => ({
+      ...f,
+      assignments: f.assignments.filter(a => a.groupId !== groupId),
+    }));
+    this._activeGroupIds.update(ids => {
+      const next = new Set(ids);
+      next.delete(groupId);
+      return next;
+    });
+  }
+
+  /** Añade una asignatura a un grupo con las horas por defecto. */
+  addAssignment(groupId: string, allocationId: string): void {
+    if (!allocationId) return;
+    const subject = this.subjects().find(s => s.id === allocationId);
+    if (!subject) return;
+    const weeklyHours = subject.weeklyHoursDefault;
+    this.teacherForm.update(f => ({
+      ...f,
+      assignments: [...f.assignments, { allocationId, groupId, weeklyHours }],
+    }));
+  }
+
+  /** Ajusta las horas de una asignación (stepper ±1 con clamp min/max). */
+  adjustAssignmentHours(allocationId: string, groupId: string, delta: number): void {
+    this.teacherForm.update(f => {
+      const subject = this.subjects().find(s => s.id === allocationId);
+      const min = subject?.weeklyHoursMin ?? 1;
+      const max = subject?.weeklyHoursMax ?? 12;
+      return {
+        ...f,
+        assignments: f.assignments.map(a =>
+          a.allocationId === allocationId && a.groupId === groupId
+            ? { ...a, weeklyHours: Math.max(min, Math.min(max, a.weeklyHours + delta)) }
+            : a
+        ),
+      };
+    });
+  }
+
+  /** Quita una asignatura de un grupo. */
+  removeAssignment(allocationId: string, groupId: string): void {
+    this.teacherForm.update(f => ({
+      ...f,
+      assignments: f.assignments.filter(
+        a => !(a.allocationId === allocationId && a.groupId === groupId)
+      ),
+    }));
+  }
+
+  // ── Totales ──────────────────────────────────────────────────────────────────
+
+  readonly totalAssignedHours = computed(() =>
+    this.teacherForm().assignments.reduce((s, a) => s + (a.weeklyHours || 0), 0)
+  );
+
+  readonly hoursExceeded = computed(() =>
+    this.totalAssignedHours() > this.teacherForm().maxWeeklyHours
+  );
+
+  readonly hoursProgressPct = computed(() => {
+    const max = this.teacherForm().maxWeeklyHours;
+    if (!max) return 0;
+    return Math.min(100, Math.round((this.totalAssignedHours() / max) * 100));
+  });
+
+  // ── Signal auxiliar: grupos "activos" en el form (con o sin asignaturas) ────
+  // Necesitamos esto para mostrar un grupo vacío justo tras añadirlo.
+
+  private readonly _activeGroupIds = signal<Set<string>>(new Set<string>());
+
+  readonly formGroupIds = computed(() => {
+    // Unión de los groupIds con asignaciones + los groupIds "abiertos" sin asignaturas aún.
+    const withAssignments = this.assignedGroupIds();
+    const opened = this._activeGroupIds();
+    return new Set([...withAssignments, ...opened]);
+  });
+
+  readonly formActiveGroups = computed(() => {
+    const ids = this.formGroupIds();
+    return this.groups().filter(g => ids.has(g.id));
+  });
+
+  // ── Resumen de la tabla del claustro ─────────────────────────────────────────
+
+  subjectSummary(t: Teacher): string {
+    // Preferir assignments si están disponibles, si no usar subjectHours derivado.
+    if (t.assignments?.length) {
+      const groupIds = new Set(t.assignments.map(a => a.groupId));
+      const total = t.assignments.reduce((s, a) => s + a.weeklyHours, 0);
+      return `${groupIds.size} grupo${groupIds.size !== 1 ? 's' : ''} · ${total}h`;
+    }
+    if (!t.subjectHours?.length) return '—';
+    const total = t.subjectHours.reduce((s, sh) => s + sh.weeklyHours, 0);
+    return `${t.subjectHours.length} áreas · ${total}h`;
+  }
+
+  // ── Helpers de ciclo ─────────────────────────────────────────────────────────
+
+  cicloForLevel(level: number, stage: SchoolStage): number {
+    return Math.ceil((level - stage.minLevel + 1) / 2);
+  }
+
+  cicloLabel(c: number | null): string {
+    if (!c) return '';
+    return c === 1 ? '1.er Ciclo' : c === 3 ? '3.er Ciclo' : `${c}.º Ciclo`;
+  }
+
+  groupCicloLabel(group: CourseGroup): string {
+    const stage = this.stages().find(s => s.id === group.stageId);
+    if (!stage) return '';
+    return this.cicloLabel(this.cicloForLevel(group.courseLevel, stage));
+  }
+
+  // ── Accordion helpers ────────────────────────────────────────────────────────
+
   toggleStage(stageId: string): void {
     const stage = this.stages().find(s => s.id === stageId);
     const blockId = stage ? this.getEtapaId(stage.stageType) : stageId;
-
     this.expandedStages.update(prev => {
       const next = new Set(prev);
       if (next.has(stageId) || next.has(blockId)) {
@@ -109,25 +294,23 @@ export class TeachersSectionComponent {
   teachersForStage(stageId: string): Teacher[] {
     const cycle = this.cycleFilterFor(stageId);
     return this.teachers().filter(t =>
-      t.stageAssignments?.some(sa => 
-        sa.stageId === stageId && 
+      t.stageAssignments?.some(sa =>
+        sa.stageId === stageId &&
         (cycle === null || sa.cycle === null || sa.cycle === cycle)
       )
     );
   }
 
   teachersWithoutStage(): Teacher[] {
-    // Los profesores sin etapa asignada se muestran siempre (comunes)
     return this.teachers().filter(t =>
       !t.stageAssignments || t.stageAssignments.length === 0
     );
   }
 
   cyclesForStage(stage: SchoolStage): number[] {
-    const minCycle = 1;
     const maxCycle = Math.ceil((stage.maxLevel - stage.minLevel + 1) / 2);
     const out = [];
-    for(let i = minCycle; i <= maxCycle; i++) out.push(i);
+    for (let i = 1; i <= maxCycle; i++) out.push(i);
     return out;
   }
 
@@ -139,10 +322,7 @@ export class TeachersSectionComponent {
     this.stageCycleFilters.update(prev => ({ ...prev, [stageId]: cycle }));
   }
 
-  cicloLabel(c: number | null): string {
-    if (!c) return '';
-    return c === 1 ? '1.er Ciclo' : c === 3 ? '3.er Ciclo' : `${c}.º Ciclo`;
-  }
+  // ── Otros helpers ────────────────────────────────────────────────────────────
 
   teacherTypeLabel(type: string): string {
     const found = TEACHER_TYPES.find(t => t.value === type);
@@ -151,51 +331,6 @@ export class TeachersSectionComponent {
 
   initials(name: string): string {
     return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
-  }
-
-  subjectSummary(t: Teacher): string {
-    if (!t.subjectHours?.length) return '—';
-    const total = t.subjectHours.reduce((s, sh) => s + sh.weeklyHours, 0);
-    return `${t.subjectHours.length} áreas · ${total}h`;
-  }
-
-  openAddModal(): void {
-    this.editingTeacher.set(null);
-    
-    let defaultStages: string[] = [];
-    const active = this.blockState.activeBlock();
-    if (active !== 'all') {
-      const activeStage = this.stages().find(s => this.getEtapaId(s.stageType) === active);
-      if (activeStage) {
-        defaultStages = [activeStage.id];
-      }
-    }
-
-    this.teacherForm.set({
-      fullName: '',
-      email: '',
-      teacherType: 'definitivo',
-      maxWeeklyHours: 25,
-      subjectHours: {},
-      colorKey: 'mat',
-      selectedStageIds: defaultStages,
-    });
-    this.isTeacherModalOpen.set(true);
-  }
-
-  editTeacher(t: Teacher): void {
-    this.editingTeacher.set(t);
-    const selectedStageIds = t.stageAssignments?.map(sa => sa.stageId) ?? [];
-    this.teacherForm.set({
-      fullName: t.fullName,
-      email: t.email,
-      teacherType: t.teacherType,
-      maxWeeklyHours: t.maxWeeklyHours,
-      subjectHours: Object.fromEntries(t.subjectHours.map(sh => [sh.subjectKey, sh.weeklyHours])),
-      colorKey: t.colorKey,
-      selectedStageIds,
-    });
-    this.isTeacherModalOpen.set(true);
   }
 
   isStageSelected(stageId: string): boolean {
@@ -211,6 +346,65 @@ export class TeachersSectionComponent {
     });
   }
 
+  adjustTeacherHours(amount: number): void {
+    this.teacherForm.update(f => {
+      const newHours = Math.max(1, Math.min(40, f.maxWeeklyHours + amount));
+      return { ...f, maxWeeklyHours: newHours };
+    });
+  }
+
+  // ── Modal: abrir / guardar ────────────────────────────────────────────────────
+
+  openAddModal(): void {
+    this.editingTeacher.set(null);
+
+    let defaultStages: string[] = [];
+    const active = this.blockState.activeBlock();
+    if (active !== 'all') {
+      const activeStage = this.stages().find(s => this.getEtapaId(s.stageType) === active);
+      if (activeStage) defaultStages = [activeStage.id];
+    }
+
+    this._activeGroupIds.set(new Set());
+    this.teacherForm.set({
+      fullName: '',
+      email: '',
+      teacherType: 'definitivo',
+      maxWeeklyHours: 25,
+      assignments: [],
+      colorKey: 'mat',
+      selectedStageIds: defaultStages,
+    });
+    this.isTeacherModalOpen.set(true);
+  }
+
+  editTeacher(t: Teacher): void {
+    this.editingTeacher.set(t);
+    const selectedStageIds = t.stageAssignments?.map(sa => sa.stageId) ?? [];
+
+    // Cargar asignaciones existentes desde Teacher.assignments si están disponibles.
+    const assignments: TeacherAssignmentInput[] = (t.assignments ?? []).map(a => ({
+      allocationId: a.allocationId,
+      groupId: a.groupId,
+      weeklyHours: a.weeklyHours,
+    }));
+
+    // Reconstruir groupIds activos a partir de las asignaciones.
+    const groupIds = new Set(assignments.map(a => a.groupId));
+    this._activeGroupIds.set(groupIds);
+
+    this.teacherForm.set({
+      fullName: t.fullName,
+      email: t.email,
+      teacherType: t.teacherType,
+      maxWeeklyHours: t.maxWeeklyHours,
+      assignments,
+      colorKey: t.colorKey,
+      selectedStageIds,
+    });
+    this.isTeacherModalOpen.set(true);
+  }
+
   async saveTeacher(): Promise<void> {
     const form = this.teacherForm();
     const editing = this.editingTeacher();
@@ -223,84 +417,58 @@ export class TeachersSectionComponent {
       this.msg.add({ severity: 'warn', summary: 'Campo requerido', detail: 'El email es obligatorio.' });
       return;
     }
+    if (this.hoursExceeded()) {
+      this.msg.add({
+        severity: 'warn',
+        summary: 'Horas excedidas',
+        detail: `Has asignado ${this.totalAssignedHours()}h, pero el máximo del profesor es ${form.maxWeeklyHours}h. Ajusta la distribución antes de guardar.`,
+      });
+      return;
+    }
 
     const stageAssignments = form.selectedStageIds.map(stageId => ({
       stageId,
-      cycle: null as number | null
+      cycle: null as number | null,
     }));
 
+    // Payload básico del profesor (sin assignments).
     const payload = {
       fullName: form.fullName.trim(),
       email: form.email.trim(),
       teacherType: form.teacherType,
       maxWeeklyHours: Number(form.maxWeeklyHours),
-      subjectHours: Object.entries(form.subjectHours).map(([subjectKey, weeklyHours]) => ({ subjectKey, weeklyHours })),
       colorKey: form.colorKey,
       stageAssignments,
     };
 
     try {
+      let savedTeacher: Teacher;
       if (editing) {
-        await this.api.updateTeacher(editing.id, payload);
+        savedTeacher = await this.api.updateTeacher(editing.id, payload);
       } else {
-        await this.api.createTeacher(payload);
+        savedTeacher = await this.api.createTeacher(payload);
       }
-      
+
+      // Guardar distribución de horas por grupo (replace transaccional).
+      // Solo si hay asignaciones o si se está editando (para poder limpiarlas).
+      if (form.assignments.length > 0 || editing) {
+        try {
+          await this.api.updateTeacherAssignments(savedTeacher.id, form.assignments);
+        } catch {
+          this.msg.add({
+            severity: 'warn',
+            summary: 'Datos básicos guardados',
+            detail: 'El profesor se guardó, pero la distribución horaria no pudo persistirse (el endpoint PUT /assignments puede no estar disponible aún en el backend).',
+          });
+        }
+      }
+
       const updatedTeachers = await this.api.getTeachers();
       this.teachersChange.emit(updatedTeachers);
       this.isTeacherModalOpen.set(false);
     } catch {
       this.msg.add({ severity: 'error', summary: 'Error al guardar', detail: 'No se pudo guardar el profesor. Por favor, comprueba los datos.' });
     }
-  }
-
-  adjustTeacherHours(amount: number): void {
-    this.teacherForm.update(f => {
-      const newHours = Math.max(1, Math.min(40, f.maxWeeklyHours + amount));
-      return { ...f, maxWeeklyHours: newHours };
-    });
-  }
-
-  totalHours(): number {
-    return Object.values(this.teacherForm().subjectHours).reduce((s, h) => s + (h || 0), 0);
-  }
-
-  loadTemplate(): void {
-    const hours: Record<string, number> = {};
-    for (const s of this.subjects()) {
-      hours[s.subjectKey] = s.weeklyHoursDefault;
-    }
-    this.teacherForm.update(f => ({ ...f, subjectHours: hours }));
-  }
-
-  adjustSubjectHours(key: string, delta: number): void {
-    this.teacherForm.update(f => {
-      const s = this.subjects().find(x => x.subjectKey === key);
-      const min = s?.weeklyHoursMin ?? 0;
-      const max = s?.weeklyHoursMax ?? 12;
-      const next = Math.max(min, Math.min(max, (f.subjectHours[key] ?? 0) + delta));
-      return { ...f, subjectHours: { ...f.subjectHours, [key]: next } };
-    });
-  }
-
-  removeSubject(key: string): void {
-    this.teacherForm.update(f => {
-      const { [key]: _, ...rest } = f.subjectHours;
-      return { ...f, subjectHours: rest };
-    });
-  }
-
-  addSubject(event: Event): void {
-    const sel = event.target as HTMLSelectElement;
-    const key = sel.value;
-    sel.value = '';
-    if (!key) return;
-    const s = this.subjects().find(x => x.subjectKey === key);
-    if (!s) return;
-    this.teacherForm.update(f => ({
-      ...f,
-      subjectHours: { ...f.subjectHours, [key]: s.weeklyHoursDefault },
-    }));
   }
 
   deleteTeacher(id: string): void {

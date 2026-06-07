@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Teacher } from '../models';
+import { Teacher, TeacherAssignmentInput } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class TeachersApiService {
@@ -13,4 +13,12 @@ export class TeachersApiService {
   createTeacher = (data: Partial<Teacher>) => firstValueFrom(this.http.post<Teacher>(`${this.base}/teachers`, data));
   updateTeacher = (id: string, data: Partial<Teacher>) => firstValueFrom(this.http.put<Teacher>(`${this.base}/teachers/${id}`, data));
   deleteTeacher = (id: string) => firstValueFrom(this.http.delete(`${this.base}/teachers/${id}`));
+
+  /**
+   * Reemplaza transaccionalmente el conjunto completo de asignaciones del profesor.
+   * Backend: PUT /teachers/{id}/assignments — body: { assignments: TeacherAssignmentInput[] }
+   * Devuelve el Teacher actualizado con assignments, subjectHours y assignedHours derivados.
+   */
+  updateTeacherAssignments = (id: string, assignments: TeacherAssignmentInput[]) =>
+    firstValueFrom(this.http.put<Teacher>(`${this.base}/teachers/${id}/assignments`, { assignments }));
 }

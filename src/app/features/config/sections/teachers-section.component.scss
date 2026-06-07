@@ -222,3 +222,51 @@ $chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' w
 
 .table-caption {
 }
+
+// ── Bloque de grupo en la distribución docente ────────────────────────────────
+
+.grupo-block {
+  border-top: 1px solid var(--border);
+
+  &:first-of-type {
+    border-top: none;
+  }
+}
+
+.grupo-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 6px;
+  background: var(--surface-2);
+}
+
+.group-chip-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--primary-tint);
+  color: var(--primary-strong);
+  font-weight: 800;
+  font-size: var(--text-sm);
+}
+
+.btn-remove-group {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-foreground);
+  transition: color .15s, background .15s;
+  flex-shrink: 0;
+
+  &:hover {
+    color: var(--destructive);
+    background: var(--destructive-tint);
+  }
+}
