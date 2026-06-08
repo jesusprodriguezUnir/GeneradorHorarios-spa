@@ -10,6 +10,7 @@ export class TeachersApiService {
   private readonly base = environment.apiUrl;
 
   getTeachers = () => firstValueFrom(this.http.get<Teacher[]>(`${this.base}/teachers`));
+  getTeacher = (id: string) => firstValueFrom(this.http.get<Teacher>(`${this.base}/teachers/${id}`));
   createTeacher = (data: Partial<Teacher>) => firstValueFrom(this.http.post<Teacher>(`${this.base}/teachers`, data));
   updateTeacher = (id: string, data: Partial<Teacher>) => firstValueFrom(this.http.put<Teacher>(`${this.base}/teachers/${id}`, data));
   deleteTeacher = (id: string) => firstValueFrom(this.http.delete(`${this.base}/teachers/${id}`));

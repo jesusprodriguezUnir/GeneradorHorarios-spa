@@ -37,6 +37,10 @@ export interface CellClickEvent {
             <span class="cell-dot">·</span>
             <span class="cell-classroom">{{ entry()!.classroomName }}</span>
           }
+          @if (entry()!.teacherName) {
+            <span class="cell-dot">·</span>
+            <span class="cell-teacher">{{ entry()!.teacherName }}</span>
+          }
         </div>
         @if (isConflict()) {
           <span class="cell-conflict-icon">
@@ -115,6 +119,10 @@ export interface CellClickEvent {
     }
     .cell-dot {
       opacity: 0.5;
+    }
+    .cell-teacher {
+      font-weight: 600;
+      opacity: 0.75;
     }
     .cell-conflict-icon {
       position: absolute;

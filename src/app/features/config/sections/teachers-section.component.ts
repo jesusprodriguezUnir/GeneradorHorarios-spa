@@ -8,7 +8,7 @@ import { InputText } from 'primeng/inputtext';
 import { TeachersApiService } from '../../../core/api/teachers-api.service';
 import {
   Teacher, SchoolStage, SubjectAllocation, CourseGroup,
-  TeacherAssignmentInput, Assignment,
+  TeacherAssignmentInput,
 } from '../../../core/models';
 import { TEACHER_TYPES } from '../config.constants';
 import { BLOCKS, EtapaBlock } from '../../../core/blocks.model';
@@ -378,31 +378,37 @@ export class TeachersSectionComponent {
     this.isTeacherModalOpen.set(true);
   }
 
-  editTeacher(t: Teacher): void {
+  async editTeacher(t: Teacher): Promise<void> {
     this.editingTeacher.set(t);
-    const selectedStageIds = t.stageAssignments?.map(sa => sa.stageId) ?? [];
 
-    // Cargar asignaciones existentes desde Teacher.assignments si están disponibles.
-    const assignments: TeacherAssignmentInput[] = (t.assignments ?? []).map(a => ({
-      allocationId: a.allocationId,
-      groupId: a.groupId,
-      weeklyHours: a.weeklyHours,
-    }));
+    try {
+      const full = await this.api.getTeacher(t.id);
+      const selectedStageIds = full.stageAssignments?.map(sa => sa.stageId) ?? [];
+      const assignments: TeacherAssignmentInput[] = (full.assignments ?? []).map(a => ({
+        allocationId: a.allocationId,
+        groupId: a.groupId,
+        weeklyHours: a.weeklyHours,
+      }));
+      const groupIds = new Set(assignments.map(a => a.groupId));
+      this._activeGroupIds.set(groupIds);
 
-    // Reconstruir groupIds activos a partir de las asignaciones.
-    const groupIds = new Set(assignments.map(a => a.groupId));
-    this._activeGroupIds.set(groupIds);
-
-    this.teacherForm.set({
-      fullName: t.fullName,
-      email: t.email,
-      teacherType: t.teacherType,
-      maxWeeklyHours: t.maxWeeklyHours,
-      assignments,
-      colorKey: t.colorKey,
-      selectedStageIds,
-    });
-    this.isTeacherModalOpen.set(true);
+      this.teacherForm.set({
+        fullName: full.fullName,
+        email: full.email,
+        teacherType: full.teacherType,
+        maxWeeklyHours: full.maxWeeklyHours,
+        assignments,
+        colorKey: full.colorKey,
+        selectedStageIds,
+      });
+      this.isTeacherModalOpen.set(true);
+    } catch {
+      this.msg.add({
+        severity: 'error',
+        summary: 'Error al cargar',
+        detail: 'No se pudieron cargar los datos del profesor. Inténtalo de nuevo.',
+      });
+    }
   }
 
   async saveTeacher(): Promise<void> {

@@ -245,6 +245,8 @@ export interface MyScheduleEntry {
   subjectKey: string;
   subjectShort: string;
   groupLabel: string;
+  teacherId: string;
+  teacherName: string;
   classroomName: string;
 }
 
