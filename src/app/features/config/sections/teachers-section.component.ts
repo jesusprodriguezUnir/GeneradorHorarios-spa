@@ -432,10 +432,13 @@ export class TeachersSectionComponent {
       return;
     }
 
-    const stageAssignments = form.selectedStageIds.map(stageId => ({
-      stageId,
-      cycle: null as number | null,
-    }));
+    const stageAssignments = form.selectedStageIds.map(stageId => {
+      const originals = editing?.stageAssignments?.filter(sa => sa.stageId === stageId) ?? [];
+      if (originals.length > 0) {
+        return originals.map(sa => ({ stageId: sa.stageId, cycle: sa.cycle }));
+      }
+      return [{ stageId, cycle: null as number | null }];
+    }).flat();
 
     // Payload básico del profesor (sin assignments).
     const payload = {
@@ -460,20 +463,21 @@ export class TeachersSectionComponent {
       if (form.assignments.length > 0 || editing) {
         try {
           await this.api.updateTeacherAssignments(savedTeacher.id, form.assignments);
-        } catch {
-          this.msg.add({
-            severity: 'warn',
-            summary: 'Datos básicos guardados',
-            detail: 'El profesor se guardó, pero la distribución horaria no pudo persistirse (el endpoint PUT /assignments puede no estar disponible aún en el backend).',
-          });
+        } catch (err: any) {
+          const detail =
+            err?.error?.message ||
+            err?.message ||
+            'El profesor se guardó, pero la distribución horaria no pudo persistirse. Revisa que los grupos y asignaturas sean válidos.';
+          this.msg.add({ severity: 'warn', summary: 'Datos básicos guardados', detail });
         }
       }
 
       const updatedTeachers = await this.api.getTeachers();
       this.teachersChange.emit(updatedTeachers);
       this.isTeacherModalOpen.set(false);
-    } catch {
-      this.msg.add({ severity: 'error', summary: 'Error al guardar', detail: 'No se pudo guardar el profesor. Por favor, comprueba los datos.' });
+    } catch (err: any) {
+      const detail = err?.error?.message || err?.message || 'No se pudo guardar el profesor. Por favor, comprueba los datos.';
+      this.msg.add({ severity: 'error', summary: 'Error al guardar', detail });
     }
   }
 

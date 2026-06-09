@@ -67,7 +67,7 @@
 
       @case ('classrooms') {
         <div class="lec-card" style="padding:0;overflow:hidden">
-          <app-classrooms-section [classrooms]="classrooms()" (classroomsChange)="classrooms.set($event)" />
+          <app-classrooms-section [classrooms]="classrooms()" [stages]="filteredStages()" (classroomsChange)="classrooms.set($event)" />
         </div>
       }
 

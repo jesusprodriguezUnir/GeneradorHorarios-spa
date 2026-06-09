@@ -135,6 +135,7 @@ export interface Classroom {
   classroomType: string;
   capacity: number;
   isShared: boolean;
+  stageId?: string;
 }
 
 export interface SubjectAllocation {

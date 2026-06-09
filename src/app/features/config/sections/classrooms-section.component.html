@@ -1,62 +1,181 @@
-<div data-testid="config-classrooms-section">
-  <div class="section-header">
-    <h3 class="section-title">Aulas</h3>
-    <button class="btn-primary btn-primary--sm" (click)="openAddModal()">
-      + Añadir aula
+<div data-testid="config-classrooms-section" class="classrooms-root">
+
+  <!-- ── Card header ──────────────────────────────────────────────────────── -->
+  <div class="card-head">
+    <div>
+      <h2 class="card-title">Aulas</h2>
+      <p class="card-sub">{{ classrooms().length }} aulas en {{ stages().length }} etapas · organizadas por etapa educativa</p>
+    </div>
+    <button class="btn-add" (click)="openAddModal()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg>
+      Añadir aula
     </button>
   </div>
-  
-  <p-table #dtClassrooms [value]="classrooms()" [paginator]="true" [rows]="10"
-           [rowsPerPageOptions]="[5,10,25]" dataKey="id"
-           [globalFilterFields]="['name','classroomType']"
-           currentPageReportTemplate="{first}–{last} de {totalRecords}"
-           [showCurrentPageReport]="true">
-    <ng-template pTemplate="caption">
-      <div class="table-caption">
-        <input pInputText type="text"
-               (input)="dtClassrooms.filterGlobal($any($event.target).value,'contains')"
-               placeholder="Buscar aulas…" class="table-filter-input" />
-      </div>
-    </ng-template>
-    <ng-template pTemplate="header">
-      <tr>
-        <th pSortableColumn="name">Nombre <p-sortIcon field="name"/></th>
-        <th pSortableColumn="classroomType">Tipo <p-sortIcon field="classroomType"/></th>
-        <th pSortableColumn="capacity">Capacidad <p-sortIcon field="capacity"/></th>
-        <th>Uso</th>
-        <th class="th-actions">Acciones</th>
-      </tr>
-    </ng-template>
-    <ng-template pTemplate="body" let-r>
-      <tr>
-        <td><strong>{{ r.name }}</strong></td>
-        <td>{{ classroomTypeLabel(r.classroomType) }}</td>
-        <td>{{ r.capacity }} alumnos</td>
-        <td>
-          <span [class]="r.isShared ? 'tag tag--shared' : 'tag tag--exclusive'">
-            {{ r.isShared ? 'Compartida' : 'Exclusiva' }}
-          </span>
-        </td>
-        <td class="td-actions">
-          <div class="row-actions">
-            <button (click)="editClassroom(r)" class="btn-edit" title="Editar aula">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
-              </svg>
-            </button>
-            <button (click)="deleteClassroom(r.id)" class="btn-del" title="Eliminar aula">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-              </svg>
-            </button>
-          </div>
-        </td>
-      </tr>
-    </ng-template>
-    <ng-template pTemplate="emptymessage">
-      <tr><td colspan="5" class="td-empty">No hay aulas registradas.</td></tr>
-    </ng-template>
-  </p-table>
+
+  <!-- ── Card body ────────────────────────────────────────────────────────── -->
+  <div class="card-body">
+
+    <!-- Search -->
+    <div class="search-wrap">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" placeholder="Buscar aulas…" class="search-input" />
+    </div>
+
+    <!-- Accordions stack -->
+    <div class="accordions-stack">
+
+      @if (stages().length === 0) {
+        <div class="empty-stages">No hay etapas configuradas en este centro.</div>
+      }
+
+      @for (stage of stages(); track stage.id) {
+        @let all = allForStage(stage.id);
+        @let filtered = filteredForStage(stage.id);
+        @let isOpen = isStageOpen(stage.id);
+
+        <div class="accordion" [class.accordion--open]="isOpen">
+
+          <!-- Accordion header -->
+          <button class="accordion-head" (click)="toggleStage(stage.id)">
+            <span class="stage-dot"
+              [style.background]="getStageColor(stage)"
+              [style.box-shadow]="'0 0 0 4px ' + getStageColorTint(stage)">
+            </span>
+            <div class="stage-info">
+              <span class="stage-name">{{ stage.name }}</span>
+              <span class="stage-meta">{{ getStageAgeRange(stage) }} · {{ all.length }} aulas</span>
+            </div>
+            <svg class="chevron" [class.chevron--open]="isOpen" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+
+          <!-- BODY del acordeón -->
+          @if (isStageOpen(stage.id)) {
+            <div class="accordion-body">
+
+              @if (filtered.length > 0) {
+                <div class="classroom-table">
+                  <!-- Header -->
+                  <div class="classroom-thead">
+                    <span class="sort-head">Nombre</span>
+                    <span class="sort-head">Tipo</span>
+                    <span class="sort-head">Capacidad</span>
+                    <span>Uso</span>
+                    <span class="head-actions">Acciones</span>
+                  </div>
+
+                  <!-- Rows -->
+                  @for (c of filtered; track c.id) {
+                    <div class="classroom-row">
+                      <div class="cell-name">{{ c.name }}</div>
+                      <div class="cell-muted">{{ classroomTypeLabel(c.classroomType) }}</div>
+                      <div class="cell-muted">{{ c.capacity }} alumnos</div>
+                      <div>
+                        <span [class]="c.isShared ? 'tag tag--shared' : 'tag tag--exclusive'">
+                          {{ c.isShared ? 'Compartida' : 'Exclusiva' }}
+                        </span>
+                      </div>
+                      <div class="cell-actions">
+                        <button (click)="editClassroom(c)" class="btn-edit" title="Editar aula">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </button>
+                        <button (click)="deleteClassroom(c.id)" class="btn-del" title="Eliminar aula">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <div class="empty-row">
+                  @if (searchQuery().trim()) {
+                    Ningún aula coincide con la búsqueda en esta etapa.
+                  } @else {
+                    No hay aulas registradas en esta etapa.
+                  }
+                </div>
+              }
+
+              <!-- Accordion footer -->
+              <div class="accordion-foot">
+                <span class="foot-count">{{ all.length }} aulas en {{ stage.name }}</span>
+                <button class="btn-add-stage" (click)="openAddModal(stage.id)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg>
+                  Añadir aula a {{ stage.name }}
+                </button>
+              </div>
+            </div>
+          }
+
+        </div>
+      }
+
+      <!-- Unassigned classrooms -->
+      @let unassigned = filteredUnassigned();
+      @if (unassigned.length > 0) {
+        @let isUnassignedOpen = isStageOpen('__unassigned__');
+        <div class="accordion" [class.accordion--open]="isUnassignedOpen">
+          <button class="accordion-head" (click)="toggleStage('__unassigned__')">
+            <span class="stage-dot" style="background: var(--muted-foreground); box-shadow: 0 0 0 4px var(--border);"></span>
+            <div class="stage-info">
+              <span class="stage-name">Sin etapa asignada</span>
+              <span class="stage-meta">{{ unassigned.length }} aulas sin etapa</span>
+            </div>
+            <svg class="chevron" [class.chevron--open]="isUnassignedOpen" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+
+          @if (isUnassignedOpen) {
+            <div class="accordion-body">
+              @if (unassigned.length > 0) {
+                <div class="classroom-table">
+                  <div class="classroom-thead">
+                    <span class="sort-head">Nombre</span>
+                    <span class="sort-head">Tipo</span>
+                    <span class="sort-head">Capacidad</span>
+                    <span>Uso</span>
+                    <span class="head-actions">Acciones</span>
+                  </div>
+                  @for (c of unassigned; track c.id) {
+                    <div class="classroom-row">
+                      <div class="cell-name">{{ c.name }}</div>
+                      <div class="cell-muted">{{ classroomTypeLabel(c.classroomType) }}</div>
+                      <div class="cell-muted">{{ c.capacity }} alumnos</div>
+                      <div>
+                        <span [class]="c.isShared ? 'tag tag--shared' : 'tag tag--exclusive'">
+                          {{ c.isShared ? 'Compartida' : 'Exclusiva' }}
+                        </span>
+                      </div>
+                      <div class="cell-actions">
+                        <button (click)="editClassroom(c)" class="btn-edit" title="Editar aula">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        <button (click)="deleteClassroom(c.id)" class="btn-del" title="Eliminar aula">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+                        </button>
+                      </div>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <div class="empty-row">No hay aulas sin etapa asignada.</div>
+              }
+              <div class="accordion-foot">
+                <span class="foot-count">{{ unassigned.length }} aulas sin etapa</span>
+                <button class="btn-add-stage" (click)="openAddModal()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg>
+                  Añadir aula
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+    </div>
+  </div>
 </div>
 
 <!-- Modal para Añadir / Editar Aula -->
@@ -79,7 +198,7 @@
   </ng-template>
 
   <div class="modal-body-premium">
-        
+
         <!-- Tarjeta de Vista Previa -->
         <div class="preview-card-premium">
           <div class="preview-badge-label">VISTA PREVIA DE AULA</div>
@@ -108,17 +227,31 @@
           <label class="field-label-premium">Nombre del Aula</label>
           <div class="input-with-icon-premium">
             <span class="input-icon-premium" style="font-size:15px">🚪</span>
-            <input [(ngModel)]="classroomForm().name" 
-              class="field-input-premium" 
-              placeholder="Ej: Aula 101, Laboratorio de Física..." 
-              type="text" 
+            <input [(ngModel)]="classroomForm().name"
+              class="field-input-premium"
+              placeholder="Ej: Aula 101, Laboratorio de Física..."
+              type="text"
               maxlength="50" />
+          </div>
+        </div>
+
+        <!-- Etapa educativa -->
+        <div class="form-field-premium">
+          <label class="field-label-premium">Etapa Educativa</label>
+          <div class="input-with-icon-premium">
+            <span class="input-icon-premium" style="font-size:15px">🏫</span>
+            <select [(ngModel)]="classroomForm().stageId" class="field-select-premium">
+              <option value="">— Sin etapa asignada —</option>
+              @for (s of stages(); track s.id) {
+                <option [value]="s.id">{{ s.name }}</option>
+              }
+            </select>
           </div>
         </div>
 
         <!-- Fila con Tipo y Capacidad -->
         <div class="form-row-premium">
-          
+
           <!-- Tipo de Aula -->
           <div class="form-field-premium" style="flex:1">
             <label class="field-label-premium">Tipo de Aula</label>
@@ -140,8 +273,8 @@
             <label class="field-label-premium">Capacidad (Alumnos)</label>
             <div class="student-counter-premium">
               <button class="counter-btn-premium" (click)="adjustClassroomCapacity(-1)">−</button>
-              <input [(ngModel)]="classroomForm().capacity" 
-                class="counter-input-premium" 
+              <input [(ngModel)]="classroomForm().capacity"
+                class="counter-input-premium"
                 type="number" min="1" max="100" />
               <button class="counter-btn-premium" (click)="adjustClassroomCapacity(1)">+</button>
             </div>
@@ -152,7 +285,7 @@
         <!-- Uso Compartido Toggle Card -->
         <div class="form-field-premium">
           <label class="field-label-premium">Configuración de Uso</label>
-          <div class="toggle-card-premium" 
+          <div class="toggle-card-premium"
                [class.toggle-card-premium--active]="classroomForm().isShared"
                (click)="classroomForm().isShared = !classroomForm().isShared">
             <div style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:var(--secondary);font-size:16px">
@@ -171,7 +304,7 @@
         </div>
 
       </div>
-      
+
   <ng-template pTemplate="footer">
     <button class="btn-cancel-premium" (click)="isClassroomModalOpen.set(false)">Cancelar</button>
     <button class="btn-save-premium" (click)="saveClassroom()">
