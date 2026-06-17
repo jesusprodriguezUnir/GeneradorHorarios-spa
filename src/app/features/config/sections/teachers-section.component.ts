@@ -1,5 +1,4 @@
 import { Component, inject, signal, computed, input, output, effect, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { Dialog } from 'primeng/dialog';
@@ -18,7 +17,7 @@ import { LecIconComponent } from '../../../shared/ui/lec-icon.component';
 @Component({
   selector: 'app-teachers-section',
   standalone: true,
-  imports: [CommonModule, FormsModule, Dialog, TableModule, InputText, LecIconComponent],
+  imports: [FormsModule, Dialog, TableModule, InputText, LecIconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './teachers-section.component.html',
   styleUrls: ['./teachers-section.component.scss']

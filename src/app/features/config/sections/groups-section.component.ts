@@ -2,7 +2,6 @@ import {
   Component, inject, signal, computed, input, output,
   ChangeDetectionStrategy, effect, untracked, afterNextRender,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { Dialog } from 'primeng/dialog';
@@ -24,7 +23,7 @@ export const GROUP_PALETTE = [
 @Component({
   selector: 'app-groups-section',
   standalone: true,
-  imports: [CommonModule, FormsModule, Dialog],
+  imports: [FormsModule, Dialog],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './groups-section.component.html',
   styleUrls: ['./groups-section.component.scss'],

@@ -1,5 +1,4 @@
 import { Component, OnInit, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { SchoolsApiService } from '../../core/api/schools-api.service';
 import { TeachersApiService } from '../../core/api/teachers-api.service';
@@ -21,7 +20,6 @@ type Tab = 'school' | 'ciclos' | 'classrooms' | 'groups' | 'teachers' | 'subject
   selector: 'app-config',
   standalone: true,
   imports: [
-    CommonModule,
     SchoolSectionComponent,
     CiclosSectionComponent,
     ClassroomsSectionComponent,

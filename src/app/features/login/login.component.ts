@@ -1,7 +1,6 @@
 import {
   Component, OnInit, inject, signal, ChangeDetectionStrategy
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService, DemoUser } from '../../core/auth/auth.service';
 import { LogoMarkComponent } from '../../shared/ui/logo-mark.component';
@@ -11,7 +10,7 @@ import { getRoleAvatarColors } from '../../core/utils/role.utils';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, LogoMarkComponent, LecIconComponent],
+  imports: [LogoMarkComponent, LecIconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="login-page" data-testid="login-page">

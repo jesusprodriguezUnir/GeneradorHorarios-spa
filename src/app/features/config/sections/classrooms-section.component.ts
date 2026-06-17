@@ -1,9 +1,9 @@
 import { Component, inject, signal, computed, input, output, ChangeDetectionStrategy, afterNextRender } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { Dialog } from 'primeng/dialog';
 import { TableModule } from 'primeng/table';
+import { InputText } from 'primeng/inputtext';
 import { ClassroomsApiService } from '../../../core/api/classrooms-api.service';
 import { Classroom, SchoolStage } from '../../../core/models';
 import { CLASSROOM_TYPES } from '../config.constants';
@@ -11,7 +11,7 @@ import { CLASSROOM_TYPES } from '../config.constants';
 @Component({
   selector: 'app-classrooms-section',
   standalone: true,
-  imports: [CommonModule, FormsModule, Dialog, TableModule, InputText],
+  imports: [FormsModule, Dialog, TableModule, InputText],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './classrooms-section.component.html',
   styleUrls: ['./classrooms-section.component.scss']

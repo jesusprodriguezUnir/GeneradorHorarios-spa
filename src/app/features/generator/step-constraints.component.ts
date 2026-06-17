@@ -1,5 +1,4 @@
 import { Component, ChangeDetectionStrategy, input, model, signal, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Teacher, SubjectAllocation, Classroom, TimeSlot, DAYS } from '../../core/models';
 import { LecIconComponent } from '../../shared/ui/lec-icon.component';
@@ -14,7 +13,7 @@ import {
 @Component({
   selector: 'app-step-constraints',
   standalone: true,
-  imports: [CommonModule, FormsModule, LecIconComponent],
+  imports: [FormsModule, LecIconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div style="max-width:820px">

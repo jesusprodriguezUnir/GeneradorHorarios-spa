@@ -1,7 +1,6 @@
 import {
   Component, ChangeDetectionStrategy, input, model, output, signal, computed, OnDestroy,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { LecIconComponent } from '../../shared/ui/lec-icon.component';
 import { GpStarsComponent } from '../../shared/ui/gp-stars.component';
 import {
@@ -19,7 +18,7 @@ type Phase = 'setup' | 'running' | 'compare';
 @Component({
   selector: 'app-step-generation',
   standalone: true,
-  imports: [CommonModule, LecIconComponent, GpStarsComponent],
+  imports: [LecIconComponent, GpStarsComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @switch (phase()) {

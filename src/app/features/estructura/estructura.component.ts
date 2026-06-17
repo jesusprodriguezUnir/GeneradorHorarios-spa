@@ -1,7 +1,6 @@
 import {
   Component, OnInit, inject, computed, ChangeDetectionStrategy,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { BlockStateService } from '../../core/block-state.service';
@@ -52,7 +51,7 @@ const TONE_FG: Record<string, string> = {
 @Component({
   selector: 'app-estructura',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="lec-fade-up">

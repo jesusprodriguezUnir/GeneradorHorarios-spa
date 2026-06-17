@@ -1,5 +1,4 @@
 import { Component, ChangeDetectionStrategy, inject, input, model, signal, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { Teacher, CourseGroup, SubjectAllocation } from '../../core/models';
 import { DeviceService } from '../../core/device.service';
 import { LecIconComponent } from '../../shared/ui/lec-icon.component';
@@ -20,7 +19,7 @@ interface CellRef { allocId: string; groupId: string; }
 @Component({
   selector: 'app-step-assignments',
   standalone: true,
-  imports: [CommonModule, LecIconComponent, GpRingComponent],
+  imports: [LecIconComponent, GpRingComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <!-- Banda resumen -->

@@ -2,7 +2,6 @@ import {
   Component, OnInit, inject, computed, signal, ChangeDetectionStrategy
 } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
-import { CommonModule } from '@angular/common';
 import { AuthService } from '../core/auth/auth.service';
 import { DeviceService } from '../core/device.service';
 import { LogoMarkComponent } from '../shared/ui/logo-mark.component';
@@ -42,7 +41,7 @@ const TEACHER_NAV: NavItem[] = [
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, LogoMarkComponent, PeriodSelectorComponent, BloqueSwitcherComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, LogoMarkComponent, PeriodSelectorComponent, BloqueSwitcherComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (isMobile()) {

@@ -1,7 +1,6 @@
 import {
   Component, OnInit, inject, signal, computed, ChangeDetectionStrategy, DestroyRef
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { PeriodStateService } from '../../core/period-state.service';
@@ -40,7 +39,7 @@ import { StepGenerationComponent } from './step-generation.component';
   selector: 'app-generator',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, LecIconComponent,
+    FormsModule, LecIconComponent,
     StepAssignmentsComponent, StepConstraintsComponent, StepGenerationComponent,
     PeriodSelectorComponent,
   ],

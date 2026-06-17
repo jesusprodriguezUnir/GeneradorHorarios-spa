@@ -1,7 +1,6 @@
 import {
   Component, OnInit, inject, signal, computed, effect, ChangeDetectionStrategy
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { PeriodStateService } from '../../core/period-state.service';
@@ -24,7 +23,7 @@ type ViewMode = 'group' | 'teacher' | 'room';
 @Component({
   selector: 'app-schedule-result',
   standalone: true,
-  imports: [CommonModule, FormsModule, ScheduleGridComponent, SubjectLegendComponent, QualityScorecardComponent],
+  imports: [FormsModule, ScheduleGridComponent, SubjectLegendComponent, QualityScorecardComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="lec-fade-up">

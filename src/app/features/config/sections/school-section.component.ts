@@ -1,5 +1,4 @@
 import { Component, inject, signal, input, output, computed, effect, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SchoolsApiService } from '../../../core/api/schools-api.service';
 import { School, SchoolStage } from '../../../core/models';
@@ -9,7 +8,7 @@ import { LecIconComponent } from '../../../shared/ui/lec-icon.component';
 @Component({
   selector: 'app-school-section',
   standalone: true,
-  imports: [CommonModule, FormsModule, LecIconComponent],
+  imports: [FormsModule, LecIconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './school-section.component.html',
   styleUrls: ['./school-section.component.scss']

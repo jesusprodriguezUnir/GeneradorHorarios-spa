@@ -1,5 +1,4 @@
 import { Component, input, computed, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { SUBJECT_COLORS } from '../../core/models';
 
 const ALL_SUBJECTS: { key: string; name: string }[] = [
@@ -25,7 +24,7 @@ const ALL_SUBJECTS: { key: string; name: string }[] = [
 @Component({
   selector: 'app-subject-legend',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">

@@ -1,7 +1,6 @@
 import {
   Component, inject, signal, input, output, computed, effect, ChangeDetectionStrategy
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { SchoolsApiService } from '../../../core/api/schools-api.service';
@@ -70,7 +69,7 @@ type CyclesByEtapa = Record<EtapaBlockId, LocalCycleConfig[]>;
 @Component({
   selector: 'app-ciclos-section',
   standalone: true,
-  imports: [CommonModule, FormsModule, LecIconComponent],
+  imports: [FormsModule, LecIconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './ciclos-section.component.html',
   styleUrls: ['./ciclos-section.component.scss']

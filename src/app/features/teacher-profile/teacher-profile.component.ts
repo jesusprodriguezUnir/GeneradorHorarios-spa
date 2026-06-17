@@ -1,7 +1,6 @@
 import {
   Component, OnInit, inject, signal, computed, ChangeDetectionStrategy
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { TeachersApiService } from '../../core/api/teachers-api.service';
 import { ConstraintsApiService } from '../../core/api/constraints-api.service';
 import { SchoolsApiService } from '../../core/api/schools-api.service';
@@ -18,7 +17,7 @@ const SUBJECT_NAMES: Record<string, string> = {
 @Component({
   selector: 'app-teacher-profile',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="lec-fade-up">

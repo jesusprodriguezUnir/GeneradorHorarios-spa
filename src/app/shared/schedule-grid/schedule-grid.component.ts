@@ -1,7 +1,6 @@
 import {
   Component, input, output, computed, signal, ChangeDetectionStrategy, inject
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import {
   ScheduleGridEntry, TimeSlot, ScheduleConflict,
   DAYS, DAYS_SHORT, SUBJECT_COLORS
@@ -184,7 +183,7 @@ export class ScheduleCellComponent {
 @Component({
   selector: 'app-schedule-grid',
   standalone: true,
-  imports: [CommonModule, ScheduleCellComponent],
+  imports: [ScheduleCellComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (isMobile()) {

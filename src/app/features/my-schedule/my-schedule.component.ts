@@ -1,7 +1,6 @@
 import {
   Component, OnInit, inject, signal, computed, ChangeDetectionStrategy
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { SchedulesApiService } from '../../core/api/schedules-api.service';
 import { MySchedule, ScheduleGridEntry, TimeSlot, DAYS, DAYS_SHORT } from '../../core/models';
 import { DeviceService } from '../../core/device.service';
@@ -15,7 +14,7 @@ import { COURSE_PERIODS, PeriodId } from '../../core/periods.model';
 @Component({
   selector: 'app-my-schedule',
   standalone: true,
-  imports: [CommonModule, ScheduleGridComponent, SubjectLegendComponent, PeriodSelectorComponent],
+  imports: [ScheduleGridComponent, SubjectLegendComponent, PeriodSelectorComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="lec-fade-up">

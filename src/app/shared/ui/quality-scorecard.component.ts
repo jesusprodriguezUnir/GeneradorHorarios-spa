@@ -1,5 +1,4 @@
 import { Component, Input, ChangeDetectionStrategy, computed, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { GpRingComponent } from './gp-ring.component';
 import { LecIconComponent } from './lec-icon.component';
 import { GenCandidate, GEN_CANDIDATES, GEN_METRIC_LABELS, genMetricTone } from '../../core/generation.model';
@@ -11,7 +10,7 @@ import { GenCandidate, GEN_CANDIDATES, GEN_METRIC_LABELS, genMetricTone } from '
 @Component({
   selector: 'app-quality-scorecard',
   standalone: true,
-  imports: [CommonModule, GpRingComponent, LecIconComponent],
+  imports: [GpRingComponent, LecIconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="lec-card scorecard" style="padding:0;overflow:hidden;margin-top:16px">
