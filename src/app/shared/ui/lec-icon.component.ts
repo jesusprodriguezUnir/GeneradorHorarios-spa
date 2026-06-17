@@ -1,4 +1,4 @@
-import { Component, Input, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, input, ChangeDetectionStrategy, inject, effect } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
 /**
@@ -65,6 +65,7 @@ const ICON_PATHS: Record<string, string> = {
   target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
   award: '<path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/><circle cx="12" cy="8" r="6"/>',
   sliders: '<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>',
+  copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
 };
 
 @Component({
@@ -72,8 +73,8 @@ const ICON_PATHS: Record<string, string> = {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <svg [attr.width]="size" [attr.height]="size" viewBox="0 0 24 24"
-      [attr.fill]="fill" stroke="currentColor" [attr.stroke-width]="stroke"
+    <svg [attr.width]="size()" [attr.height]="size()" viewBox="0 0 24 24"
+      [attr.fill]="fill()" stroke="currentColor" [attr.stroke-width]="stroke()"
       stroke-linecap="round" stroke-linejoin="round"
       style="flex-shrink:0;display:block"
       [innerHTML]="svg"></svg>
@@ -83,10 +84,14 @@ export class LecIconComponent {
   private readonly sanitizer = inject(DomSanitizer);
   protected svg: SafeHtml = '';
 
-  @Input() size = 20;
-  @Input() stroke: number | string = 1.75;
-  @Input() fill = 'none';
-  @Input() set name(value: string) {
-    this.svg = this.sanitizer.bypassSecurityTrustHtml(ICON_PATHS[value] ?? '');
+  readonly size = input(20);
+  readonly stroke = input<number | string>(1.75);
+  readonly fill = input('none');
+  readonly name = input('');
+
+  constructor() {
+    effect(() => {
+      this.svg = this.sanitizer.bypassSecurityTrustHtml(ICON_PATHS[this.name()] ?? '');
+    });
   }
 }

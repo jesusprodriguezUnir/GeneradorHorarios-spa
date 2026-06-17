@@ -1,5 +1,5 @@
 import {
-  Component, Input, Output, EventEmitter, signal, computed,
+  Component, input, output, signal, computed,
   ChangeDetectionStrategy,
 } from '@angular/core';
 import {
@@ -12,7 +12,7 @@ import {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div [style.position]="'relative'" [style.width]="block ? '100%' : 'auto'">
+    <div [style.position]="'relative'" [style.width]="block() ? '100%' : 'auto'">
 
       <!-- Trigger button -->
       <button (click)="_open.update(v => !v)" [style]="btnStyle()">
@@ -26,7 +26,7 @@ import {
         </svg>
 
         <span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;"
-          [style.flex]="block ? '1' : 'none'">
+          [style.flex]="block() ? '1' : 'none'">
           <span style="font-weight:700;font-size:var(--text-sm)">{{ currentPeriod().name }}</span>
           <span style="font-size:10.5px;font-weight:600;opacity:0.72">
             {{ currentPeriod().months }} · {{ currentPeriod().jornada }}
@@ -52,8 +52,8 @@ import {
           width:288px;background:var(--card);
           border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);
           border:1px solid var(--border);padding:7px;z-index:90;"
-          [style.right]="block ? 'auto' : '0'"
-          [style.left]="block ? '0' : 'auto'">
+          [style.right]="block() ? 'auto' : '0'"
+          [style.left]="block() ? '0' : 'auto'">
 
           <div style="font-size:10.5px;font-weight:700;color:var(--muted-foreground);
             text-transform:uppercase;letter-spacing:0.05em;padding:7px 9px 6px">
@@ -65,13 +65,13 @@ import {
               style="display:flex;align-items:center;gap:11px;width:100%;
                 padding:10px;border-radius:var(--radius-md);text-align:left;
                 transition:background .12s;cursor:pointer;"
-              [style.background]="p.id === period ? 'var(--primary-tint)' : 'transparent'">
+              [style.background]="p.id === period() ? 'var(--primary-tint)' : 'transparent'">
 
               <!-- Icono periodo -->
               <div style="width:34px;height:34px;border-radius:var(--radius-md);flex-shrink:0;
                 display:flex;align-items:center;justify-content:center;"
-                [style.background]="p.id === period ? 'var(--primary)' : 'var(--secondary)'"
-                [style.color]="p.id === period ? '#fff' : 'var(--muted-foreground)'">
+                [style.background]="p.id === period() ? 'var(--primary)' : 'var(--secondary)'"
+                [style.color]="p.id === period() ? '#fff' : 'var(--muted-foreground)'">
                 @if (p.tarde) {
                   <!-- Icono layers (jornada partida) -->
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
@@ -98,7 +98,7 @@ import {
               <!-- Info del periodo -->
               <div style="flex:1;min-width:0">
                 <div style="font-weight:700;font-size:var(--text-sm)"
-                  [style.color]="p.id === period ? 'var(--primary-strong)' : 'var(--foreground)'">
+                  [style.color]="p.id === period() ? 'var(--primary-strong)' : 'var(--foreground)'">
                   {{ p.name }}
                 </div>
                 <div style="font-size:11px;color:var(--muted-foreground);margin-top:1px">
@@ -115,7 +115,7 @@ import {
               </div>
 
               <!-- Checkmark si activo -->
-              @if (p.id === period) {
+              @if (p.id === period()) {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                   stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
                   style="flex-shrink:0">
@@ -130,25 +130,25 @@ import {
   `,
 })
 export class PeriodSelectorComponent {
-  @Input() period: PeriodId = 'completa';
-  @Input() schedByPeriod: ScheduleStateByPeriod = {};
-  @Input() variant: 'onPrimary' | 'light' = 'onPrimary';
-  @Input() block = false;
-  @Output() periodChange = new EventEmitter<PeriodId>();
+  readonly period = input<PeriodId>('completa');
+  readonly schedByPeriod = input<ScheduleStateByPeriod>({});
+  readonly variant = input<'onPrimary' | 'light'>('onPrimary');
+  readonly block = input(false);
+  readonly periodChange = output<PeriodId>();
 
   readonly _open = signal(false);
 
   readonly periods: CoursePeriod[] = COURSE_PERIODS;
 
   readonly currentPeriod = computed(() =>
-    COURSE_PERIODS.find(p => p.id === this.period) ?? COURSE_PERIODS[0],
+    COURSE_PERIODS.find(p => p.id === this.period()) ?? COURSE_PERIODS[0],
   );
 
   btnStyle(): string {
     const base = `display:flex;align-items:center;gap:9px;padding:8px 12px;
       border-radius:var(--radius-md);font-weight:700;font-size:var(--text-sm);
-      transition:all .15s;cursor:pointer;width:${this.block ? '100%' : 'auto'};`;
-    if (this.variant === 'onPrimary') {
+      transition:all .15s;cursor:pointer;width:${this.block() ? '100%' : 'auto'};`;
+    if (this.variant() === 'onPrimary') {
       return base + `background:rgba(255,255,255,0.14);color:#fff;
         border:1px solid rgba(255,255,255,0.18);`;
     }
@@ -157,12 +157,12 @@ export class PeriodSelectorComponent {
   }
 
   dotColor(id: PeriodId): string {
-    const state = (this.schedByPeriod[id] ?? 'none') as PeriodScheduleState;
+    const state = (this.schedByPeriod()[id] ?? 'none') as PeriodScheduleState;
     return PERIOD_STATE_COLORS[state];
   }
 
   stateLabel(id: PeriodId): string {
-    const state = (this.schedByPeriod[id] ?? 'none') as PeriodScheduleState;
+    const state = (this.schedByPeriod()[id] ?? 'none') as PeriodScheduleState;
     return PERIOD_STATE_LABELS[state];
   }
 

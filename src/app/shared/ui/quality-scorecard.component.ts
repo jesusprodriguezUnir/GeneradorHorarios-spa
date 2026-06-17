@@ -1,4 +1,4 @@
-import { Component, Input, ChangeDetectionStrategy, computed, signal } from '@angular/core';
+import { Component, input, ChangeDetectionStrategy, computed, signal, effect } from '@angular/core';
 import { GpRingComponent } from './gp-ring.component';
 import { LecIconComponent } from './lec-icon.component';
 import { GenCandidate, GEN_CANDIDATES, GEN_METRIC_LABELS, genMetricTone } from '../../core/generation.model';
@@ -46,9 +46,9 @@ import { GenCandidate, GEN_CANDIDATES, GEN_METRIC_LABELS, genMetricTone } from '
         <span style="display:flex;align-items:center;gap:6px;color:var(--foreground);font-weight:600">
           <lec-icon name="star" [size]="14" style="color:var(--accent-foreground)"></lec-icon> Preferencias: {{ sol().str['prefs'] }}% satisfechas
         </span>
-        @if (state === 'conflicts') {
+        @if (state() === 'conflicts') {
           <span style="display:flex;align-items:center;gap:6px;color:var(--warning-foreground);font-weight:600">
-            <lec-icon name="alert" [size]="14"></lec-icon> {{ conflicts }} ajustes manuales sugeridos
+            <lec-icon name="alert" [size]="14"></lec-icon> {{ conflicts() }} ajustes manuales sugeridos
           </span>
         }
       </div>
@@ -77,11 +77,9 @@ import { GenCandidate, GEN_CANDIDATES, GEN_METRIC_LABELS, genMetricTone } from '
 })
 export class QualityScorecardComponent {
   private readonly _sol = signal<GenCandidate>(GEN_CANDIDATES[0]);
-  @Input() set solution(v: GenCandidate | null | undefined) {
-    if (v) this._sol.set(v);
-  }
-  @Input() state: 'clean' | 'conflicts' = 'clean';
-  @Input() conflicts = 0;
+  readonly solution = input<GenCandidate | null | undefined>(undefined);
+  readonly state = input<'clean' | 'conflicts'>('clean');
+  readonly conflicts = input(0);
 
   protected readonly sol = this._sol;
   protected readonly score = computed(() => this.sol().score ?? 89);
@@ -92,4 +90,13 @@ export class QualityScorecardComponent {
       return { key, label: GEN_METRIC_LABELS[key], value, tone: genMetricTone(value) };
     })
   );
+
+  constructor() {
+    const sol = this._sol;
+    const solutionSig = this.solution;
+    effect(() => {
+      const v = solutionSig();
+      if (v) sol.set(v);
+    });
+  }
 }
