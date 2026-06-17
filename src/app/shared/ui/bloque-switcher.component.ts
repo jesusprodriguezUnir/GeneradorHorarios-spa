@@ -3,7 +3,7 @@ import {
   ChangeDetectionStrategy,
 } from '@angular/core';
 import {
-  BlockId, EtapaBlock, EtapaBlockId, BLOCKS,
+  BlockId, EtapaBlock, BLOCKS,
   BLOCK_STATE_COLORS, BLOCK_STATE_LABELS,
 } from '../../core/blocks.model';
 import { PeriodId, PeriodScheduleState } from '../../core/periods.model';

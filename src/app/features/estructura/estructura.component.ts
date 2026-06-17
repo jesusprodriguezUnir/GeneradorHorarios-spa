@@ -1,12 +1,12 @@
 import {
-  Component, OnInit, inject, computed, ChangeDetectionStrategy,
+  Component, inject, computed, ChangeDetectionStrategy,
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { BlockStateService } from '../../core/block-state.service';
 import { PeriodStateService } from '../../core/period-state.service';
 import {
-  EtapaBlock, BLOCKS, BLOCK_STATE_COLORS, BLOCK_STATE_LABELS, blockById,
+  EtapaBlock, BLOCKS,
 } from '../../core/blocks.model';
 import { PeriodScheduleState } from '../../core/periods.model';
 
@@ -274,20 +274,6 @@ const TONE_FG: Record<string, string> = {
     </div>
   `,
   styles: [`
-    .btn-primary {
-      display: flex; align-items: center; gap: 8px; padding: 8px 14px;
-      background: var(--primary); color: var(--primary-foreground);
-      border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm);
-      cursor: pointer; transition: all .15s; white-space: nowrap;
-    }
-    .btn-primary:hover { background: var(--primary-strong); }
-    .btn-secondary {
-      display: flex; align-items: center; gap: 8px; padding: 8px 14px;
-      background: var(--card); color: var(--foreground);
-      box-shadow: inset 0 0 0 1px var(--border-strong);
-      border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm);
-      cursor: pointer; transition: all .15s; white-space: nowrap;
-    }
     .centro-banner {
       border-radius: var(--radius-xl); overflow: hidden; color: #fff;
       background: linear-gradient(135deg, var(--primary-strong), var(--primary) 60%, oklch(0.55 0.13 305));

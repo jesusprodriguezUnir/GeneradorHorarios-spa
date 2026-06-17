@@ -4,7 +4,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { PeriodStateService } from '../../core/period-state.service';
-import { COURSE_PERIODS, CoursePeriod, PeriodId } from '../../core/periods.model';
+import { COURSE_PERIODS, PeriodId } from '../../core/periods.model';
 import { PeriodSelectorComponent } from '../../shared/ui/period-selector.component';
 import { TeachersApiService } from '../../core/api/teachers-api.service';
 import { GroupsApiService } from '../../core/api/groups-api.service';
@@ -221,10 +221,6 @@ import { StepGenerationComponent } from './step-generation.component';
     .loading-box { text-align: center; padding: 48px; color: var(--muted-foreground); }
 
     .nav-buttons { display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; }
-    .btn-primary { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--primary); color: #fff; border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm); transition: all .15s; }
-    .btn-primary:hover { background: var(--primary-strong); }
-    .btn-secondary { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--card); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--border-strong); border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm); }
-    .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
     /* Banner de estado del hub SignalR */
     .hub-banner { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: var(--radius-md); font-size: var(--text-xs); font-weight: 600; margin-bottom: 12px; background: var(--destructive-tint); color: var(--destructive); border: 1px solid var(--destructive); }
@@ -404,27 +400,7 @@ export class GeneratorComponent implements OnInit {
     
     if (!this.lastScheduleId) {
       this.toast.add({ severity: 'info', summary: 'Cargando', detail: 'Recuperando el horario generado...' });
-      
-      // Realizar sondeo (polling) por hasta 30 segundos (60 intentos, 500ms de intervalo)
-      for (let attempt = 0; attempt < 60; attempt++) {
-        try {
-          const schedules = await this.schedulesApi.getSchedules();
-          const currentYearScheds = schedules
-            .filter(s => s.academicYear === this.academicYear)
-            .sort((a, b) => {
-              const dateA = a.generatedAt ? new Date(a.generatedAt).getTime() : 0;
-              const dateB = b.generatedAt ? new Date(b.generatedAt).getTime() : 0;
-              return dateB - dateA;
-            });
-          if (currentYearScheds.length > 0) {
-            this.lastScheduleId = currentYearScheds[0].id;
-            break;
-          }
-        } catch {
-          // Ignorar fallos temporales de red y reintentar
-        }
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
+      this.lastScheduleId = (await this.pollForNewSchedule()) ?? this.lastScheduleId;
     }
 
     if (this.lastScheduleId) {
@@ -432,5 +408,25 @@ export class GeneratorComponent implements OnInit {
     } else {
       this.toast.add({ severity: 'warn', summary: 'Generación en curso', detail: 'El horario aún se está calculando, inténtalo de nuevo en unos segundos.' });
     }
+  }
+
+  private async pollForNewSchedule(maxAttempts = 60, intervalMs = 500): Promise<string | null> {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const schedules = await this.schedulesApi.getSchedules();
+        const match = schedules
+          .filter(s => s.academicYear === this.academicYear)
+          .sort((a, b) => {
+            const dateA = a.generatedAt ? new Date(a.generatedAt).getTime() : 0;
+            const dateB = b.generatedAt ? new Date(b.generatedAt).getTime() : 0;
+            return dateB - dateA;
+          })[0];
+        if (match) return match.id;
+      } catch {
+        // Ignorar fallos temporales de red y reintentar
+      }
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
+    return null;
   }
 }

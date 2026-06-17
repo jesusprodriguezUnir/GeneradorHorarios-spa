@@ -1,6 +1,6 @@
 import {
   Component, inject, signal, computed, input, output,
-  ChangeDetectionStrategy, effect, untracked, afterNextRender,
+  ChangeDetectionStrategy, untracked, afterNextRender,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MessageService, ConfirmationService } from 'primeng/api';
@@ -8,7 +8,7 @@ import { Dialog } from 'primeng/dialog';
 import { GroupsApiService } from '../../../core/api/groups-api.service';
 import {
   CourseGroup, Teacher, Classroom, SubjectAllocation,
-  School, SchoolStage, cycleFromLevel,
+  School, SchoolStage,
 } from '../../../core/models';
 
 export const GROUP_PALETTE = [
@@ -321,6 +321,7 @@ export class GroupsSectionComponent {
 
   removeSubject(key: string): void {
     this.groupForm.update(f => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { [key]: _, ...rest } = f.subjectHours;
       return { ...f, subjectHours: rest };
     });

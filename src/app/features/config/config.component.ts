@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, signal, computed, effect, ChangeDetectionStrategy } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { SchoolsApiService } from '../../core/api/schools-api.service';
 import { TeachersApiService } from '../../core/api/teachers-api.service';
@@ -13,6 +14,7 @@ import { GroupsSectionComponent } from './sections/groups-section.component';
 import { TeachersSectionComponent } from './sections/teachers-section.component';
 import { SubjectsSectionComponent } from './sections/subjects-section.component';
 import { BlockStateService } from '../../core/block-state.service';
+import { stagesForBlock, groupsByBlock, teachersByBlock } from '../../core/block-filter.utils';
 
 type Tab = 'school' | 'ciclos' | 'classrooms' | 'groups' | 'teachers' | 'subjects';
 
@@ -40,6 +42,8 @@ export class ConfigComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
+  private readonly queryParams = toSignal(this.route.queryParams, { initialValue: {} as Record<string, string> });
+
   readonly activeTab = signal<Tab>('school');
 
   readonly school = signal<School | null>(null);
@@ -51,71 +55,22 @@ export class ConfigComponent implements OnInit {
 
   readonly activeBlock = inject(BlockStateService).activeBlock;
 
-  readonly filteredStages = computed(() => {
-    const ab = this.activeBlock();
-    if (ab === 'all') return this.stages();
-    return this.stages().filter(s => {
-      const type = s.stageType.toLowerCase();
-      if (ab === 'inf') return type.includes('inf');
-      if (ab === 'pri') return type.includes('pri');
-      if (ab === 'sec') return type.includes('sec') || type.includes('eso');
-      return false;
-    });
-  });
-
-  readonly filteredGroups = computed(() => {
-    const ab = this.activeBlock();
-    if (ab === 'all') return this.groups();
-    const stagesForBlock = this.stages().filter(s => {
-      const type = s.stageType.toLowerCase();
-      if (ab === 'inf') return type.includes('inf');
-      if (ab === 'pri') return type.includes('pri');
-      if (ab === 'sec') return type.includes('sec') || type.includes('eso');
-      return false;
-    });
-    if (stagesForBlock.length === 0) return [];
-    
-    return this.groups().filter(g => 
-      stagesForBlock.some(s => g.courseLevel >= s.minLevel && g.courseLevel <= s.maxLevel)
-    );
-  });
-
-  readonly filteredTeachers = computed(() => {
-    const ab = this.activeBlock();
-    if (ab === 'all') return this.teachers();
-    const stagesForBlock = this.stages().filter(s => {
-      const type = s.stageType.toLowerCase();
-      if (ab === 'inf') return type.includes('inf');
-      if (ab === 'pri') return type.includes('pri');
-      if (ab === 'sec') return type.includes('sec') || type.includes('eso');
-      return false;
-    });
-    if (stagesForBlock.length === 0) return [];
-    const stageIds = new Set(stagesForBlock.map(s => s.id));
-    
-    return this.teachers().filter(t =>
-      t.stageAssignments?.some(sa => stageIds.has(sa.stageId))
-    );
-  });
+  readonly filteredStages = computed(() => stagesForBlock(this.activeBlock(), this.stages()));
+  readonly filteredGroups = computed(() => groupsByBlock(this.activeBlock(), this.stages(), this.groups()));
+  readonly filteredTeachers = computed(() => teachersByBlock(this.activeBlock(), this.stages(), this.teachers()));
 
   readonly filteredSubjects = computed(() => {
     const ab = this.activeBlock();
     if (ab === 'all') return this.subjects();
-    const stagesForBlock = this.stages().filter(s => {
-      const type = s.stageType.toLowerCase();
-      if (ab === 'inf') return type.includes('inf');
-      if (ab === 'pri') return type.includes('pri');
-      if (ab === 'sec') return type.includes('sec') || type.includes('eso');
-      return false;
-    });
-    if (stagesForBlock.length === 0) return [];
+    const matched = stagesForBlock(ab, this.stages());
+    if (matched.length === 0) return [];
     
     return this.subjects().filter(subj => {
       if (subj.courseLevel) {
-        return stagesForBlock.some(s => subj.courseLevel! >= s.minLevel && subj.courseLevel! <= s.maxLevel);
+        return matched.some(s => subj.courseLevel! >= s.minLevel && subj.courseLevel! <= s.maxLevel);
       }
       if (subj.cycle) {
-        return stagesForBlock.some(st => {
+        return matched.some(st => {
           const maxCycle = Math.ceil((st.maxLevel - st.minLevel + 1) / 2);
           return subj.cycle! >= 1 && subj.cycle! <= maxCycle;
         });
@@ -123,6 +78,18 @@ export class ConfigComponent implements OnInit {
       return true;
     });
   });
+
+  constructor() {
+    effect(() => {
+      const params = this.queryParams();
+      const tab = params?.['tab'];
+      if (this.isValidTab(tab)) {
+        this.activeTab.set(tab);
+      } else {
+        this.activeTab.set('school');
+      }
+    });
+  }
 
   readonly tabs: { id: Tab; label: string; icon: string }[] = [
     { id: 'school',     label: 'Centro',       icon: '🏛' },
@@ -134,15 +101,6 @@ export class ConfigComponent implements OnInit {
   ];
 
   async ngOnInit(): Promise<void> {
-    this.route.queryParams.subscribe(params => {
-      const tab = params['tab'];
-      if (this.isValidTab(tab)) {
-        this.activeTab.set(tab);
-      } else {
-        this.activeTab.set('school');
-      }
-    });
-
     const [school, teachers, groups, subjects, classrooms, stages] = await Promise.all([
       this.schoolsApi.getMySchool().catch(() => null),
       this.teachersApi.getTeachers().catch(() => []),

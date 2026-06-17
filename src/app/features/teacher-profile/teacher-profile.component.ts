@@ -5,7 +5,7 @@ import { TeachersApiService } from '../../core/api/teachers-api.service';
 import { ConstraintsApiService } from '../../core/api/constraints-api.service';
 import { SchoolsApiService } from '../../core/api/schools-api.service';
 import { AuthService } from '../../core/auth/auth.service';
-import { Teacher, TeacherConstraint, TimeSlot, School, DAYS, DAYS_SHORT, SUBJECT_COLORS } from '../../core/models';
+import { Teacher, TeacherConstraint, TimeSlot, School, DAYS, DAYS_SHORT } from '../../core/models';
 import { MessageService } from 'primeng/api';
 
 const SUBJECT_NAMES: Record<string, string> = {

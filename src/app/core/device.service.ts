@@ -1,4 +1,4 @@
-import { Injectable, signal, effect, PLATFORM_ID, inject } from '@angular/core';
+import { Injectable, signal, PLATFORM_ID, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 
 /**

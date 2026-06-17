@@ -12,30 +12,6 @@
   color: var(--foreground);
 }
 
-.btn-primary {
-  padding: 9px 20px;
-  background: var(--primary);
-  color: var(--primary-foreground);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity .15s;
-  border: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.btn-primary:hover {
-  opacity: 0.88;
-}
-
-.btn-primary--sm {
-  padding: 6px 12px;
-  font-size: var(--text-xs);
-}
-
 /* p-table overrides */
 :host ::ng-deep .p-datatable .p-datatable-thead > tr > th {
   padding: 10px 14px;
@@ -150,6 +126,88 @@
 
 .btn-del:hover {
   color: var(--destructive);
+}
+
+/* Botones compartidos entre secciones de config */
+.btn-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 16px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+  border: none;
+  transition: filter .15s;
+  &:hover { filter: brightness(0.9); }
+}
+
+.btn-add-stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  background: var(--primary-tint);
+  color: var(--primary-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  border: none;
+  transition: filter .15s;
+  &:hover { filter: brightness(0.93); }
+}
+
+.btn-template {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--primary-tint);
+  color: var(--primary-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: filter .15s;
+  &:hover { filter: brightness(0.93); }
+}
+
+.btn-remove-subj {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color .15s;
+  &:hover { color: var(--destructive); }
+}
+
+.btn-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--primary-strong);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  &:hover { opacity: 0.75; }
 }
 
 /* Premium Dialog Styles */

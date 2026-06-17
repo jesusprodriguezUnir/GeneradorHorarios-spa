@@ -217,7 +217,6 @@ type Phase = 'setup' | 'running' | 'compare';
     .cand-metrics { padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; }
     .cand-btn { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm); background: var(--card); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--border-strong); }
     .cand-btn--rec { background: var(--primary); color: #fff; box-shadow: none; }
-    .btn-ghost { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: transparent; color: var(--foreground); border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm); }
   `],
 })
 export class StepGenerationComponent implements OnDestroy {

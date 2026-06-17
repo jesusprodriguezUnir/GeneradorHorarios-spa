@@ -186,8 +186,6 @@ import {
     .rule-del { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted-foreground); }
     .rule-del:hover { background: var(--secondary); color: var(--destructive); }
     .empty { text-align: center; padding: 32px; color: var(--muted-foreground); border: 1.5px dashed var(--border-strong); border-radius: var(--radius-lg); }
-    .btn-ghost { padding: 10px 16px; background: transparent; color: var(--foreground); border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm); }
-    .btn-primary { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--primary); color: #fff; border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm); }
   `],
 })
 export class StepConstraintsComponent {

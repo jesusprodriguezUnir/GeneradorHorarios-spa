@@ -10,6 +10,7 @@ import { SchoolsApiService } from '../../core/api/schools-api.service';
 import { BlockStateService } from '../../core/block-state.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { Teacher, CourseGroup, Classroom, ScheduleList, SchoolStage, SUBJECT_COLORS } from '../../core/models';
+import { stagesForBlock, groupsByBlock, teachersByBlock } from '../../core/block-filter.utils';
 import { PeriodStateService } from '../../core/period-state.service';
 import {
   CoursePeriod, PeriodId, PeriodScheduleState, COURSE_PERIODS,
@@ -287,27 +288,6 @@ const PREVIEW_SUBJECTS = ['mat','ing','len','cie','ef','len','mat','art','mus','
     .kpi-sub { font-size: 11px; color: var(--muted-foreground); margin-top: 4px; }
     .body-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 18px; align-items: start; }
     @media (max-width: 840px) { .body-grid { grid-template-columns: 1fr; } }
-    .btn-primary {
-      display: flex; align-items: center; gap: 8px; padding: 10px 16px;
-      background: var(--primary); color: var(--primary-foreground);
-      border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm);
-      cursor: pointer; transition: all .15s; white-space: nowrap;
-      box-shadow: var(--shadow-sm);
-    }
-    .btn-primary:hover { background: var(--primary-strong); }
-    .btn-secondary {
-      display: flex; align-items: center; gap: 8px; padding: 10px 16px;
-      background: var(--card); color: var(--foreground);
-      box-shadow: inset 0 0 0 1px var(--border-strong);
-      border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm);
-      cursor: pointer; transition: all .15s; white-space: nowrap;
-    }
-    .btn-subtle {
-      display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px;
-      background: var(--primary-tint); color: var(--primary-strong);
-      border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm);
-      cursor: pointer; transition: all .15s; width: 100%;
-    }
     .status-badge { font-size: var(--text-xs); font-weight: 700; padding: 3px 10px; border-radius: var(--radius-full); background: var(--secondary); color: var(--secondary-foreground); }
     .badge--published { background: var(--success-tint); color: var(--success); }
     .badge--generated { background: var(--warning-tint); color: var(--warning-foreground); }
@@ -354,50 +334,9 @@ export class DashboardComponent implements OnInit {
 
   readonly activeBlock = this.blockState.activeBlock;
 
-  readonly filteredStages = computed(() => {
-    const ab = this.activeBlock();
-    if (ab === 'all') return this.stages();
-    return this.stages().filter(s => {
-      const type = s.stageType.toLowerCase();
-      if (ab === 'inf') return type.includes('inf');
-      if (ab === 'pri') return type.includes('pri');
-      if (ab === 'sec') return type.includes('sec') || type.includes('eso');
-      return false;
-    });
-  });
-
-  readonly filteredGroups = computed(() => {
-    const ab = this.activeBlock();
-    if (ab === 'all') return this.groups();
-    const stagesForBlock = this.stages().filter(s => {
-      const type = s.stageType.toLowerCase();
-      if (ab === 'inf') return type.includes('inf');
-      if (ab === 'pri') return type.includes('pri');
-      if (ab === 'sec') return type.includes('sec') || type.includes('eso');
-      return false;
-    });
-    if (stagesForBlock.length === 0) return [];
-    return this.groups().filter(g =>
-      stagesForBlock.some(s => g.courseLevel >= s.minLevel && g.courseLevel <= s.maxLevel)
-    );
-  });
-
-  readonly filteredTeachers = computed(() => {
-    const ab = this.activeBlock();
-    if (ab === 'all') return this.teachers();
-    const stagesForBlock = this.stages().filter(s => {
-      const type = s.stageType.toLowerCase();
-      if (ab === 'inf') return type.includes('inf');
-      if (ab === 'pri') return type.includes('pri');
-      if (ab === 'sec') return type.includes('sec') || type.includes('eso');
-      return false;
-    });
-    if (stagesForBlock.length === 0) return [];
-    const stageIds = new Set(stagesForBlock.map(s => s.id));
-    return this.teachers().filter(t =>
-      t.stageAssignments?.some(sa => stageIds.has(sa.stageId))
-    );
-  });
+  readonly filteredStages = computed(() => stagesForBlock(this.activeBlock(), this.stages()));
+  readonly filteredGroups = computed(() => groupsByBlock(this.activeBlock(), this.stages(), this.groups()));
+  readonly filteredTeachers = computed(() => teachersByBlock(this.activeBlock(), this.stages(), this.teachers()));
 
   readonly previewSubjects = PREVIEW_SUBJECTS.map((key, id) => ({ key, id }));
 

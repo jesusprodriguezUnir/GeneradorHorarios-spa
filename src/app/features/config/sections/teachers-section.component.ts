@@ -259,6 +259,7 @@ export class TeachersSectionComponent {
   toggleStage(stageId: string): void {
     const stage = this.stages().find(s => s.id === stageId);
     const blockId = stage ? this.getEtapaId(stage.stageType) : stageId;
+
     this.expandedStages.update(prev => {
       const next = new Set(prev);
       if (next.has(stageId) || next.has(blockId)) {

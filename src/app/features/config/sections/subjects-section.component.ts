@@ -6,9 +6,10 @@ import { TableModule } from 'primeng/table';
 import { InputText } from 'primeng/inputtext';
 import { SubjectsApiService } from '../../../core/api/subjects-api.service';
 import { SubjectAllocation, SchoolStage } from '../../../core/models';
-import { BLOCKS, EtapaBlock } from '../../../core/blocks.model';
+import { EtapaBlock } from '../../../core/blocks.model';
 import { BlockStateService } from '../../../core/block-state.service';
 import { LecIconComponent } from '../../../shared/ui/lec-icon.component';
+import { getEtapaId, getEtapaBlock } from '../../../core/block-filter.utils';
 
 @Component({
   selector: 'app-subjects-section',
@@ -67,7 +68,7 @@ export class SubjectsSectionComponent {
   // ── Accordion Helpers ────────────────────────────────────────────────────────
   toggleStage(stageId: string): void {
     const stage = this.stages().find(s => s.id === stageId);
-    const blockId = stage ? this.getEtapaId(stage.stageType) : stageId;
+    const blockId = stage ? getEtapaId(stage.stageType) : stageId;
 
     this.expandedStages.update(prev => {
       const next = new Set(prev);
@@ -83,21 +84,12 @@ export class SubjectsSectionComponent {
 
   isStageExpanded(stageId: string): boolean {
     const stage = this.stages().find(s => s.id === stageId);
-    const blockId = stage ? this.getEtapaId(stage.stageType) : stageId;
+    const blockId = stage ? getEtapaId(stage.stageType) : stageId;
     return this.expandedStages().has(stageId) || this.expandedStages().has(blockId);
   }
 
-  getEtapaId(stageType: string): string {
-    const type = stageType.toLowerCase();
-    if (type.includes('inf')) return 'inf';
-    if (type.includes('pri')) return 'pri';
-    if (type.includes('sec') || type.includes('eso')) return 'sec';
-    return type;
-  }
-
   getEtapaBlock(stageType: string): EtapaBlock | undefined {
-    const id = this.getEtapaId(stageType);
-    return BLOCKS.find(b => b.id === id);
+    return getEtapaBlock(stageType);
   }
 
   subjectsForStage(stageId: string): SubjectAllocation[] {
@@ -106,7 +98,7 @@ export class SubjectsSectionComponent {
     const filterCycle = this.cycleFilterFor(stageId);
     
     return this.subjects().filter(subj => {
-      let subjCycle: number | null = null;
+      let subjCycle: number;
       if (subj.courseLevel) {
         if (subj.courseLevel < stage.minLevel || subj.courseLevel > stage.maxLevel) return false;
         subjCycle = Math.ceil((subj.courseLevel - stage.minLevel + 1) / 2);
@@ -117,7 +109,7 @@ export class SubjectsSectionComponent {
       } else {
         return false;
       }
-      
+
       if (filterCycle !== null && subjCycle !== filterCycle) return false;
       return true;
     });

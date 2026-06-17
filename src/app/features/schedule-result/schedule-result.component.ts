@@ -12,6 +12,7 @@ import { ClassroomsApiService } from '../../core/api/classrooms-api.service';
 import { SchoolsApiService } from '../../core/api/schools-api.service';
 import { BlockStateService } from '../../core/block-state.service';
 import { ScheduleGrid, ScheduleGridEntry, ScheduleList, Teacher, CourseGroup, Classroom, TimeSlot, SchoolStage, cycleFromLevel } from '../../core/models';
+import { groupsByBlock, teachersByBlock } from '../../core/block-filter.utils';
 import { ScheduleGridComponent, CellClickEvent } from '../../shared/schedule-grid/schedule-grid.component';
 import { SubjectLegendComponent } from '../../shared/ui/subject-legend.component';
 import { QualityScorecardComponent } from '../../shared/ui/quality-scorecard.component';
@@ -252,11 +253,6 @@ type ViewMode = 'group' | 'teacher' | 'room';
     .badge--published { background: var(--success-tint); color: var(--success); }
     .badge--generated { background: var(--warning-tint); color: var(--warning-foreground); }
     .conflict-badge { font-size: var(--text-xs); font-weight: 700; padding: 3px 10px; border-radius: var(--radius-full); background: var(--destructive-tint); color: var(--destructive); }
-    .btn-primary { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--primary); color: #fff; border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm); cursor: pointer; }
-    .btn-primary:hover { background: var(--primary-strong); }
-    .btn-secondary { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--card); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--border-strong); border-radius: var(--radius-md); font-weight: 600; font-size: var(--text-sm); cursor: pointer; }
-    .btn-danger { color: var(--destructive); box-shadow: inset 0 0 0 1px var(--destructive); }
-    .btn-danger:hover { background: var(--destructive-tint); }
     .field-select { padding: 9px 12px; border: 1px solid var(--input); border-radius: var(--radius-md); font-size: var(--text-sm); font-family: var(--font-sans); background: var(--card); color: var(--foreground); }
     .spinner { width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--primary); animation: lec-spin 0.8s linear infinite; margin: 0 auto 16px; }
     
@@ -327,38 +323,13 @@ export class ScheduleResultComponent implements OnInit {
     this.schedules().find(s => s.id === this.selectedId())
   );
 
-  readonly filteredGroupsForSelect = computed(() => {
-    const ab = this.blockState.activeBlock();
-    if (ab === 'all') return this.groups();
-    const stagesForBlock = this.stages().filter(s => {
-      const type = s.stageType.toLowerCase();
-      if (ab === 'inf') return type.includes('inf');
-      if (ab === 'pri') return type.includes('pri');
-      if (ab === 'sec') return type.includes('sec') || type.includes('eso');
-      return false;
-    });
-    if (stagesForBlock.length === 0) return [];
-    return this.groups().filter(g =>
-      stagesForBlock.some(s => g.courseLevel >= s.minLevel && g.courseLevel <= s.maxLevel)
-    );
-  });
+  readonly filteredGroupsForSelect = computed(() =>
+    groupsByBlock(this.blockState.activeBlock(), this.stages(), this.groups())
+  );
 
-  readonly filteredTeachersForSelect = computed(() => {
-    const ab = this.blockState.activeBlock();
-    if (ab === 'all') return this.teachers();
-    const stagesForBlock = this.stages().filter(s => {
-      const type = s.stageType.toLowerCase();
-      if (ab === 'inf') return type.includes('inf');
-      if (ab === 'pri') return type.includes('pri');
-      if (ab === 'sec') return type.includes('sec') || type.includes('eso');
-      return false;
-    });
-    if (stagesForBlock.length === 0) return [];
-    const stageIds = new Set(stagesForBlock.map(s => s.id));
-    return this.teachers().filter(t =>
-      t.stageAssignments?.some(sa => stageIds.has(sa.stageId))
-    );
-  });
+  readonly filteredTeachersForSelect = computed(() =>
+    teachersByBlock(this.blockState.activeBlock(), this.stages(), this.teachers())
+  );
 
   constructor() {
     effect(() => {
