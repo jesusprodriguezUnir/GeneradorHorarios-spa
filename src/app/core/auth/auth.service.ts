@@ -2,7 +2,7 @@ import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { AppUser, AppUserRole } from '../models';
+import { AppUser, AppUserRole, ROLE_KIND } from '../models';
 import { BlockStateService } from '../block-state.service';
 import { environment } from '../../../environments/environment';
 
@@ -28,8 +28,8 @@ export class AuthService {
   readonly currentUser = this._currentUser.asReadonly();
   readonly currentEmail = this._currentEmail.asReadonly();
   readonly isLoggedIn = computed(() => this._currentUser() !== null);
-  readonly isAdmin = computed(() => this._currentUser()?.role?.kind === 'Admin');
-  readonly isTeacher = computed(() => this._currentUser()?.role?.kind === 'Teacher');
+  readonly isAdmin = computed(() => this._currentUser()?.role?.kind === ROLE_KIND.Admin);
+  readonly isTeacher = computed(() => this._currentUser()?.role?.kind === ROLE_KIND.Teacher);
   readonly schoolName = computed(() => this._currentUser()?.school?.name ?? '');
 
   get emailHeader(): string | null {
@@ -45,7 +45,7 @@ export class AuthService {
     await this.loadCurrentUser();
     const user = this._currentUser();
     if (user) {
-      const target = user.role.kind === 'Teacher' ? '/horario' : '/dashboard';
+      const target = user.role.kind === ROLE_KIND.Teacher ? '/horario' : '/dashboard';
       await this.router.navigate([target]);
     } else {
       throw new Error('No se pudo cargar el usuario tras el login.');

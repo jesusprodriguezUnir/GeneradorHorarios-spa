@@ -1,7 +1,7 @@
 import { Component, inject, signal, input, output, computed, effect, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SchoolsApiService } from '../../../core/api/schools-api.service';
-import { School, SchoolStage } from '../../../core/models';
+import { SCHEDULE_TYPE, School, SchoolStage } from '../../../core/models';
 import { COMMUNITIES, STAGES } from '../config.constants';
 import { LecIconComponent } from '../../../shared/ui/lec-icon.component';
 
@@ -78,7 +78,7 @@ export class SchoolSectionComponent {
   });
 
   readonly journeyLabel = computed(() =>
-    this.schoolForm.scheduleType === 'continua' ? 'Continua' : 'Partida'
+    this.schoolForm.scheduleType === SCHEDULE_TYPE.Continua ? 'Continua' : 'Partida'
   );
 
   readonly courseRange = computed(() => {
@@ -170,12 +170,12 @@ export class SchoolSectionComponent {
       academicYear: this.schoolForm.academicYear,
       scheduleType: this.schoolForm.scheduleType,
       morningStart: this.schoolForm.morningStart,
-      afternoonStart: this.schoolForm.scheduleType === 'partida' ? this.schoolForm.afternoonStart : '',
+      afternoonStart: this.schoolForm.scheduleType === SCHEDULE_TYPE.Partida ? this.schoolForm.afternoonStart : null,
       slotMinutes: this.schoolForm.slotMinutes,
       breakAfterSlot: this.schoolForm.breakAfterSlot,
       breakMinutes: this.schoolForm.breakMinutes,
       workingDays: this.schoolForm.workingDays,
-    } as any).catch(() => null);
+    }).catch(() => null);
 
     this.savingSchool.set(false);
     if (updated) {

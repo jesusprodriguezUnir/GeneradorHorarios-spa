@@ -14,6 +14,7 @@ import { MessageService, ConfirmationService } from 'primeng/api';
 
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
+import { errorInterceptor } from './core/http/error.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -23,8 +24,8 @@ export const appConfig: ApplicationConfig = {
     // Router con lazy loading selectivo
     provideRouter(routes, withPreloading(SelectivePreloadingStrategy)),
 
-    // HTTP con interceptor de auth
-    provideHttpClient(withInterceptors([authInterceptor])),
+    // HTTP con interceptores de auth y manejo global de errores
+    provideHttpClient(withInterceptors([authInterceptor, errorInterceptor])),
 
     // Animaciones asíncronas
     provideAnimationsAsync(),

@@ -4,28 +4,13 @@ import {
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { SchoolsApiService } from '../../../core/api/schools-api.service';
-import { School, TimeSlot } from '../../../core/models';
+import { SCHEDULE_TYPE, School } from '../../../core/models';
 import { LecIconComponent } from '../../../shared/ui/lec-icon.component';
 import { BlockStateService } from '../../../core/block-state.service';
 import { BLOCKS, EtapaBlockId } from '../../../core/blocks.model';
-
-export interface CycleRecreo {
-  after: number;
-  min: number;
-}
-
-export interface LocalCycleConfig {
-  id: string;
-  morningStart: string;
-  morningEnd: string;
-  afternoonStart: string | null;
-  afternoonEnd: string | null;
-  morningSlots: number;
-  afternoonSlots: number;
-  recreos: CycleRecreo[];
-  /** Slots calculados por el backend (computedSlots). Si existen, la timeline los usa. */
-  backendSlots?: TimeSlot[];
-}
+import {
+  LocalCycleConfig, buildEtapaCycles, cycleNumFromId, formatTime, parseTime,
+} from '../../../core/cycle-config.util';
 
 export interface DayBlock {
   type: 'lectiva' | 'recreo';
@@ -35,34 +20,7 @@ export interface DayBlock {
   min: number;
 }
 
-const STORAGE_PREFIX = 'lectivo-cycles-';
 const RECREO_OPTIONS = [15, 20, 30];
-
-function parseTime(t: string): number {
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
-}
-
-function formatTime(mins: number): string {
-  return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
-}
-
-function etapaKey(id: EtapaBlockId): string {
-  return `${STORAGE_PREFIX}${id}-v2`;
-}
-
-function cycleNumFromId(cycleId: string): number | null {
-  // Primaria
-  if (cycleId === 'pri1') return 1;
-  if (cycleId === 'pri2') return 2;
-  if (cycleId === 'pri3') return 3;
-  // Secundaria (ESO)
-  if (cycleId === 'eso1') return 1;
-  if (cycleId === 'eso2') return 2;
-  // Infantil
-  if (cycleId === 'inf2') return 2; // 2.º ciclo
-  return null;
-}
 
 type CyclesByEtapa = Record<EtapaBlockId, LocalCycleConfig[]>;
 
@@ -95,7 +53,7 @@ export class CiclosSectionComponent {
   readonly savedKey = signal<string | null>(null);
   readonly error = signal<{ key: string; message: string } | null>(null);
 
-  readonly isPartida = computed(() => this.school()?.scheduleType === 'partida');
+  readonly isPartida = computed(() => this.school()?.scheduleType === SCHEDULE_TYPE.Partida);
 
   constructor() {
     effect(() => {
@@ -161,86 +119,10 @@ export class CiclosSectionComponent {
 
   private initAllCycles(s: School): void {
     this.cyclesByEtapa.set({
-      inf: this.loadEtapaCycles('inf', s),
-      pri: this.loadEtapaCycles('pri', s),
-      sec: this.loadEtapaCycles('sec', s),
+      inf: buildEtapaCycles('inf', s),
+      pri: buildEtapaCycles('pri', s),
+      sec: buildEtapaCycles('sec', s),
     });
-  }
-
-  private loadEtapaCycles(etapaId: EtapaBlockId, s: School): LocalCycleConfig[] {
-    const etapa = BLOCKS.find(b => b.id === etapaId)!;
-
-    try {
-      const raw = localStorage.getItem(etapaKey(etapaId));
-      if (raw) {
-        const stored = JSON.parse(raw) as LocalCycleConfig[];
-        if (stored.length === etapa.ciclos.length) return stored;
-      }
-    } catch { /* fall through */ }
-
-    return this.buildDefaults(etapaId, s);
-  }
-
-  private buildDefaults(etapaId: EtapaBlockId, s: School): LocalCycleConfig[] {
-    const etapa = BLOCKS.find(b => b.id === etapaId)!;
-    const partida = s.scheduleType === 'partida';
-    const slotMin = s.slotMinutes;
-
-    const defaults = etapa.ciclos.map((ciclo) => {
-      const num = cycleNumFromId(ciclo.id);
-      const backendCycle = num !== null ? s.cycles?.find(c => c.cycle === num) : undefined;
-
-      const morningStart = backendCycle?.morningStart ?? etapa.jornada.entrada;
-
-      const morningSlots = backendCycle?.morningSlots
-        ?? s.slotsPerDay
-        ?? etapa.jornada.slots;
-      const afternoonSlots = partida
-        ? (backendCycle?.afternoonSlots ?? s.afternoonSlots ?? 0)
-        : 0;
-
-      const backendRecreos: CycleRecreo[] = (backendCycle?.breaks ?? [])
-        .map(b => ({ after: b.afterSlot, min: b.minutes }));
-
-      const fallbackRecreos: CycleRecreo[] = etapaId === 'inf'
-        ? [{ after: 2, min: 20 }]
-        : etapa.ciclos.indexOf(ciclo) === 0
-          ? [{ after: 2, min: 30 }]
-          : [{ after: 3, min: 20 }];
-
-      const recreos = backendRecreos.length > 0 ? backendRecreos : fallbackRecreos;
-
-      let morningEnd = this.computeEndRaw(morningStart, morningSlots, recreos, slotMin);
-      if (backendCycle) {
-        morningEnd = backendCycle.morningEnd ?? morningEnd;
-      }
-
-      let afternoonStart: string | null = null;
-      let afternoonEnd: string | null = null;
-      if (partida) {
-        afternoonStart = backendCycle?.afternoonStart ?? s.afternoonStart ?? '15:00';
-        afternoonEnd = backendCycle?.afternoonEnd ?? this.computeEndRaw(afternoonStart, afternoonSlots, [], slotMin);
-      }
-
-      return {
-        id: ciclo.id,
-        morningStart,
-        morningEnd,
-        afternoonStart,
-        afternoonEnd,
-        morningSlots,
-        afternoonSlots,
-        recreos,
-        backendSlots: backendCycle?.computedSlots,
-      };
-    });
-
-    this.saveEtapa(etapaId, defaults);
-    return defaults;
-  }
-
-  private saveEtapa(etapaId: EtapaBlockId, cycles: LocalCycleConfig[]): void {
-    try { localStorage.setItem(etapaKey(etapaId), JSON.stringify(cycles)); } catch { /* ignore */ }
   }
 
   // ── Mutations ────────────────────────────────────────────────────────────────
@@ -254,11 +136,10 @@ export class CiclosSectionComponent {
     if (this.error()?.key === key) {
       this.error.set(null);
     }
-    this.cyclesByEtapa.update(all => {
-      const updated = all[etapaId].map(c => c.id === cycleId ? fn(c) : c);
-      this.saveEtapa(etapaId, updated);
-      return { ...all, [etapaId]: updated };
-    });
+    this.cyclesByEtapa.update(all => ({
+      ...all,
+      [etapaId]: all[etapaId].map(c => c.id === cycleId ? fn(c) : c),
+    }));
   }
 
   setMorningStart(etapaId: EtapaBlockId, cycleId: string, value: string): void {
@@ -353,7 +234,7 @@ export class CiclosSectionComponent {
     this.error.set(null);
 
     const validationMsg = 'Corrige los horarios. La salida debe ser posterior a la entrada'
-      + (school.scheduleType === 'partida' ? ' y el turno de tarde debe empezar después del de mañana' : '')
+      + (school.scheduleType === SCHEDULE_TYPE.Partida ? ' y el turno de tarde debe empezar después del de mañana' : '')
       + '.';
 
     if (parseTime(localCycle.morningEnd) <= parseTime(localCycle.morningStart)) {
@@ -361,7 +242,7 @@ export class CiclosSectionComponent {
       this.savingKey.set(null);
       return;
     }
-    if (school.scheduleType === 'partida') {
+    if (school.scheduleType === SCHEDULE_TYPE.Partida) {
       if (!localCycle.afternoonStart || !localCycle.afternoonEnd) {
         this.error.set({ key, message: validationMsg });
         this.savingKey.set(null);
@@ -390,13 +271,12 @@ export class CiclosSectionComponent {
           breaks: localCycle.recreos.map(r => ({ afterSlot: r.after, minutes: r.min })),
         });
         // Actualizar slots del backend en el estado local para reflejar la timeline real
-        this.cyclesByEtapa.update(all => {
-          const updatedLocal = all[etapaId].map(c =>
+        this.cyclesByEtapa.update(all => ({
+          ...all,
+          [etapaId]: all[etapaId].map(c =>
             c.id === cycleId ? { ...c, backendSlots: updated.computedSlots } : c
-          );
-          this.saveEtapa(etapaId, updatedLocal);
-          return { ...all, [etapaId]: updatedLocal };
-        });
+          ),
+        }));
 
         const current = this.school();
         if (current) {
@@ -444,16 +324,6 @@ export class CiclosSectionComponent {
   }
 
   // ── Day plan ─────────────────────────────────────────────────────────────────
-
-  private computeEndRaw(start: string, slots: number, recreos: CycleRecreo[], slotMin: number): string {
-    let mins = parseTime(start);
-    const rMap = new Map(recreos.map(r => [r.after, r.min]));
-    for (let i = 1; i <= slots; i++) {
-      mins += slotMin;
-      if (rMap.has(i)) mins += rMap.get(i)!;
-    }
-    return formatTime(mins);
-  }
 
   /** Convierte los computedSlots del backend en bloques visuales separados por turno. */
   private blocksFromBackend(cycle: LocalCycleConfig): { morning: DayBlock[]; afternoon: DayBlock[] } | null {

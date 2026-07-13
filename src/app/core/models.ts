@@ -1,5 +1,20 @@
 // ── Modelos de dominio compartidos ────────────────────────────────────────────
 
+/** Tipos de rol de usuario (coincide con RoleKind del backend). */
+export const ROLE_KIND = {
+  Admin: 'Admin',
+  Teacher: 'Teacher',
+  Other: 'Other',
+} as const;
+export type RoleKind = (typeof ROLE_KIND)[keyof typeof ROLE_KIND];
+
+/** Tipos de jornada escolar. */
+export const SCHEDULE_TYPE = {
+  Continua: 'continua',
+  Partida: 'partida',
+} as const;
+export type ScheduleType = (typeof SCHEDULE_TYPE)[keyof typeof SCHEDULE_TYPE];
+
 export interface CycleBreak {
   afterSlot: number;
   minutes: number;
@@ -37,7 +52,7 @@ export interface School {
   maxCourseLevel: number;
   academicYear: string;
   // Jornada
-  scheduleType: 'continua' | 'partida';
+  scheduleType: ScheduleType;
   morningStart: string;
   afternoonStart: string | null;
   slotMinutes: number;
@@ -65,7 +80,7 @@ export interface AppUserRole {
   id: string;
   code: string;
   name: string;
-  kind: 'Admin' | 'Teacher' | 'Other';
+  kind: RoleKind;
 }
 
 export interface AppUser {
@@ -127,6 +142,8 @@ export interface CourseGroup {
   tutorName: string | null;
   homeClassroomId: string | null;
   subjectHours?: Record<string, number>;
+  /** Color visual del grupo. El backend aún no lo persiste; si falta, se deriva de la etapa. */
+  colorKey?: string;
 }
 
 export interface Classroom {

@@ -13,6 +13,7 @@ import { TEACHER_TYPES } from '../config.constants';
 import { BLOCKS, EtapaBlock } from '../../../core/blocks.model';
 import { BlockStateService } from '../../../core/block-state.service';
 import { LecIconComponent } from '../../../shared/ui/lec-icon.component';
+import { apiErrorMessage } from '../../../core/http/http-error.util';
 
 @Component({
   selector: 'app-teachers-section',
@@ -463,11 +464,9 @@ export class TeachersSectionComponent {
       if (form.assignments.length > 0 || editing) {
         try {
           await this.api.updateTeacherAssignments(savedTeacher.id, form.assignments);
-        } catch (err: any) {
-          const detail =
-            err?.error?.message ||
-            err?.message ||
-            'El profesor se guardó, pero la distribución horaria no pudo persistirse. Revisa que los grupos y asignaturas sean válidos.';
+        } catch (err: unknown) {
+          const detail = apiErrorMessage(err,
+            'El profesor se guardó, pero la distribución horaria no pudo persistirse. Revisa que los grupos y asignaturas sean válidos.');
           this.msg.add({ severity: 'warn', summary: 'Datos básicos guardados', detail });
         }
       }
@@ -475,8 +474,8 @@ export class TeachersSectionComponent {
       const updatedTeachers = await this.api.getTeachers();
       this.teachersChange.emit(updatedTeachers);
       this.isTeacherModalOpen.set(false);
-    } catch (err: any) {
-      const detail = err?.error?.message || err?.message || 'No se pudo guardar el profesor. Por favor, comprueba los datos.';
+    } catch (err: unknown) {
+      const detail = apiErrorMessage(err, 'No se pudo guardar el profesor. Por favor, comprueba los datos.');
       this.msg.add({ severity: 'error', summary: 'Error al guardar', detail });
     }
   }

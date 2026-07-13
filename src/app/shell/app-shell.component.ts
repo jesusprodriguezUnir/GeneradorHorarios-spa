@@ -9,6 +9,7 @@ import { PeriodSelectorComponent } from '../shared/ui/period-selector.component'
 import { BloqueSwitcherComponent } from '../shared/ui/bloque-switcher.component';
 import { PeriodStateService } from '../core/period-state.service';
 import { BlockStateService } from '../core/block-state.service';
+import { ROLE_KIND } from '../core/models';
 // roleLabel se lee directamente desde user.role.name
 
 interface NavItem {
@@ -218,7 +219,7 @@ export class AppShellComponent implements OnInit {
 
   readonly userName = computed(() => {
     const u = this.auth.currentUser();
-    return u?.teacher?.fullName ?? (u?.role?.kind === 'Admin' ? 'Director/a' : 'Usuario');
+    return u?.teacher?.fullName ?? (u?.role?.kind === ROLE_KIND.Admin ? 'Director/a' : 'Usuario');
   });
 
   readonly userInitials = computed(() =>

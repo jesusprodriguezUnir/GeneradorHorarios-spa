@@ -191,7 +191,7 @@ export class GroupsSectionComponent {
   }
 
   getGroupPal(g: CourseGroup): { bg: string; fg: string; dot: string } {
-    const key = (g as any).colorKey as string
+    const key = g.colorKey
       || this.defaultColorForStage(this.stages().find(s => s.id === g.stageId)?.stageType ?? '');
     return GROUP_PALETTE.find(p => p.key === key) ?? GROUP_PALETTE[0];
   }
@@ -373,7 +373,7 @@ export class GroupsSectionComponent {
       groupLabel: g.groupLabel,
       stageId: g.stageId ?? '',
       courseLevel: g.courseLevel,
-      colorKey: (g as any).colorKey ?? this.defaultColorForStage(stage?.stageType ?? ''),
+      colorKey: g.colorKey ?? this.defaultColorForStage(stage?.stageType ?? ''),
       studentCount: g.studentCount,
       tutorId: g.tutorId ?? '',
       homeClassroomId: g.homeClassroomId ?? '',
@@ -436,7 +436,7 @@ export class GroupsSectionComponent {
       tutorId: form.tutorId || null,
       homeClassroomId: form.homeClassroomId || null,
       subjectHours: form.subjectHours,
-      ...(form.colorKey ? { colorKey: form.colorKey } as any : {}),
+      ...(form.colorKey ? { colorKey: form.colorKey } : {}),
     };
     try {
       if (editing) {

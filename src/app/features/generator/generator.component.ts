@@ -16,7 +16,7 @@ import { ConstraintsApiService } from '../../core/api/constraints-api.service';
 import { SchedulesApiService } from '../../core/api/schedules-api.service';
 import { GenerationHubService } from '../../core/realtime/generation-hub.service';
 import {
-  TeacherConstraint, Teacher, CourseGroup, School, SubjectAllocation, Classroom, TimeSlot,
+  TeacherConstraint, Teacher, CourseGroup, School, SubjectAllocation, Classroom, TimeSlot, ScheduleType,
 } from '../../core/models';
 import { MessageService } from 'primeng/api';
 import { AuthService } from '../../core/auth/auth.service';
@@ -291,6 +291,7 @@ export class GeneratorComponent implements OnInit {
   });
 
   private lastScheduleId = '';
+  private destroyed = false;
 
   // Configuración del paso 1
   scheduleType = 'continua';
@@ -308,6 +309,11 @@ export class GeneratorComponent implements OnInit {
   ];
 
   async ngOnInit(): Promise<void> {
+    // Cleanup automático al destruir: corta el polling y cierra SignalR
+    this.destroyRef.onDestroy(() => {
+      this.destroyed = true;
+      this.hubService.stop().catch(() => {});
+    });
     try {
       const [teachers, groups, subjects, classrooms, school, summaries, constraints] = await Promise.all([
         this.teachersApi.getTeachers().catch(() => []),
@@ -334,10 +340,6 @@ export class GeneratorComponent implements OnInit {
       this.assignments.set(this.buildAssignmentMap(subjects, groups, summaries));
       this.seedConstraints(constraints);
 
-      // Setup SignalR via GenerationHubService and cleanup automatically on destroy
-      this.destroyRef.onDestroy(() => {
-        this.hubService.stop().catch(() => {});
-      });
       const user = this.auth.currentUser();
       if (user?.schoolId) {
         this.hubService.start(user.schoolId).catch(() => {});
@@ -380,7 +382,7 @@ export class GeneratorComponent implements OnInit {
   async generate(): Promise<void> {
     try {
       const schoolConfig: Partial<School> = {
-        scheduleType: this.scheduleType as 'continua' | 'partida',
+        scheduleType: this.scheduleType as ScheduleType,
         morningStart: this.morningStart,
         slotMinutes: Number(this.slotMinutes),
         breakAfterSlot: Number(this.breakAfterSlot),
@@ -403,6 +405,8 @@ export class GeneratorComponent implements OnInit {
       this.lastScheduleId = (await this.pollForNewSchedule()) ?? this.lastScheduleId;
     }
 
+    if (this.destroyed) return;
+
     if (this.lastScheduleId) {
       this.router.navigate(['/horarios', this.lastScheduleId]);
     } else {
@@ -411,7 +415,7 @@ export class GeneratorComponent implements OnInit {
   }
 
   private async pollForNewSchedule(maxAttempts = 60, intervalMs = 500): Promise<string | null> {
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    for (let attempt = 0; attempt < maxAttempts && !this.destroyed; attempt++) {
       try {
         const schedules = await this.schedulesApi.getSchedules();
         const match = schedules

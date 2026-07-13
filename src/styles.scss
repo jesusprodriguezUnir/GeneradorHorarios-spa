@@ -4,7 +4,7 @@
  * Paleta: índigo profundo + coral cálido, Geist, OKLCH
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap');
+// La fuente Geist se carga desde index.html vía <link> para no bloquear el primer render.
 
 // ── Tokens de color (modo claro) ──────────────────────────────────────────────
 :root {

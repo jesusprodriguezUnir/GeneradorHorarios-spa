@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { BlockId, EtapaBlockId } from './blocks.model';
-import { AppUserRole } from './models';
+import { AppUserRole, ROLE_KIND } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class BlockStateService {
@@ -15,9 +15,9 @@ export class BlockStateService {
   }
 
   initializeForUser(role: AppUserRole, assignedStageTypes?: string[]): void {
-    if (role.kind === 'Admin') {
+    if (role.kind === ROLE_KIND.Admin) {
       this.setActiveBlock('all');
-    } else if (role.kind === 'Teacher') {
+    } else if (role.kind === ROLE_KIND.Teacher) {
       const allowedBlocks = (assignedStageTypes ?? [])
         .map(t => {
           if (t === 'infantil') return 'inf' as EtapaBlockId;

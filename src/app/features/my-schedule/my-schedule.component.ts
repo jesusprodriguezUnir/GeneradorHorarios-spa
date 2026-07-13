@@ -10,6 +10,7 @@ import { SubjectLegendComponent } from '../../shared/ui/subject-legend.component
 import { PeriodSelectorComponent } from '../../shared/ui/period-selector.component';
 import { PeriodStateService } from '../../core/period-state.service';
 import { COURSE_PERIODS, PeriodId } from '../../core/periods.model';
+import { httpStatus } from '../../core/http/http-error.util';
 
 @Component({
   selector: 'app-my-schedule',
@@ -254,8 +255,8 @@ export class MyScheduleComponent implements OnInit {
     try {
       const schedule = await this.api.getMySchedule();
       this.schedule.set(schedule);
-    } catch (err: any) {
-      if (err?.status === 404) {
+    } catch (err: unknown) {
+      if (httpStatus(err) === 404) {
         this.notPublished.set(true);
       } else {
         this.toast.add({ severity: 'error', summary: 'Error de carga', detail: 'No se pudo obtener tu horario.' });
